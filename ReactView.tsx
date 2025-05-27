@@ -78,9 +78,12 @@ export const ReactView = ({ app }: ReactViewProps) => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragFileCount, setDragFileCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -188,21 +191,239 @@ export const ReactView = ({ app }: ReactViewProps) => {
     }
   };
 
-  const handleAddContext = () => {
-    const modal = new FilePickerModal(app, (file: TFile) => {
-      // Check if file is already added
-      if (contextFiles.some(cf => cf.file.path === file.path)) {
+  // Set up drag and drop event listeners for better Obsidian integration
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer) return;
+
+    const handleNativeDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(true);
+    };
+
+    const handleNativeDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Check if we're really leaving the container
+      if (!chatContainer.contains(e.relatedTarget as Node)) {
+        setIsDragOver(false);
+        setDragFileCount(0);
+      }
+    };
+
+    const handleNativeDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      setDragFileCount(0);
+
+      console.log('Drop event triggered');
+      console.log('DataTransfer types:', e.dataTransfer?.types);
+
+      // Log all available data types for debugging
+      if (e.dataTransfer?.types) {
+        e.dataTransfer.types.forEach(type => {
+          const data = e.dataTransfer?.getData(type);
+          console.log(`Data type "${type}":`, data);
+        });
+      }
+
+      // Handle Obsidian's native file drag data
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        console.log('Found files in dataTransfer:', files);
+        Array.from(files).forEach(file => {
+          console.log('Processing file:', file.name);
+          if (file.name.endsWith('.md')) {
+            const tfile = app.vault.getAbstractFileByPath(file.name) as TFile;
+            if (tfile) {
+              console.log('Adding file via files array:', tfile.path);
+              addContextFile(tfile);
+            } else {
+              console.log('Could not find TFile for:', file.name);
+            }
+          }
+        });
         return;
       }
-      
-      const contextFile: ContextFile = {
-        id: generateId(),
-        file: file,
-        displayName: file.basename
-      };
-      
-      setContextFiles(prev => [...prev, contextFile]);
-    });
+
+      // Try different data transfer formats
+      const dataTypes = ['text/plain', 'text/uri-list', 'application/json', 'text/html'];
+      let fileAdded = false;
+
+      for (const type of dataTypes) {
+        const data = e.dataTransfer?.getData(type);
+        if (data) {
+          console.log(`Trying to process data from type "${type}":`, data);
+          
+          // Try to find file by exact path
+          let file = app.vault.getAbstractFileByPath(data) as TFile;
+          if (file && file.extension === 'md') {
+            console.log('Found file by exact path:', file.path);
+            addContextFile(file);
+            fileAdded = true;
+            break;
+          }
+
+          // Try with different path variations
+          const pathVariations = [
+            data,
+            data.replace(/^\/+/, ''), // Remove leading slashes
+            data.replace(/\\/g, '/'), // Convert backslashes to forward slashes
+            data + '.md', // Add .md extension
+            data.replace(/\.md$/, '') + '.md' // Ensure .md extension
+          ];
+
+          for (const path of pathVariations) {
+            file = app.vault.getAbstractFileByPath(path) as TFile;
+            if (file && file.extension === 'md') {
+              console.log('Found file by path variation:', file.path);
+              addContextFile(file);
+              fileAdded = true;
+              break;
+            }
+          }
+
+          if (fileAdded) break;
+
+          // Try to find by basename
+          const allFiles = app.vault.getMarkdownFiles();
+          const foundFile = allFiles.find(f => 
+            f.basename === data || 
+            f.name === data ||
+            f.path.endsWith('/' + data) ||
+            f.path.endsWith('\\' + data) ||
+            data.includes(f.basename)
+          );
+          
+          if (foundFile) {
+            console.log('Found file by basename search:', foundFile.path);
+            addContextFile(foundFile);
+            fileAdded = true;
+            break;
+          }
+        }
+      }
+
+      if (!fileAdded) {
+        console.log('No files could be resolved from drop data');
+        // Try to access Obsidian's internal drag state
+        try {
+          const workspace = app.workspace as any;
+          
+          // Try multiple ways to access dragged files
+          const possiblePaths = [
+            'dragManager.draggedFiles',
+            'dragManager.dragging',
+            'dragManager.currentDrag',
+            'fileManager.draggedFiles',
+            'vault.draggedFiles'
+          ];
+          
+          for (const path of possiblePaths) {
+            const parts = path.split('.');
+            let obj = workspace;
+            for (const part of parts) {
+              obj = obj?.[part];
+            }
+            
+            if (obj) {
+              console.log(`Found data at ${path}:`, obj);
+              if (Array.isArray(obj)) {
+                obj.forEach((file: any) => {
+                  if (file && file.extension === 'md') {
+                    console.log('Adding file from', path, ':', file.path);
+                    addContextFile(file);
+                    fileAdded = true;
+                  }
+                });
+              } else if (obj.extension === 'md') {
+                console.log('Adding single file from', path, ':', obj.path);
+                addContextFile(obj);
+                fileAdded = true;
+              }
+            }
+          }
+          
+          // Also try to get the currently selected files from file explorer
+          const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
+          if (fileExplorer && fileExplorer.view && !fileAdded) {
+            const view = fileExplorer.view as any;
+            console.log('File explorer view:', view);
+            
+            // Try to get selected files
+            if (view.tree && view.tree.selectedDoms) {
+              console.log('Found selectedDoms:', view.tree.selectedDoms);
+              view.tree.selectedDoms.forEach((dom: any) => {
+                if (dom.file && dom.file.extension === 'md') {
+                  console.log('Adding file from selectedDoms:', dom.file.path);
+                  addContextFile(dom.file);
+                  fileAdded = true;
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.log('Could not access internal drag state:', error);
+        }
+      }
+
+      if (!fileAdded) {
+        console.log('No markdown files could be added from drop operation');
+        
+        // Final fallback: try to parse any text data as a file path
+        const allDataTypes = Array.from(e.dataTransfer?.types || []);
+        console.log('All available data types:', allDataTypes);
+        
+        for (const type of allDataTypes) {
+          try {
+            const data = e.dataTransfer?.getData(type);
+            if (data && typeof data === 'string') {
+              console.log(`Final attempt with type "${type}":`, data);
+              
+              // Try to find any markdown file that matches
+              const allFiles = app.vault.getMarkdownFiles();
+              const matchingFile = allFiles.find(file => {
+                return data.includes(file.basename) || 
+                       data.includes(file.name) || 
+                       data.includes(file.path) ||
+                       file.path.includes(data) ||
+                       file.basename.includes(data);
+              });
+              
+              if (matchingFile) {
+                console.log('Found matching file in final attempt:', matchingFile.path);
+                addContextFile(matchingFile);
+                fileAdded = true;
+                break;
+              }
+            }
+          } catch (error) {
+            console.log(`Error processing type "${type}":`, error);
+          }
+        }
+        
+        if (!fileAdded) {
+          console.log('All file resolution attempts failed');
+        }
+      }
+    };
+
+    // Add native event listeners for better compatibility
+    chatContainer.addEventListener('dragover', handleNativeDragOver);
+    chatContainer.addEventListener('dragleave', handleNativeDragLeave);
+    chatContainer.addEventListener('drop', handleNativeDrop);
+
+    return () => {
+      chatContainer.removeEventListener('dragover', handleNativeDragOver);
+      chatContainer.removeEventListener('dragleave', handleNativeDragLeave);
+      chatContainer.removeEventListener('drop', handleNativeDrop);
+    };
+  }, [app]);
+
+  const handleAddContext = () => {
+    const modal = new FilePickerModal(app, addContextFile);
     modal.open();
   };
 
@@ -210,15 +431,73 @@ export const ReactView = ({ app }: ReactViewProps) => {
     setContextFiles(prev => prev.filter(cf => cf.id !== fileId));
   };
 
+  const addContextFile = (file: TFile) => {
+    // Check if file is already added
+    if (contextFiles.some(cf => cf.file.path === file.path)) {
+      return;
+    }
+    
+    const contextFile: ContextFile = {
+      id: generateId(),
+      file: file,
+      displayName: file.basename
+    };
+    
+    setContextFiles(prev => [...prev, contextFile]);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+    
+    // Try to count markdown files being dragged
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const mdFiles = Array.from(files).filter(file => file.name.endsWith('.md'));
+      setDragFileCount(mdFiles.length);
+    } else {
+      setDragFileCount(1); // Default to 1 if we can't determine
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set isDragOver to false if we're leaving the chat container entirely
+    if (chatContainerRef.current && !chatContainerRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+      setDragFileCount(0);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    setDragFileCount(0);
+
+    console.log('React drop event triggered');
+    // Let the native handler take care of this
+    // This prevents duplicate handling
+  };
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      backgroundColor: '#1e1e1e',
-      color: '#ffffff',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+    <div 
+      ref={chatContainerRef}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        backgroundColor: '#1e1e1e',
+        color: '#ffffff',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        position: 'relative'
+      }}
+    >
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -609,6 +888,39 @@ export const ReactView = ({ app }: ReactViewProps) => {
         onChange={handleFileChange}
         multiple
       />
+
+      {/* Drag overlay */}
+      {isDragOver && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 102, 204, 0.1)',
+          border: '2px dashed #0066cc',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          pointerEvents: 'none'
+        }}>
+                     <div style={{
+             backgroundColor: 'rgba(0, 102, 204, 0.9)',
+             color: '#fff',
+             padding: '20px 40px',
+             borderRadius: '12px',
+             fontSize: '18px',
+             fontWeight: '600',
+             textAlign: 'center',
+             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+           }}>
+             <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
+             Drop {dragFileCount > 1 ? `${dragFileCount} files` : 'file'} here to add as context
+           </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -18,8 +18,13 @@ This sample plugin demonstrates some of the basic functionality the plugin API c
 The plugin now includes a modern chat interface with the following features:
 
 ### Context File Selection
-- Click the "🔗 Add Context" button to open Obsidian's native file picker
-- Search and select markdown files from your vault using fuzzy search
+- **Button Method**: Click the "🔗 Add Context" button to open Obsidian's native file picker
+  - Search and select markdown files from your vault using fuzzy search
+  - Navigate with arrow keys and select with Enter
+- **Drag & Drop Method**: Drag files directly from Obsidian's file explorer into the chat area
+  - Visual feedback with blue overlay when dragging files over the chat
+  - Supports multiple file selection and dropping
+  - Only accepts markdown (.md) files
 - Selected files appear as tags below the input area
 - Remove files by clicking the × button on each tag
 - Context files are automatically included in your messages to provide relevant information
