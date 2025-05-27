@@ -24,7 +24,7 @@ export class ExampleView extends ItemView {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
 			<StrictMode>
-				<ReactView />
+				<ReactView app={this.app} />
 			</StrictMode>
 		);
 	}

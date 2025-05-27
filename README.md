@@ -11,6 +11,28 @@ This sample plugin demonstrates some of the basic functionality the plugin API c
 - Adds a plugin setting tab to the settings page.
 - Registers a global click event and output 'click' to the console.
 - Registers a global interval which logs 'setInterval' to the console.
+- **NEW**: Includes a React-based chat interface with context file selection functionality.
+
+## Chat Interface Features
+
+The plugin now includes a modern chat interface with the following features:
+
+### Context File Selection
+- Click the "🔗 Add Context" button to open Obsidian's native file picker
+- Search and select markdown files from your vault using fuzzy search
+- Selected files appear as tags below the input area
+- Remove files by clicking the × button on each tag
+- Context files are automatically included in your messages to provide relevant information
+
+### Chat Modes
+- **Ask Mode**: For general questions and inquiries
+- **Agent Mode**: For task execution and automation
+
+### Additional Features
+- Multiple AI model selection (Claude, GPT, Gemini)
+- Chat history management
+- File upload support
+- Responsive dark theme UI
 
 ## First time developing plugins?
 

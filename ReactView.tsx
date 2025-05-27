@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { FuzzySuggestModal, TFile, App } from 'obsidian';
 
 interface Message {
   id: string;
@@ -14,6 +15,46 @@ interface ChatHistory {
   timestamp: Date;
 }
 
+interface ContextFile {
+  id: string;
+  file: TFile;
+  displayName: string;
+}
+
+// File picker modal using Obsidian's native FuzzySuggestModal
+class FilePickerModal extends FuzzySuggestModal<TFile> {
+  private onChooseFile: (file: TFile) => void;
+
+  constructor(app: App, onChooseFile: (file: TFile) => void) {
+    super(app);
+    this.onChooseFile = onChooseFile;
+    this.setPlaceholder('Type to search for files...');
+    this.setInstructions([
+      { command: '↑↓', purpose: 'to navigate' },
+      { command: '↵', purpose: 'to select' },
+      { command: 'esc', purpose: 'to dismiss' }
+    ]);
+  }
+
+  getItems(): TFile[] {
+    return this.app.vault.getMarkdownFiles();
+  }
+
+  getItemText(file: TFile): string {
+    return file.path;
+  }
+
+  onChooseItem(file: TFile, evt: MouseEvent | KeyboardEvent): void {
+    this.onChooseFile(file);
+  }
+
+  renderSuggestion(value: any, el: HTMLElement): void {
+    const file = value.item || value;
+    el.createEl('div', { text: file.basename, cls: 'suggestion-title' });
+    el.createEl('small', { text: file.path, cls: 'suggestion-note' });
+  }
+}
+
 const AI_MODELS = [
   'Claude 3.5 Sonnet',
   'Claude 3 Opus',
@@ -23,7 +64,11 @@ const AI_MODELS = [
   'Gemini Pro'
 ];
 
-export const ReactView = () => {
+interface ReactViewProps {
+  app: App;
+}
+
+export const ReactView = ({ app }: ReactViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
@@ -32,6 +77,7 @@ export const ReactView = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,10 +95,18 @@ export const ReactView = () => {
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
 
+    let messageContent = inputText.trim();
+    
+    // Add context files information if any are selected
+    if (contextFiles.length > 0) {
+      const contextInfo = contextFiles.map(cf => `[[${cf.file.path}]]`).join(' ');
+      messageContent += `\n\nContext files: ${contextInfo}`;
+    }
+
     const userMessage: Message = {
       id: generateId(),
       type: 'user',
-      content: inputText.trim(),
+      content: messageContent,
       timestamp: new Date()
     };
 
@@ -62,9 +116,14 @@ export const ReactView = () => {
 
     // Simulate AI response
     setTimeout(() => {
-      const responseContent = chatMode === 'Ask' 
+      let responseContent = chatMode === 'Ask' 
         ? `This is a simulated response from ${selectedModel} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`
         : `This is a simulated response from ${selectedModel} in Agent mode. In a real implementation, the agent would execute tasks and provide updates on the progress.`;
+      
+      // Acknowledge context files if any were provided
+      if (contextFiles.length > 0) {
+        responseContent += `\n\nI can see you've provided ${contextFiles.length} context file${contextFiles.length > 1 ? 's' : ''}: ${contextFiles.map(cf => cf.displayName).join(', ')}. In a real implementation, I would analyze the content of these files to provide more relevant responses.`;
+      }
       
       const assistantMessage: Message = {
         id: generateId(),
@@ -91,12 +150,14 @@ export const ReactView = () => {
     }
     
     setMessages([]);
+    setContextFiles([]);
     setCurrentChatId(generateId());
   };
 
   const loadChatFromHistory = (chat: ChatHistory) => {
     setMessages(chat.messages);
     setCurrentChatId(chat.id);
+    setContextFiles([]);
     setShowHistory(false);
   };
 
@@ -128,14 +189,25 @@ export const ReactView = () => {
   };
 
   const handleAddContext = () => {
-    // In a real implementation, this would open a file picker or link dialog
-    const contextMessage: Message = {
-      id: generateId(),
-      type: 'user',
-      content: '🔗 Added context: [Linked files or notes would appear here]',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, contextMessage]);
+    const modal = new FilePickerModal(app, (file: TFile) => {
+      // Check if file is already added
+      if (contextFiles.some(cf => cf.file.path === file.path)) {
+        return;
+      }
+      
+      const contextFile: ContextFile = {
+        id: generateId(),
+        file: file,
+        displayName: file.basename
+      };
+      
+      setContextFiles(prev => [...prev, contextFile]);
+    });
+    modal.open();
+  };
+
+  const removeContextFile = (fileId: string) => {
+    setContextFiles(prev => prev.filter(cf => cf.id !== fileId));
   };
 
   return (
@@ -366,6 +438,83 @@ export const ReactView = () => {
             ))}
           </select>
         </div>
+
+        {/* Context Files Tags */}
+        {contextFiles.length > 0 && (
+          <div style={{
+            marginBottom: '12px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px',
+            alignItems: 'center'
+          }}>
+            <span style={{
+              fontSize: '12px',
+              color: '#888',
+              fontWeight: '500',
+              marginRight: '4px'
+            }}>
+              Context:
+            </span>
+            {contextFiles.map(contextFile => (
+              <div
+                key={contextFile.id}
+                title={contextFile.file.path}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: '#4a4a4a',
+                  borderRadius: '12px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  color: '#fff',
+                  gap: '4px',
+                  border: '1px solid #555',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#555';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4a4a4a';
+                }}
+              >
+                <span>📄 {contextFile.displayName}</span>
+                <button
+                  onClick={() => removeContextFile(contextFile.id)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    fontSize: '14px',
+                    lineHeight: '1',
+                    marginLeft: '2px',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#ff4444';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#ccc';
+                  }}
+                  title="Remove file"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Input Row */}
         <div style={{
