@@ -250,63 +250,96 @@ export const ReactView = ({ app }: ReactViewProps) => {
 
       // Try different data transfer formats
       const dataTypes = ['text/plain', 'text/uri-list', 'application/json', 'text/html'];
-      let fileAdded = false;
+      let filesAdded = 0;
 
       for (const type of dataTypes) {
         const data = e.dataTransfer?.getData(type);
         if (data) {
           console.log(`Trying to process data from type "${type}":`, data);
           
-          // Try to find file by exact path
-          let file = app.vault.getAbstractFileByPath(data) as TFile;
-          if (file && file.extension === 'md') {
-            console.log('Found file by exact path:', file.path);
-            addContextFile(file);
-            fileAdded = true;
-            break;
+          // Parse multiple files from the data
+          let filePaths: string[] = [];
+          
+          if (type === 'text/plain' || type === 'text/uri-list') {
+            // Handle Obsidian URI format: obsidian://open?vault=VaultName&file=FileName
+            const obsidianUriRegex = /obsidian:\/\/open\?vault=[^&]+&file=([^\s\n]+)/g;
+            let match;
+            while ((match = obsidianUriRegex.exec(data)) !== null) {
+              filePaths.push(decodeURIComponent(match[1]));
+            }
+            
+            // If no Obsidian URIs found, try splitting by newlines or other separators
+            if (filePaths.length === 0) {
+              filePaths = data.split(/[\n\r]+/).filter(path => path.trim().length > 0);
+            }
+          } else {
+            // For other types, try splitting by common separators
+            filePaths = data.split(/[\n\r,;]+/).filter(path => path.trim().length > 0);
           }
-
-          // Try with different path variations
-          const pathVariations = [
-            data,
-            data.replace(/^\/+/, ''), // Remove leading slashes
-            data.replace(/\\/g, '/'), // Convert backslashes to forward slashes
-            data + '.md', // Add .md extension
-            data.replace(/\.md$/, '') + '.md' // Ensure .md extension
-          ];
-
-          for (const path of pathVariations) {
-            file = app.vault.getAbstractFileByPath(path) as TFile;
+          
+          console.log(`Extracted ${filePaths.length} file paths:`, filePaths);
+          
+          // Process each file path
+          for (const filePath of filePaths) {
+            const cleanPath = filePath.trim();
+            if (!cleanPath) continue;
+            
+            // Try to find file by exact path
+            let file = app.vault.getAbstractFileByPath(cleanPath) as TFile;
             if (file && file.extension === 'md') {
-              console.log('Found file by path variation:', file.path);
+              console.log('Found file by exact path:', file.path);
               addContextFile(file);
-              fileAdded = true;
-              break;
+              filesAdded++;
+              continue;
+            }
+
+            // Try with different path variations
+            const pathVariations = [
+              cleanPath,
+              cleanPath.replace(/^\/+/, ''), // Remove leading slashes
+              cleanPath.replace(/\\/g, '/'), // Convert backslashes to forward slashes
+              cleanPath + '.md', // Add .md extension
+              cleanPath.replace(/\.md$/, '') + '.md' // Ensure .md extension
+            ];
+
+            for (const path of pathVariations) {
+              file = app.vault.getAbstractFileByPath(path) as TFile;
+              if (file && file.extension === 'md') {
+                console.log('Found file by path variation:', file.path);
+                addContextFile(file);
+                filesAdded++;
+                break;
+              }
+            }
+
+            if (file && file.extension === 'md') continue;
+
+            // Try to find by basename
+            const allFiles = app.vault.getMarkdownFiles();
+            const foundFile = allFiles.find(f => 
+              f.basename === cleanPath || 
+              f.name === cleanPath ||
+              f.path.endsWith('/' + cleanPath) ||
+              f.path.endsWith('\\' + cleanPath) ||
+              cleanPath.includes(f.basename)
+            );
+            
+            if (foundFile) {
+              console.log('Found file by basename search:', foundFile.path);
+              addContextFile(foundFile);
+              filesAdded++;
             }
           }
-
-          if (fileAdded) break;
-
-          // Try to find by basename
-          const allFiles = app.vault.getMarkdownFiles();
-          const foundFile = allFiles.find(f => 
-            f.basename === data || 
-            f.name === data ||
-            f.path.endsWith('/' + data) ||
-            f.path.endsWith('\\' + data) ||
-            data.includes(f.basename)
-          );
           
-          if (foundFile) {
-            console.log('Found file by basename search:', foundFile.path);
-            addContextFile(foundFile);
-            fileAdded = true;
+          // If we found files in this data type, we can stop trying other types
+          if (filesAdded > 0) {
+            console.log(`Successfully added ${filesAdded} files from data type "${type}"`);
             break;
           }
         }
       }
 
-      if (!fileAdded) {
+      if (filesAdded === 0) {
         console.log('No files could be resolved from drop data');
         // Try to access Obsidian's internal drag state
         try {
@@ -335,20 +368,20 @@ export const ReactView = ({ app }: ReactViewProps) => {
                   if (file && file.extension === 'md') {
                     console.log('Adding file from', path, ':', file.path);
                     addContextFile(file);
-                    fileAdded = true;
+                    filesAdded++;
                   }
                 });
               } else if (obj.extension === 'md') {
                 console.log('Adding single file from', path, ':', obj.path);
                 addContextFile(obj);
-                fileAdded = true;
+                filesAdded++;
               }
             }
           }
           
           // Also try to get the currently selected files from file explorer
           const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
-          if (fileExplorer && fileExplorer.view && !fileAdded) {
+          if (fileExplorer && fileExplorer.view && filesAdded === 0) {
             const view = fileExplorer.view as any;
             console.log('File explorer view:', view);
             
@@ -359,7 +392,7 @@ export const ReactView = ({ app }: ReactViewProps) => {
                 if (dom.file && dom.file.extension === 'md') {
                   console.log('Adding file from selectedDoms:', dom.file.path);
                   addContextFile(dom.file);
-                  fileAdded = true;
+                  filesAdded++;
                 }
               });
             }
@@ -369,7 +402,7 @@ export const ReactView = ({ app }: ReactViewProps) => {
         }
       }
 
-      if (!fileAdded) {
+      if (filesAdded === 0) {
         console.log('No markdown files could be added from drop operation');
         
         // Final fallback: try to parse any text data as a file path
@@ -395,7 +428,7 @@ export const ReactView = ({ app }: ReactViewProps) => {
               if (matchingFile) {
                 console.log('Found matching file in final attempt:', matchingFile.path);
                 addContextFile(matchingFile);
-                fileAdded = true;
+                filesAdded++;
                 break;
               }
             }
@@ -404,7 +437,7 @@ export const ReactView = ({ app }: ReactViewProps) => {
           }
         }
         
-        if (!fileAdded) {
+        if (filesAdded === 0) {
           console.log('All file resolution attempts failed');
         }
       }
