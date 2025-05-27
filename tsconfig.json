@@ -18,8 +18,10 @@
       "ES7"
     ],
     "jsx": "react-jsx",
+    "allowSyntheticDefaultImports": true,
   },
   "include": [
-    "**/*.ts"
-, "ExampleView.tsx"  ]
+    "**/*.ts",
+    "**/*.tsx"
+  ]
 }
