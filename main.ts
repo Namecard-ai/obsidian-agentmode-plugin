@@ -1,3 +1,10 @@
+// Set up module aliases for external dependencies
+import moduleAlias from 'module-alias';
+import path from 'path';
+
+// Register alias for LanceDB
+moduleAlias.addAlias('@lancedb/lancedb', path.join(__dirname, '../../../node_modules/@lancedb/lancedb'));
+
 import { StrictMode } from 'react';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
@@ -16,20 +23,35 @@ const DEFAULT_SETTINGS: HelloWorldPluginSettings = {
 	openaiApiKey: ''
 }
 
+interface EmbeddingRecord {
+	id: string;
+	vector: number[];
+	content: string;
+	file_path: string;
+	file_name: string;
+	last_modified: string;
+	[key: string]: any; // Add index signature for compatibility
+}
+
 export default class HelloWorldPlugin extends Plugin {
 	settings: HelloWorldPluginSettings;
+	vectorDbPath: string = '';
 
 	async onload() {
 		await this.loadSettings();
+		await this.initializeVectorDB();
 
 		// Listen for note changes and saves
 		this.registerEvent(
-			this.app.vault.on('modify', (file) => {
+			this.app.vault.on('modify', async (file) => {
 				// Check if the modified file is a TFile and is a markdown file (note)
 				if (file instanceof TFile && file.extension === 'md') {
 					console.log(`Note modified: ${file.path}`);
 					console.log(`File name: ${file.name}`);
 					console.log(`Last modified: ${new Date(file.stat.mtime).toISOString()}`);
+					
+					// Process the file for embedding
+					await this.processFileForEmbedding(file);
 				}
 			})
 		);
@@ -106,8 +128,164 @@ export default class HelloWorldPlugin extends Plugin {
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
-	onunload() {
+	async initializeVectorDB() {
+		try {
+			// Create vector database directory in the vault's .obsidian folder
+			this.vectorDbPath = '.obsidian/vectors';
+			
+			// Ensure the directory exists
+			await this.ensureDirectoryExists(this.vectorDbPath);
+			
+			console.log('Vector database initialized successfully');
+		} catch (error) {
+			console.error('Error initializing vector database:', error);
+			new Notice('Failed to initialize vector database');
+		}
+	}
 
+	async ensureDirectoryExists(dirPath: string) {
+		try {
+			// Use Obsidian's vault adapter to create directory
+			await this.app.vault.adapter.mkdir(dirPath);
+		} catch (error) {
+			// Directory might already exist, which is fine
+			console.log('Directory creation info:', error);
+		}
+	}
+
+	async processFileForEmbedding(file: TFile) {
+		try {
+			if (!this.settings.openaiApiKey) {
+				console.warn('OpenAI API key not configured');
+				return;
+			}
+
+			// Read file content
+			const content = await this.app.vault.read(file);
+			
+			// Create content for embedding (include metadata in the text)
+			const embeddingContent = `File: ${file.name}\nPath: ${file.path}\nContent:\n${content}`;
+			
+			// Get embedding from OpenAI
+			const embedding = await this.getOpenAIEmbedding(embeddingContent);
+			
+			if (embedding) {
+				// Create record for vector storage
+				const record: EmbeddingRecord = {
+					id: file.path, // Use file path as unique ID
+					vector: embedding,
+					content: content,
+					file_path: file.path,
+					file_name: file.name,
+					last_modified: new Date(file.stat.mtime).toISOString()
+				};
+
+				// Save the embedding to a JSON file
+				await this.saveEmbedding(record);
+				
+				console.log(`Successfully embedded and stored: ${file.name}`);
+				new Notice(`Vector embedding saved for: ${file.name}`);
+			}
+		} catch (error) {
+			console.error('Error processing file for embedding:', error);
+			new Notice(`Failed to process embedding for: ${file.name}`);
+		}
+	}
+
+	async saveEmbedding(record: EmbeddingRecord) {
+		try {
+			// Create a safe filename from the file path
+			const safeFilename = record.file_path.replace(/[^a-zA-Z0-9]/g, '_') + '.json';
+			const embeddingFilePath = this.vectorDbPath + '/' + safeFilename;
+			
+			// Save the embedding record as JSON
+			const jsonData = JSON.stringify(record, null, 2);
+			await this.app.vault.adapter.write(embeddingFilePath, jsonData);
+			
+		} catch (error) {
+			console.error('Error saving embedding:', error);
+			throw error;
+		}
+	}
+
+	async loadAllEmbeddings(): Promise<EmbeddingRecord[]> {
+		try {
+			const embeddings: EmbeddingRecord[] = [];
+			
+			// List all JSON files in the vectors directory
+			const files = await this.app.vault.adapter.list(this.vectorDbPath);
+			
+			for (const file of files.files) {
+				if (file.endsWith('.json')) {
+					try {
+						const content = await this.app.vault.adapter.read(file);
+						const record: EmbeddingRecord = JSON.parse(content);
+						embeddings.push(record);
+					} catch (error) {
+						console.error(`Error loading embedding from ${file}:`, error);
+					}
+				}
+			}
+			
+			return embeddings;
+		} catch (error) {
+			console.error('Error loading embeddings:', error);
+			return [];
+		}
+	}
+
+	// Helper method to perform vector similarity search
+	cosineSimilarity(vecA: number[], vecB: number[]): number {
+		const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+		const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+		const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+		return dotProduct / (magnitudeA * magnitudeB);
+	}
+
+	async searchSimilarFiles(queryEmbedding: number[], topK: number = 5): Promise<EmbeddingRecord[]> {
+		const allEmbeddings = await this.loadAllEmbeddings();
+		
+		// Calculate similarities and sort
+		const similarities = allEmbeddings.map(record => ({
+			record,
+			similarity: this.cosineSimilarity(queryEmbedding, record.vector)
+		}));
+		
+		// Sort by similarity (highest first) and return top K
+		return similarities
+			.sort((a, b) => b.similarity - a.similarity)
+			.slice(0, topK)
+			.map(item => item.record);
+	}
+
+	async getOpenAIEmbedding(text: string): Promise<number[] | null> {
+		try {
+			const response = await fetch('https://api.openai.com/v1/embeddings', {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.openaiApiKey}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: 'text-embedding-3-small',
+					input: text,
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+			}
+
+			const data = await response.json();
+			return data.data[0].embedding;
+		} catch (error) {
+			console.error('Error getting OpenAI embedding:', error);
+			return null;
+		}
+	}
+
+	onunload() {
+		// Cleanup if needed
 	}
 
 	async loadSettings() {
