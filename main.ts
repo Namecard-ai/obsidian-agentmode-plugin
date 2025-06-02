@@ -36,6 +36,9 @@ interface EmbeddingRecord {
 export default class HelloWorldPlugin extends Plugin {
 	settings: HelloWorldPluginSettings;
 	vectorDbPath: string = '';
+	// Add debouncing for file processing
+	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
+	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 
 	async onload() {
 		await this.loadSettings();
@@ -50,8 +53,8 @@ export default class HelloWorldPlugin extends Plugin {
 					console.log(`File name: ${file.name}`);
 					console.log(`Last modified: ${new Date(file.stat.mtime).toISOString()}`);
 					
-					// Process the file for embedding
-					await this.processFileForEmbedding(file);
+					// Use debouncing to avoid frequent API calls
+					this.debouncedProcessFileForEmbedding(file);
 				}
 			})
 		);
@@ -285,7 +288,11 @@ export default class HelloWorldPlugin extends Plugin {
 	}
 
 	onunload() {
-		// Cleanup if needed
+		// Clear all pending timeouts to prevent memory leaks
+		this.fileProcessingTimeouts.forEach((timeout) => {
+			clearTimeout(timeout);
+		});
+		this.fileProcessingTimeouts.clear();
 	}
 
 	async loadSettings() {
@@ -318,6 +325,18 @@ export default class HelloWorldPlugin extends Plugin {
 		if (leaf) {
 			workspace.revealLeaf(leaf);
 		}
+	}
+
+	// Add debouncing for file processing
+	private debouncedProcessFileForEmbedding(file: TFile) {
+		const fileKey = file.path;
+		if (this.fileProcessingTimeouts.has(fileKey)) {
+			clearTimeout(this.fileProcessingTimeouts.get(fileKey));
+		}
+		this.fileProcessingTimeouts.set(fileKey, setTimeout(() => {
+			this.processFileForEmbedding(file);
+			this.fileProcessingTimeouts.delete(fileKey);
+		}, this.DEBOUNCE_DELAY));
 	}
 }
 
