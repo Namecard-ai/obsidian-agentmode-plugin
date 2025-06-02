@@ -8,10 +8,12 @@ import { ExampleView, VIEW_TYPE_EXAMPLE } from './ExampleView';
 
 interface HelloWorldPluginSettings {
 	mySetting: string;
+	openaiApiKey: string;
 }
 
 const DEFAULT_SETTINGS: HelloWorldPluginSettings = {
-	mySetting: 'default'
+	mySetting: 'default',
+	openaiApiKey: ''
 }
 
 export default class HelloWorldPlugin extends Plugin {
@@ -179,6 +181,17 @@ class SampleSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.mySetting)
 				.onChange(async (value) => {
 					this.plugin.settings.mySetting = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('OpenAI API Key')
+			.setDesc('Enter your OpenAI API key for AI features')
+			.addText(text => text
+				.setPlaceholder('sk-...')
+				.setValue(this.plugin.settings.openaiApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.openaiApiKey = value;
 					await this.plugin.saveSettings();
 				}));
 	}
