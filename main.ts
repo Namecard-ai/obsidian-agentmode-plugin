@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ReactView } from './ReactView';
 import { ExampleView, VIEW_TYPE_EXAMPLE } from './ExampleView';
@@ -19,6 +19,18 @@ export default class HelloWorldPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+
+		// Listen for note changes and saves
+		this.registerEvent(
+			this.app.vault.on('modify', (file) => {
+				// Check if the modified file is a TFile and is a markdown file (note)
+				if (file instanceof TFile && file.extension === 'md') {
+					console.log(`Note modified: ${file.path}`);
+					console.log(`File name: ${file.name}`);
+					console.log(`Last modified: ${new Date(file.stat.mtime).toISOString()}`);
+				}
+			})
+		);
 
 		// Register a new view
 		this.registerView(
