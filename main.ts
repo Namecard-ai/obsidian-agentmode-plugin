@@ -324,13 +324,13 @@ export default class HelloWorldPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'list_vault',
-						description: 'List files and folders in a given vault path.',
+						description: 'List files and folders in a given vault path. Use relative paths from vault root, or empty string/\".\" for root directory.',
 						parameters: {
 							type: 'object',
 							properties: {
 								vault_path: {
 									type: 'string',
-									description: 'Folder path to list contents of.'
+									description: 'Relative folder path from vault root to list contents of. Use empty string, ".", or "/" for vault root. Examples: "", "folder1", "folder1/subfolder".'
 								},
 								explanation: {
 									type: 'string',
@@ -712,18 +712,77 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		console.log('📂 [TOOL] list_vault starting with args:', args);
 		
 		try {
-			const folder = this.app.vault.getAbstractFileByPath(args.vault_path);
-			if (!folder || !(folder instanceof this.app.vault.adapter.constructor)) {
-				// List root vault if path doesn't exist
-				console.log('📂 [TOOL] list_vault: Path not found, listing root vault');
-				const files = this.app.vault.getAllLoadedFiles();
-				const result = files.map(f => f.path).slice(0, 20).join('\n'); // Limit to 20 files
-				console.log('📂 [TOOL] list_vault: Root vault files count:', files.length, 'returning first 20');
-				return result;
+			// Convert absolute path to relative path if needed
+			let relativePath = args.vault_path;
+			
+			// If it's an absolute path, try to convert it to relative
+			if (relativePath.startsWith('/')) {
+				console.log('📂 [TOOL] list_vault: Absolute path detected, attempting conversion');
+				
+				// Try to extract vault name and make relative path
+				const pathParts = relativePath.split('/');
+				const vaultName = this.app.vault.getName();
+				const vaultIndex = pathParts.findIndex(part => part === vaultName);
+				
+				if (vaultIndex !== -1 && vaultIndex < pathParts.length - 1) {
+					// Found vault name in path, use everything after it
+					relativePath = pathParts.slice(vaultIndex + 1).join('/');
+					console.log('📂 [TOOL] list_vault: Converted to relative path:', relativePath);
+				} else {
+					// Can't convert, assume root
+					relativePath = '';
+					console.log('📂 [TOOL] list_vault: Cannot convert absolute path, using root');
+				}
 			}
-
-			console.log('📂 [TOOL] list_vault: Listing contents of:', args.vault_path);
-			const contents = await this.app.vault.adapter.list(args.vault_path);
+			
+			// Handle root directory cases
+			if (!relativePath || relativePath === '/' || relativePath === '.') {
+				console.log('📂 [TOOL] list_vault: Listing root vault directory');
+				const files = this.app.vault.getAllLoadedFiles();
+				
+				// Filter to only show top-level items
+				const topLevelItems = files.filter(file => {
+					const pathDepth = file.path.split('/').length;
+					return pathDepth === 1; // Only files/folders directly in root
+				});
+				
+				const result = topLevelItems.map(f => {
+					if (f.path.endsWith('.md')) {
+						return `📄 ${f.path}`;
+					} else {
+						return `📁 ${f.path}`;
+					}
+				}).slice(0, 20).join('\n');
+				
+				console.log('📂 [TOOL] list_vault: Root vault files count:', topLevelItems.length, 'returning first 20');
+				return result || 'No files found in vault root';
+			}
+			
+			// Check if the relative path exists as a folder
+			const folder = this.app.vault.getAbstractFileByPath(relativePath);
+			console.log('📂 [TOOL] list_vault: Checking folder:', relativePath, 'exists:', !!folder);
+			
+			if (folder && (folder as any).children) {
+				// It's a folder with children
+				const children = (folder as any).children;
+				console.log('📂 [TOOL] list_vault: Found folder with', children.length, 'children');
+				
+				const listing = children.map((child: any) => {
+					if (child.children) {
+						return `📁 ${child.name}/`;
+					} else {
+						return `📄 ${child.name}`;
+					}
+				});
+				
+				const result = listing.slice(0, 20).join('\n');
+				console.log('📂 [TOOL] list_vault: Returning folder contents (first 20 items)');
+				return result || 'Empty folder';
+			}
+			
+			// Try using adapter.list directly with the path
+			console.log('📂 [TOOL] list_vault: Trying adapter.list with path:', relativePath);
+			const contents = await this.app.vault.adapter.list(relativePath);
 			
 			console.log('📂 [TOOL] list_vault: Found', contents.folders.length, 'folders and', contents.files.length, 'files');
 			
@@ -732,13 +791,22 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				...contents.files.map(f => `📄 ${f}`)
 			];
 			
-			const result = listing.slice(0, 20).join('\n'); // Limit to 20 items
-			console.log('📂 [TOOL] list_vault: Returning result (first 20 items):', result);
+			const result = listing.slice(0, 20).join('\n');
+			console.log('📂 [TOOL] list_vault: Returning adapter result (first 20 items)');
+			return result || 'Empty directory';
 			
-			return result;
 		} catch (error: any) {
 			console.error('📂 [TOOL] list_vault error:', error);
-			return `Error listing vault: ${error.message}`;
+			
+			// Fallback: list all files in vault
+			console.log('📂 [TOOL] list_vault: Error occurred, falling back to root listing');
+			try {
+				const files = this.app.vault.getAllLoadedFiles();
+				const result = files.map(f => f.path).slice(0, 20).join('\n');
+				return result || 'No files found in vault';
+			} catch (fallbackError: any) {
+				return `Error listing vault: ${error.message}`;
+			}
 		}
 	}
 
