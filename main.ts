@@ -1,15 +1,10 @@
-// Set up module aliases for external dependencies
-import moduleAlias from 'module-alias';
-import path from 'path';
-
-// Register alias for LanceDB
-moduleAlias.addAlias('@lancedb/lancedb', path.join(__dirname, '../../../node_modules/@lancedb/lancedb'));
-
 import { StrictMode } from 'react';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ReactView } from './ReactView';
 import { ExampleView, VIEW_TYPE_EXAMPLE } from './ExampleView';
+import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Remember to rename these classes and interfaces!
 
@@ -33,16 +28,26 @@ interface EmbeddingRecord {
 	[key: string]: any; // Add index signature for compatibility
 }
 
+interface ChatMessage {
+	role: 'system' | 'user' | 'assistant' | 'tool';
+	content: string;
+	tool_calls?: any[];
+	tool_call_id?: string;
+	name?: string;
+}
+
 export default class HelloWorldPlugin extends Plugin {
 	settings: HelloWorldPluginSettings;
 	vectorDbPath: string = '';
 	// Add debouncing for file processing
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
+	private openaiClient: OpenAI | null = null;
 
 	async onload() {
 		await this.loadSettings();
 		await this.initializeVectorDB();
+		this.initializeOpenAI();
 
 		// Listen for note changes and saves
 		this.registerEvent(
@@ -62,7 +67,7 @@ export default class HelloWorldPlugin extends Plugin {
 		// Register a new view
 		this.registerView(
 			VIEW_TYPE_EXAMPLE,
-			(leaf) => new ExampleView(leaf)
+			(leaf) => new ExampleView(leaf, this)
 		);
 
 		this.addRibbonIcon('dice', 'Activate example view', () => {
@@ -131,6 +136,15 @@ export default class HelloWorldPlugin extends Plugin {
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
+	initializeOpenAI() {
+		if (this.settings.openaiApiKey) {
+			this.openaiClient = new OpenAI({
+				apiKey: this.settings.openaiApiKey,
+				dangerouslyAllowBrowser: true
+			});
+		}
+	}
+
 	async initializeVectorDB() {
 		try {
 			// Create vector database directory in the vault's .obsidian folder
@@ -154,6 +168,415 @@ export default class HelloWorldPlugin extends Plugin {
 			// Directory might already exist, which is fine
 			console.log('Directory creation info:', error);
 		}
+	}
+
+	// Agent chat completion with streaming and tool use
+	async streamAgentChat(
+		messages: ChatMessage[], 
+		contextFiles: TFile[],
+		onChunk: (chunk: string) => void,
+		onToolCall: (toolCall: any) => void,
+		onComplete: () => void,
+		onError: (error: string) => void
+	): Promise<void> {
+		if (!this.openaiClient) {
+			onError('OpenAI API key not configured');
+			return;
+		}
+
+		try {
+			// Get system prompt
+			const systemPrompt = this.getSystemPrompt();
+			
+			// Convert messages to OpenAI format
+			const chatMessages: ChatCompletionMessageParam[] = [
+				{ role: 'system', content: systemPrompt },
+				...messages.map(msg => ({
+					role: msg.role,
+					content: msg.content,
+					...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+					...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+					...(msg.name && { name: msg.name })
+				}) as ChatCompletionMessageParam)
+			];
+
+			// Add context files information if any
+			if (contextFiles.length > 0) {
+				const contextContent = await this.buildContextContent(contextFiles);
+				chatMessages.push({
+					role: 'user',
+					content: `Context from attached files:\n\n${contextContent}`
+				});
+			}
+
+			// Define available tools in OpenAI format
+			const tools = [
+				{
+					type: 'function' as const,
+					function: {
+						name: 'vault_search',
+						description: 'Perform a semantic search across the vault to find notes or blocks most relevant to the user\'s query.',
+						parameters: {
+							type: 'object',
+							properties: {
+								query: {
+									type: 'string',
+									description: 'The exact search query from the user, reused verbatim unless you have strong reason to rephrase.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'One sentence explanation of why this semantic search is necessary for the user\'s task.'
+								},
+								target_subpaths: {
+									type: 'array',
+									items: { type: 'string' },
+									description: 'Optional list of folders to scope the search.'
+								}
+							},
+							required: ['query', 'explanation']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'read_note',
+						description: 'Read the contents of a note or a range of lines within a note.',
+						parameters: {
+							type: 'object',
+							properties: {
+								note_path: {
+									type: 'string',
+									description: 'The relative path to the note within the vault.'
+								},
+								start_line: {
+									type: 'integer',
+									description: 'The one-indexed line number to start reading from.'
+								},
+								end_line: {
+									type: 'integer',
+									description: 'The one-indexed line number to end reading at (inclusive).'
+								},
+								read_entire_note: {
+									type: 'boolean',
+									description: 'Set to true only if full content is needed.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'Why this note or section needs to be read for the task.'
+								}
+							},
+							required: ['note_path', 'explanation']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'edit_note',
+						description: 'Edit or insert content into an existing note.',
+						parameters: {
+							type: 'object',
+							properties: {
+								note_path: {
+									type: 'string',
+									description: 'The path of the note to modify.'
+								},
+								instructions: {
+									type: 'string',
+									description: 'A single sentence describing the intention of the edit.'
+								},
+								markdown_edit: {
+									type: 'string',
+									description: 'ONLY the changed lines or content. Use <!-- ... existing content ... --> to indicate unchanged regions.'
+								}
+							},
+							required: ['note_path', 'instructions', 'markdown_edit']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'create_note',
+						description: 'Create a new note in the vault.',
+						parameters: {
+							type: 'object',
+							properties: {
+								note_path: {
+									type: 'string',
+									description: 'Path for the new note (e.g., \'zettel/20240608-mycognition.md\').'
+								},
+								content: {
+									type: 'string',
+									description: 'Initial Markdown content of the note.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'Why this new note is needed for the task.'
+								}
+							},
+							required: ['note_path', 'content', 'explanation']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'list_vault',
+						description: 'List files and folders in a given vault path.',
+						parameters: {
+							type: 'object',
+							properties: {
+								vault_path: {
+									type: 'string',
+									description: 'Folder path to list contents of.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'Why the contents of this path need to be explored.'
+								}
+							},
+							required: ['vault_path', 'explanation']
+						}
+					}
+				}
+			];
+
+			// Start streaming chat completion
+			const stream = await this.openaiClient.chat.completions.create({
+				model: 'gpt-4o',
+				messages: chatMessages,
+				tools: tools,
+				stream: true,
+				temperature: 0.7
+			});
+
+			let currentContent = '';
+
+			for await (const chunk of stream) {
+				const delta = chunk.choices[0]?.delta;
+				
+				if (delta?.content) {
+					// Streaming content with typewriter effect
+					currentContent += delta.content;
+					onChunk(delta.content);
+				}
+
+				if (delta?.tool_calls) {
+					// Handle tool calls
+					for (const toolCall of delta.tool_calls) {
+						if (toolCall.function?.name) {
+							onToolCall(toolCall);
+							
+							// Execute the tool call
+							const args = JSON.parse(toolCall.function.arguments || '{}');
+							let result = '';
+							
+							switch (toolCall.function.name) {
+								case 'vault_search':
+									result = await this.toolVaultSearch(args);
+									break;
+								case 'read_note':
+									result = await this.toolReadNote(args);
+									break;
+								case 'edit_note':
+									result = await this.toolEditNote(args);
+									break;
+								case 'create_note':
+									result = await this.toolCreateNote(args);
+									break;
+								case 'list_vault':
+									result = await this.toolListVault(args);
+									break;
+								default:
+									result = 'Unknown tool call';
+							}
+							
+							// Stream the tool result
+							onChunk(`\n\n**Tool Result:** ${result}\n\n`);
+						}
+					}
+				}
+			}
+
+			onComplete();
+
+		} catch (error: any) {
+			console.error('Error in agent chat:', error);
+			onError(error.message || 'Unknown error occurred');
+		}
+	}
+
+	private getSystemPrompt(): string {
+		// Get vault path more safely
+		const vaultPath = (this.app.vault.adapter as any).path || '/Users/vault';
+		const osInfo = navigator.platform;
+		
+		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
+
+You are collaborating with a USER to help them organize, write, and enhance their notes.
+The task may involve summarizing content, refactoring or restructuring notes, linking concepts together, formatting with Markdown, performing semantic searches across notes, or answering specific questions based on the content.
+Each time the USER sends a message, we may automatically attach information about their current context, such as the active note, cursor position, open backlinks, linked/unlinked mentions, and edit history within the vault.
+This context may or may not be relevant — you must decide how it impacts the task.
+Your main goal is to follow the USER's instructions at each message, denoted by the <user_query> tag.
+
+<tool_calling>
+You have tools at your disposal to help manage and reason over the user's vault. Follow these rules:
+1. ALWAYS follow the tool schema exactly, and provide all required parameters.
+2. Do not call tools that are not explicitly available to you.
+3. **NEVER mention tool names in your conversation with the USER.** For example, instead of saying "I'll use the link_note tool to add a link", just say "I'll add a link between your notes".
+4. Only use tools when needed. If the task can be handled directly, just respond without tools.
+5. When using a tool, explain to the USER why it's needed and how it supports the task.
+</tool_calling>
+
+<editing_notes>
+When making changes to a note, DO NOT output the entire Markdown content unless explicitly requested. Instead, use the note editing tools.
+Only make one note edit per turn unless the USER gives you a batch instruction.
+Ensure your edits respect the following:
+1. Do not overwrite user content unless clearly requested or safe to do so.
+2. Preserve YAML frontmatter, metadata, and tags unless explicitly directed to change them.
+3. Use clear section headers, semantic structure, and proper Markdown formatting.
+4. When inserting content (e.g. summaries, backlinks, tables), place it in the correct context — don't guess.
+5. When refactoring or reorganizing content, preserve original meaning and ordering unless improved otherwise.
+6. Fix formatting or syntax issues if they are obvious, but do not make stylistic assumptions without instruction.
+</editing_notes>
+
+<searching_and_reading>
+You can search across the vault or read from specific notes. Follow these principles:
+1. Prefer semantic search over raw grep/text search when possible.
+2. When reading notes, retrieve the full content only if needed. Use sections or block references when appropriate.
+3. Avoid redundant reads — once you have enough context to answer or make a change, proceed without further searching.
+</searching_and_reading>
+
+You MUST use the following format when citing note sections:
+\`\`\`
+startLine:endLine:note_path
+// ... existing content ...
+\`\`\`
+This is the ONLY acceptable format for note citations.
+
+<user_info>
+The USER is working in Obsidian with Markdown files under a single vault directory. 
+The user's OS version is: \`${osInfo}\`
+The absolute path to the vault is: \`${vaultPath}\`
+</user_info>
+
+Answer the USER's request using available context and tools. If a required parameter is missing, ask for it. Otherwise, proceed with the tool call or provide the response directly.
+If citing notes or inserting content, ensure Markdown compatibility and coherence with existing structure.`;
+	}
+
+	// Tool implementations
+	private async toolVaultSearch(args: { query: string; explanation: string; target_subpaths?: string[] }) {
+		try {
+			// Use existing vector search functionality
+			const embedding = await this.getOpenAIEmbedding(args.query);
+			if (!embedding) {
+				return 'Failed to generate embedding for search query.';
+			}
+
+			const similarFiles = await this.searchSimilarFiles(embedding, 5);
+			
+			if (similarFiles.length === 0) {
+				return 'No relevant notes found for your query.';
+			}
+
+			const results = similarFiles.map(file => ({
+				path: file.file_path,
+				name: file.file_name,
+				relevance: 'High' // You could calculate actual similarity scores here
+			}));
+
+			return `Found ${results.length} relevant notes:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+		} catch (error: any) {
+			return `Error searching vault: ${error.message}`;
+		}
+	}
+
+	private async toolReadNote(args: { note_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
+			if (!file) {
+				return `Note not found: ${args.note_path}`;
+			}
+
+			const content = await this.app.vault.read(file);
+			
+			if (args.read_entire_note || (!args.start_line && !args.end_line)) {
+				return content;
+			}
+
+			const lines = content.split('\n');
+			const startIdx = (args.start_line || 1) - 1;
+			const endIdx = (args.end_line || lines.length) - 1;
+			
+			return lines.slice(startIdx, endIdx + 1).join('\n');
+		} catch (error: any) {
+			return `Error reading note: ${error.message}`;
+		}
+	}
+
+	private async toolEditNote(args: { note_path: string; instructions: string; markdown_edit: string }) {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
+			if (!file) {
+				return `Note not found: ${args.note_path}`;
+			}
+
+			// For now, append the edit to the end of the file
+			// In a more sophisticated implementation, you'd parse the markdown_edit 
+			// and apply it at the appropriate location
+			const existingContent = await this.app.vault.read(file);
+			const newContent = existingContent + '\n\n' + args.markdown_edit;
+			
+			await this.app.vault.modify(file, newContent);
+			return `Successfully edited note: ${args.note_path}`;
+		} catch (error: any) {
+			return `Error editing note: ${error.message}`;
+		}
+	}
+
+	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }) {
+		try {
+			await this.app.vault.create(args.note_path, args.content);
+			return `Successfully created note: ${args.note_path}`;
+		} catch (error: any) {
+			return `Error creating note: ${error.message}`;
+		}
+	}
+
+	private async toolListVault(args: { vault_path: string; explanation: string }) {
+		try {
+			const folder = this.app.vault.getAbstractFileByPath(args.vault_path);
+			if (!folder || !(folder instanceof this.app.vault.adapter.constructor)) {
+				// List root vault if path doesn't exist
+				const files = this.app.vault.getAllLoadedFiles();
+				return files.map(f => f.path).slice(0, 20).join('\n'); // Limit to 20 files
+			}
+
+			const contents = await this.app.vault.adapter.list(args.vault_path);
+			const listing = [
+				...contents.folders.map(f => `📁 ${f}/`),
+				...contents.files.map(f => `📄 ${f}`)
+			];
+			
+			return listing.slice(0, 20).join('\n'); // Limit to 20 items
+		} catch (error: any) {
+			return `Error listing vault: ${error.message}`;
+		}
+	}
+
+	private async buildContextContent(contextFiles: TFile[]): Promise<string> {
+		const contexts = [];
+		for (const file of contextFiles) {
+			try {
+				const content = await this.app.vault.read(file);
+				contexts.push(`=== ${file.name} ===\n${content}`);
+			} catch (error: any) {
+				contexts.push(`=== ${file.name} ===\n[Error reading file: ${error.message}]`);
+			}
+		}
+		return contexts.join('\n\n');
 	}
 
 	async processFileForEmbedding(file: TFile) {
@@ -297,10 +720,14 @@ export default class HelloWorldPlugin extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		// Re-initialize OpenAI client when settings are loaded
+		this.initializeOpenAI();
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// Re-initialize OpenAI client when settings are saved
+		this.initializeOpenAI();
 	}
 
 	async activateExampleView() {

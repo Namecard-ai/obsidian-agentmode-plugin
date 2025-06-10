@@ -7,9 +7,11 @@ export const VIEW_TYPE_EXAMPLE = 'example-view';
 
 export class ExampleView extends ItemView {
 	root: Root | null = null;
+	plugin: any;
 
-	constructor(leaf: WorkspaceLeaf) {
+	constructor(leaf: WorkspaceLeaf, plugin: any) {
 		super(leaf);
+		this.plugin = plugin;
 	}
 
 	getViewType() {
@@ -24,7 +26,7 @@ export class ExampleView extends ItemView {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
 			<StrictMode>
-				<ReactView app={this.app} />
+				<ReactView app={this.app} plugin={this.plugin} />
 			</StrictMode>
 		);
 	}

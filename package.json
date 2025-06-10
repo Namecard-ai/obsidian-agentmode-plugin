@@ -12,7 +12,6 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
-		"@types/module-alias": "^2.0.4",
 		"@types/node": "^16.11.6",
 		"@types/react": "^19.1.4",
 		"@types/react-dom": "^19.1.5",

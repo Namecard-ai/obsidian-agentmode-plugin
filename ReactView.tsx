@@ -66,9 +66,10 @@ const AI_MODELS = [
 
 interface ReactViewProps {
   app: App;
+  plugin: any; // Reference to the HelloWorldPlugin
 }
 
-export const ReactView = ({ app }: ReactViewProps) => {
+export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
@@ -80,6 +81,7 @@ export const ReactView = ({ app }: ReactViewProps) => {
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragFileCount, setDragFileCount] = useState(0);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,26 +119,103 @@ export const ReactView = ({ app }: ReactViewProps) => {
     setInputText('');
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      let responseContent = chatMode === 'Ask' 
-        ? `This is a simulated response from ${selectedModel} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`
-        : `This is a simulated response from ${selectedModel} in Agent mode. In a real implementation, the agent would execute tasks and provide updates on the progress.`;
+    if (chatMode === 'Agent') {
+      // Use the Agent mode with OpenAI streaming
+      const assistantMessageId = generateId();
+      setStreamingMessageId(assistantMessageId);
       
-      // Acknowledge context files if any were provided
-      if (contextFiles.length > 0) {
-        responseContent += `\n\nI can see you've provided ${contextFiles.length} context file${contextFiles.length > 1 ? 's' : ''}: ${contextFiles.map(cf => cf.displayName).join(', ')}. In a real implementation, I would analyze the content of these files to provide more relevant responses.`;
-      }
-      
+      // Create initial assistant message
       const assistantMessage: Message = {
-        id: generateId(),
+        id: assistantMessageId,
         type: 'assistant',
-        content: responseContent,
+        content: '',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, assistantMessage]);
-      setIsLoading(false);
-    }, 1000);
+
+      // Convert messages to plugin format
+      const chatMessages = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.content
+      }));
+      
+      // Add the current user message
+      chatMessages.push({
+        role: 'user' as const,
+        content: messageContent
+      });
+
+      // Get context files as TFile objects
+      const contextTFiles = contextFiles.map(cf => cf.file);
+
+      try {
+        await plugin.streamAgentChat(
+          chatMessages,
+          contextTFiles,
+          (chunk: string) => {
+            // Handle streaming chunks with typewriter effect
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + chunk }
+                : msg
+            ));
+          },
+          (toolCall: any) => {
+            // Handle tool calls
+            console.log('Tool call:', toolCall);
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + `\n\n*Using tool: ${toolCall.function?.name}*\n` }
+                : msg
+            ));
+          },
+          () => {
+            // Handle completion
+            setIsLoading(false);
+            setStreamingMessageId(null);
+          },
+          (error: string) => {
+            // Handle error
+            console.error('Agent chat error:', error);
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessageId 
+                ? { ...msg, content: msg.content + `\n\n*Error: ${error}*` }
+                : msg
+            ));
+            setIsLoading(false);
+            setStreamingMessageId(null);
+          }
+        );
+      } catch (error) {
+        console.error('Error starting agent chat:', error);
+        setMessages(prev => prev.map(msg => 
+          msg.id === assistantMessageId 
+            ? { ...msg, content: `Error: ${error.message || 'Unknown error occurred'}` }
+            : msg
+        ));
+        setIsLoading(false);
+        setStreamingMessageId(null);
+      }
+    } else {
+      // Original Ask mode - simulate AI response
+      setTimeout(() => {
+        let responseContent = `This is a simulated response from ${selectedModel} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`;
+        
+        // Acknowledge context files if any were provided
+        if (contextFiles.length > 0) {
+          responseContent += `\n\nI can see you've provided ${contextFiles.length} context file${contextFiles.length > 1 ? 's' : ''}: ${contextFiles.map(cf => cf.displayName).join(', ')}. In a real implementation, I would analyze the content of these files to provide more relevant responses.`;
+        }
+        
+        const assistantMessage: Message = {
+          id: generateId(),
+          type: 'assistant',
+          content: responseContent,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        setIsLoading(false);
+      }, 1000);
+    }
   };
 
   const handleNewChat = () => {
@@ -655,6 +734,23 @@ export const ReactView = ({ app }: ReactViewProps) => {
         flexDirection: 'column',
         gap: '16px'
       }}>
+        {isLoading && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start'
+          }}>
+            <div style={{
+              padding: '12px 16px',
+              borderRadius: '12px',
+              backgroundColor: '#3a3a3a',
+              color: '#fff',
+              fontSize: '14px'
+            }}>
+              {chatMode === 'Agent' ? 'Agent thinking...' : 'Thinking...'}
+            </div>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div style={{
             display: 'flex',
@@ -686,10 +782,25 @@ export const ReactView = ({ app }: ReactViewProps) => {
                   backgroundColor: message.type === 'user' ? '#0066cc' : '#3a3a3a',
                   color: '#fff',
                   fontSize: '14px',
-                  lineHeight: '1.4'
+                  lineHeight: '1.4',
+                  whiteSpace: 'pre-wrap',
+                  position: 'relative',
+                  ...(message.id === streamingMessageId && {
+                    borderBottom: '2px solid #0066cc',
+                    animation: 'pulse 1.5s infinite'
+                  })
                 }}
               >
                 {message.content}
+                {message.id === streamingMessageId && (
+                  <span style={{
+                    opacity: 0.7,
+                    animation: 'blink 1s infinite',
+                    marginLeft: '2px'
+                  }}>
+                    ▋
+                  </span>
+                )}
               </div>
               <div style={{
                 fontSize: '12px',
@@ -699,26 +810,14 @@ export const ReactView = ({ app }: ReactViewProps) => {
                 marginRight: message.type === 'user' ? '0' : 'auto'
               }}>
                 {message.timestamp.toLocaleTimeString()}
+                {message.id === streamingMessageId && (
+                  <span style={{ marginLeft: '8px', color: '#0066cc' }}>
+                    ⚡ Streaming...
+                  </span>
+                )}
               </div>
             </div>
           ))
-        )}
-        
-        {isLoading && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start'
-          }}>
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: '#3a3a3a',
-              color: '#fff',
-              fontSize: '14px'
-            }}>
-              Thinking...
-            </div>
-          </div>
         )}
         
         <div ref={messagesEndRef} />
@@ -730,6 +829,19 @@ export const ReactView = ({ app }: ReactViewProps) => {
         borderTop: '1px solid #333',
         backgroundColor: '#2d2d2d'
       }}>
+        <style>
+          {`
+            @keyframes pulse {
+              0% { border-bottom-color: #0066cc; }
+              50% { border-bottom-color: #004499; }
+              100% { border-bottom-color: #0066cc; }
+            }
+            @keyframes blink {
+              0%, 50% { opacity: 1; }
+              51%, 100% { opacity: 0; }
+            }
+          `}
+        </style>
         {/* Model Selection */}
         <div style={{ marginBottom: '12px' }}>
           <select
