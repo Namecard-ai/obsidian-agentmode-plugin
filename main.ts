@@ -516,8 +516,42 @@ export default class HelloWorldPlugin extends Plugin {
 	}
 
 	private getSystemPrompt(): string {
-		// Get vault path more safely
-		const vaultPath = (this.app.vault.adapter as any).path || '/Users/vault';
+		// Get vault path correctly - try multiple methods
+		let vaultPath = '/Users/vault'; // fallback
+		
+		try {
+			// Method 1: Try to get the actual vault path from adapter
+			if (this.app.vault.adapter && (this.app.vault.adapter as any).fs && (this.app.vault.adapter as any).fs.getBasePath) {
+				vaultPath = (this.app.vault.adapter as any).fs.getBasePath();
+			}
+			// Method 2: Try to get from vault adapter basePath property
+			else if (this.app.vault.adapter && (this.app.vault.adapter as any).basePath) {
+				vaultPath = (this.app.vault.adapter as any).basePath;
+			}
+			// Method 3: Try using the app's vault configDir
+			else if (this.app.vault.configDir) {
+				// configDir is usually .obsidian, so parent is vault path
+				const configPath = this.app.vault.configDir;
+				if (typeof configPath === 'string') {
+					vaultPath = configPath.replace('/.obsidian', '');
+				}
+			}
+			// Method 4: Use vault name (fallback)
+			else if (this.app.vault.getName) {
+				const vaultName = this.app.vault.getName();
+				vaultPath = `Vault: ${vaultName}`;
+			}
+			
+			// Additional debugging
+			console.log('🔍 [SYSTEM] Vault adapter properties:', Object.keys(this.app.vault.adapter || {}));
+			console.log('🔍 [SYSTEM] Vault getName():', this.app.vault.getName?.());
+			console.log('🔍 [SYSTEM] Vault configDir:', this.app.vault.configDir);
+		} catch (error) {
+			console.warn('🔍 [SYSTEM] Could not determine vault path, using fallback:', error);
+		}
+		
+		console.log('🔍 [SYSTEM] Vault path:', vaultPath);
+		console.log('🔍 [SYSTEM] Vault path type:', typeof vaultPath);
 		const osInfo = navigator.platform;
 		
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
