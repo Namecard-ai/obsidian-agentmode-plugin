@@ -188,7 +188,7 @@ export default class HelloWorldPlugin extends Plugin {
 			// Get system prompt
 			const systemPrompt = this.getSystemPrompt();
 			
-			// Convert messages to OpenAI format
+			// Convert messages to OpenAI format and build conversation
 			const chatMessages: ChatCompletionMessageParam[] = [
 				{ role: 'system', content: systemPrompt },
 				...messages.map(msg => ({
@@ -343,61 +343,99 @@ export default class HelloWorldPlugin extends Plugin {
 				}
 			];
 
-			// Start streaming chat completion
-			const stream = await this.openaiClient.chat.completions.create({
-				model: 'gpt-4o',
-				messages: chatMessages,
-				tools: tools,
-				stream: true,
-				temperature: 0.7
-			});
+			// Main conversation loop - continue until no more tool calls
+			while (true) {
+				// Start streaming chat completion
+				const stream = await this.openaiClient.chat.completions.create({
+					model: 'gpt-4o',
+					messages: chatMessages,
+					tools: tools,
+					stream: true,
+					temperature: 0.7
+				});
 
-			let currentContent = '';
-
-			for await (const chunk of stream) {
-				const delta = chunk.choices[0]?.delta;
+				// Build up the message from streaming chunks
+				let currentMessage: any = {};
 				
-				if (delta?.content) {
-					// Streaming content with typewriter effect
-					currentContent += delta.content;
-					onChunk(delta.content);
-				}
-
-				if (delta?.tool_calls) {
-					// Handle tool calls
-					for (const toolCall of delta.tool_calls) {
-						if (toolCall.function?.name) {
-							onToolCall(toolCall);
-							
-							// Execute the tool call
-							const args = JSON.parse(toolCall.function.arguments || '{}');
-							let result = '';
-							
-							switch (toolCall.function.name) {
-								case 'vault_search':
-									result = await this.toolVaultSearch(args);
-									break;
-								case 'read_note':
-									result = await this.toolReadNote(args);
-									break;
-								case 'edit_note':
-									result = await this.toolEditNote(args);
-									break;
-								case 'create_note':
-									result = await this.toolCreateNote(args);
-									break;
-								case 'list_vault':
-									result = await this.toolListVault(args);
-									break;
-								default:
-									result = 'Unknown tool call';
+				for await (const chunk of stream) {
+					currentMessage = this.messageReducer(currentMessage, chunk);
+					
+					// Stream content to UI
+					const delta = chunk.choices[0]?.delta;
+					if (delta?.content) {
+						onChunk(delta.content);
+					}
+					
+					// Handle tool call deltas
+					if (delta?.tool_calls) {
+						for (const toolCall of delta.tool_calls) {
+							if (toolCall.function?.name) {
+								onToolCall(toolCall);
 							}
-							
-							// Stream the tool result
-							onChunk(`\n\n**Tool Result:** ${result}\n\n`);
 						}
 					}
 				}
+
+				// Add the completed assistant message to conversation
+				chatMessages.push(currentMessage);
+
+				// If there are no tool calls, we're done
+				if (!currentMessage.tool_calls) {
+					break;
+				}
+
+				// Execute tool calls and add results to conversation
+				for (const toolCall of currentMessage.tool_calls) {
+					try {
+						onChunk(`\n\n*🔧 Using tool: ${toolCall.function.name}*\n`);
+						
+						const args = JSON.parse(toolCall.function.arguments || '{}');
+						let result = '';
+						
+						switch (toolCall.function.name) {
+							case 'vault_search':
+								result = await this.toolVaultSearch(args);
+								break;
+							case 'read_note':
+								result = await this.toolReadNote(args);
+								break;
+							case 'edit_note':
+								result = await this.toolEditNote(args);
+								break;
+							case 'create_note':
+								result = await this.toolCreateNote(args);
+								break;
+							case 'list_vault':
+								result = await this.toolListVault(args);
+								break;
+							default:
+								result = 'Unknown tool call';
+						}
+						
+						// Add tool result to conversation
+						const toolMessage: ChatCompletionMessageParam = {
+							tool_call_id: toolCall.id,
+							role: 'tool',
+							content: result
+						};
+						
+						chatMessages.push(toolMessage);
+						onChunk(`*✅ Tool result:* ${result.slice(0, 200)}${result.length > 200 ? '...' : ''}\n\n`);
+						
+					} catch (error: any) {
+						// Handle tool execution error
+						const errorMessage: ChatCompletionMessageParam = {
+							tool_call_id: toolCall.id,
+							role: 'tool',
+							content: `Error: ${error.message || 'Unknown error'}`
+						};
+						
+						chatMessages.push(errorMessage);
+						onChunk(`*❌ Tool error:* ${error.message || 'Unknown error'}\n\n`);
+					}
+				}
+				
+				// Continue the loop for next round of chat completion
 			}
 
 			onComplete();
@@ -406,6 +444,49 @@ export default class HelloWorldPlugin extends Plugin {
 			console.error('Error in agent chat:', error);
 			onError(error.message || 'Unknown error occurred');
 		}
+	}
+
+	// Message reducer to build up messages from streaming chunks
+	private messageReducer(previous: any, item: any): any {
+		const reduce = (acc: any, delta: any): any => {
+			acc = { ...acc };
+			for (const [key, value] of Object.entries(delta)) {
+				if (acc[key] === undefined || acc[key] === null) {
+					acc[key] = value;
+					// Remove index from tool calls array items
+					if (Array.isArray(acc[key])) {
+						for (const arr of acc[key]) {
+							delete arr.index;
+						}
+					}
+				} else if (typeof acc[key] === 'string' && typeof value === 'string') {
+					acc[key] += value;
+				} else if (typeof acc[key] === 'number' && typeof value === 'number') {
+					acc[key] = value;
+				} else if (Array.isArray(acc[key]) && Array.isArray(value)) {
+					const accArray = acc[key];
+					for (let i = 0; i < value.length; i++) {
+						const { index, ...chunkTool } = value[i];
+						if (index - accArray.length > 1) {
+							throw new Error(
+								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${accArray}; tool: ${value}`,
+							);
+						}
+						accArray[index] = reduce(accArray[index], chunkTool);
+					}
+				} else if (typeof acc[key] === 'object' && typeof value === 'object') {
+					acc[key] = reduce(acc[key], value);
+				}
+			}
+			return acc;
+		};
+
+		const choice = item.choices?.[0];
+		if (!choice) {
+			// chunk contains information about usage and token counts
+			return previous;
+		}
+		return reduce(previous, choice.delta);
 	}
 
 	private getSystemPrompt(): string {

@@ -133,11 +133,13 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Convert messages to plugin format
-      const chatMessages = messages.map(msg => ({
-        role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
-        content: msg.content
-      }));
+      // Convert messages to plugin format (only user and assistant messages)
+      const chatMessages = messages
+        .filter(msg => msg.type === 'user' || msg.type === 'assistant')
+        .map(msg => ({
+          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+          content: msg.content
+        }));
       
       // Add the current user message
       chatMessages.push({
@@ -161,25 +163,21 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             ));
           },
           (toolCall: any) => {
-            // Handle tool calls
-            console.log('Tool call:', toolCall);
-            setMessages(prev => prev.map(msg => 
-              msg.id === assistantMessageId 
-                ? { ...msg, content: msg.content + `\n\n*Using tool: ${toolCall.function?.name}*\n` }
-                : msg
-            ));
+            // Handle tool calls - just log for now as the plugin handles execution
+            console.log('Tool call initiated:', toolCall.function?.name);
           },
           () => {
             // Handle completion
             setIsLoading(false);
             setStreamingMessageId(null);
+            console.log('Agent conversation completed');
           },
           (error: string) => {
             // Handle error
             console.error('Agent chat error:', error);
             setMessages(prev => prev.map(msg => 
               msg.id === assistantMessageId 
-                ? { ...msg, content: msg.content + `\n\n*Error: ${error}*` }
+                ? { ...msg, content: msg.content + `\n\n*❌ Error: ${error}*` }
                 : msg
             ));
             setIsLoading(false);
@@ -190,7 +188,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         console.error('Error starting agent chat:', error);
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
-            ? { ...msg, content: `Error: ${error.message || 'Unknown error occurred'}` }
+            ? { ...msg, content: `❌ Error: ${error.message || 'Unknown error occurred'}` }
             : msg
         ));
         setIsLoading(false);
@@ -905,7 +903,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               >
                 <span>📄 {contextFile.displayName}</span>
                 <button
-                  onClick={() => removeContextFile(contextFile.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeContextFile(contextFile.id);
+                  }}
                   style={{
                     background: 'none',
                     border: 'none',
