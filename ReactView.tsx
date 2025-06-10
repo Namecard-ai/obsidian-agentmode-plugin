@@ -231,6 +231,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             if (chunk.includes('🔧 Using tool:')) {
               // This is a tool call indicator
               const toolName = chunk.match(/🔧 Using tool: (\w+)/)?.[1] || 'unknown';
+              console.log(`🎯 [UI] Tool call detected: ${toolName}`);
+              
               const newToolStep: ToolStep = {
                 id: generateId(),
                 type: 'call',
@@ -240,6 +242,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                 status: 'pending'
               };
               
+              console.log('🎯 [UI] Adding tool step:', newToolStep);
+              
               setCurrentToolSession(prev => prev ? {
                 ...prev,
                 toolSteps: [...prev.toolSteps, newToolStep]
@@ -247,8 +251,13 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             } else if (chunk.includes('✅ Tool result:') || chunk.includes('❌ Tool error:')) {
               // This is a tool result
               const isError = chunk.includes('❌ Tool error:');
+              console.log(`🎯 [UI] Tool result detected (error: ${isError}):`, chunk);
+              
               setCurrentToolSession(prev => {
-                if (!prev || prev.toolSteps.length === 0) return prev;
+                if (!prev || prev.toolSteps.length === 0) {
+                  console.warn('🎯 [UI] No previous tool steps found for result');
+                  return prev;
+                }
                 
                 const updatedSteps = [...prev.toolSteps];
                 const lastStep = updatedSteps[updatedSteps.length - 1];
@@ -266,7 +275,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                     status: isError ? 'error' : 'completed'
                   };
                   
+                  console.log('🎯 [UI] Adding result step:', resultStep);
                   updatedSteps.push(resultStep);
+                } else {
+                  console.warn('🎯 [UI] Last step is not a call step:', lastStep);
                 }
                 
                 return {
@@ -284,8 +296,14 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             }
           },
           (toolCall: any) => {
-            // Handle tool calls - just log for now as the plugin handles execution
-            console.log('Tool call initiated:', toolCall.function?.name);
+            // Handle tool calls - detailed logging for debugging
+            console.log('🎯 [UI] Tool call initiated:', {
+              id: toolCall.id,
+              function_name: toolCall.function?.name,
+              arguments: toolCall.function?.arguments,
+              parsed_arguments: toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : null,
+              full_tool_call: toolCall
+            });
           },
           () => {
             // Handle completion - create the final message

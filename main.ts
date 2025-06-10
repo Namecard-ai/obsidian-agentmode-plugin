@@ -390,6 +390,15 @@ export default class HelloWorldPlugin extends Plugin {
 						onChunk(`\n\n*🔧 Using tool: ${toolCall.function.name}*\n`);
 						
 						const args = JSON.parse(toolCall.function.arguments || '{}');
+						
+						// Debug: Log tool call input payload
+						console.log(`🔧 [TOOL CALL] ${toolCall.function.name}`);
+						console.log('📥 Input Payload:', {
+							tool_call_id: toolCall.id,
+							function_name: toolCall.function.name,
+							arguments: args
+						});
+						
 						let result = '';
 						
 						switch (toolCall.function.name) {
@@ -412,6 +421,15 @@ export default class HelloWorldPlugin extends Plugin {
 								result = 'Unknown tool call';
 						}
 						
+						// Debug: Log tool call output payload
+						console.log(`✅ [TOOL RESULT] ${toolCall.function.name}`);
+						console.log('📤 Output Payload:', {
+							tool_call_id: toolCall.id,
+							result_length: result.length,
+							result_preview: result.slice(0, 200),
+							full_result: result
+						});
+						
 						// Add tool result to conversation
 						const toolMessage: ChatCompletionMessageParam = {
 							tool_call_id: toolCall.id,
@@ -423,6 +441,14 @@ export default class HelloWorldPlugin extends Plugin {
 						onChunk(`*✅ Tool result:* ${result.slice(0, 200)}${result.length > 200 ? '...' : ''}\n\n`);
 						
 					} catch (error: any) {
+						// Debug: Log tool call error
+						console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
+							tool_call_id: toolCall.id,
+							error_message: error.message,
+							error_stack: error.stack,
+							full_error: error
+						});
+						
 						// Handle tool execution error
 						const errorMessage: ChatCompletionMessageParam = {
 							tool_call_id: toolCall.id,
@@ -549,16 +575,23 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 
 	// Tool implementations
 	private async toolVaultSearch(args: { query: string; explanation: string; target_subpaths?: string[] }) {
+		console.log('🔍 [TOOL] vault_search starting with args:', args);
+		
 		try {
 			// Use existing vector search functionality
 			const embedding = await this.getOpenAIEmbedding(args.query);
 			if (!embedding) {
+				console.log('🔍 [TOOL] vault_search: Failed to generate embedding');
 				return 'Failed to generate embedding for search query.';
 			}
 
+			console.log('🔍 [TOOL] vault_search: Generated embedding, length:', embedding.length);
 			const similarFiles = await this.searchSimilarFiles(embedding, 5);
 			
+			console.log('🔍 [TOOL] vault_search: Found similar files:', similarFiles.length);
+			
 			if (similarFiles.length === 0) {
+				console.log('🔍 [TOOL] vault_search: No relevant notes found');
 				return 'No relevant notes found for your query.';
 			}
 
@@ -568,22 +601,31 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				relevance: 'High' // You could calculate actual similarity scores here
 			}));
 
-			return `Found ${results.length} relevant notes:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+			const resultText = `Found ${results.length} relevant notes:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+			console.log('🔍 [TOOL] vault_search: Returning result:', resultText);
+			
+			return resultText;
 		} catch (error: any) {
+			console.error('🔍 [TOOL] vault_search error:', error);
 			return `Error searching vault: ${error.message}`;
 		}
 	}
 
 	private async toolReadNote(args: { note_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
+		console.log('📖 [TOOL] read_note starting with args:', args);
+		
 		try {
 			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
 			if (!file) {
+				console.log('📖 [TOOL] read_note: Note not found:', args.note_path);
 				return `Note not found: ${args.note_path}`;
 			}
 
+			console.log('📖 [TOOL] read_note: Found file, reading content...');
 			const content = await this.app.vault.read(file);
 			
 			if (args.read_entire_note || (!args.start_line && !args.end_line)) {
+				console.log('📖 [TOOL] read_note: Returning entire note, length:', content.length);
 				return content;
 			}
 
@@ -591,8 +633,14 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			const startIdx = (args.start_line || 1) - 1;
 			const endIdx = (args.end_line || lines.length) - 1;
 			
-			return lines.slice(startIdx, endIdx + 1).join('\n');
+			console.log(`📖 [TOOL] read_note: Returning lines ${startIdx + 1} to ${endIdx + 1} of ${lines.length} total lines`);
+			
+			const result = lines.slice(startIdx, endIdx + 1).join('\n');
+			console.log('📖 [TOOL] read_note: Result length:', result.length);
+			
+			return result;
 		} catch (error: any) {
+			console.error('📖 [TOOL] read_note error:', error);
 			return `Error reading note: ${error.message}`;
 		}
 	}
@@ -627,22 +675,35 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 	}
 
 	private async toolListVault(args: { vault_path: string; explanation: string }) {
+		console.log('📂 [TOOL] list_vault starting with args:', args);
+		
 		try {
 			const folder = this.app.vault.getAbstractFileByPath(args.vault_path);
 			if (!folder || !(folder instanceof this.app.vault.adapter.constructor)) {
 				// List root vault if path doesn't exist
+				console.log('📂 [TOOL] list_vault: Path not found, listing root vault');
 				const files = this.app.vault.getAllLoadedFiles();
-				return files.map(f => f.path).slice(0, 20).join('\n'); // Limit to 20 files
+				const result = files.map(f => f.path).slice(0, 20).join('\n'); // Limit to 20 files
+				console.log('📂 [TOOL] list_vault: Root vault files count:', files.length, 'returning first 20');
+				return result;
 			}
 
+			console.log('📂 [TOOL] list_vault: Listing contents of:', args.vault_path);
 			const contents = await this.app.vault.adapter.list(args.vault_path);
+			
+			console.log('📂 [TOOL] list_vault: Found', contents.folders.length, 'folders and', contents.files.length, 'files');
+			
 			const listing = [
 				...contents.folders.map(f => `📁 ${f}/`),
 				...contents.files.map(f => `📄 ${f}`)
 			];
 			
-			return listing.slice(0, 20).join('\n'); // Limit to 20 items
+			const result = listing.slice(0, 20).join('\n'); // Limit to 20 items
+			console.log('📂 [TOOL] list_vault: Returning result (first 20 items):', result);
+			
+			return result;
 		} catch (error: any) {
+			console.error('📂 [TOOL] list_vault error:', error);
 			return `Error listing vault: ${error.message}`;
 		}
 	}
