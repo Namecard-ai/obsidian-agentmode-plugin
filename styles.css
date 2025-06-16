@@ -6,3 +6,56 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+/* 確保聊天訊息可以被選取 */
+.message {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* 確保訊息內容可以被選取 */
+.message div {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* 確保工具步驟內容也可以被選取 */
+.tool-step {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+/* 保持工具會話標題不可選取（這是正確的行為） */
+.tool-session-header {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* 添加選取樣式的視覺回饋 */
+.message ::selection {
+  background-color: rgba(0, 122, 204, 0.3);
+  color: inherit;
+}
+
+.message ::-moz-selection {
+  background-color: rgba(0, 122, 204, 0.3);
+  color: inherit;
+}
+
+/* 動畫效果 */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.streaming-cursor {
+  animation: blink 1s infinite;
+}

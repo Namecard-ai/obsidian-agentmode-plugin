@@ -792,7 +792,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             display: 'flex',
             alignItems: 'center',
             cursor: 'pointer',
-            userSelect: 'none',
+            userSelect: 'none' as const,
             fontSize: '14px',
             fontWeight: 500,
             color: '#6c757d',
@@ -849,11 +849,15 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                     {step.timestamp.toLocaleTimeString()}
                   </span>
                 </div>
-                <div style={{
-                  color: '#374151',
-                  lineHeight: '1.4',
-                  whiteSpace: 'pre-wrap'
-                }}>
+                                        <div style={{
+                          color: '#374151',
+                          lineHeight: '1.4',
+                          whiteSpace: 'pre-wrap',
+                          userSelect: 'text',
+                          WebkitUserSelect: 'text',
+                          MozUserSelect: 'text',
+                          msUserSelect: 'text',
+                        }}>
                   {step.content.replace(/^\*[🔧✅❌][^*]*\*/g, '').trim()}
                 </div>
                 {step.args && (
@@ -919,6 +923,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           <div style={{
             whiteSpace: 'pre-wrap',
             lineHeight: '1.5',
+            userSelect: 'text',
+            WebkitUserSelect: 'text',
+            MozUserSelect: 'text',
+            msUserSelect: 'text',
           }}>
             {message.content}
             {isStreaming && (
@@ -1146,6 +1154,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               <div style={{
                 whiteSpace: 'pre-wrap',
                 lineHeight: '1.5',
+                userSelect: 'text',
+                WebkitUserSelect: 'text',
+                MozUserSelect: 'text',
+                msUserSelect: 'text',
               }}>
                 {currentToolSession.assistantContent}
                 <span className="streaming-cursor" style={{
