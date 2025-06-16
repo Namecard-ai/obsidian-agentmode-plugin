@@ -185,8 +185,8 @@ export default class HelloWorldPlugin extends Plugin {
 		}
 
 		try {
-			// Get system prompt
-			const systemPrompt = this.getSystemPrompt();
+			// Get system prompt with context files
+			const systemPrompt = this.getSystemPrompt(contextFiles);
 			
 			// Convert messages to OpenAI format and build conversation
 			const chatMessages: ChatCompletionMessageParam[] = [
@@ -515,7 +515,7 @@ export default class HelloWorldPlugin extends Plugin {
 		return reduce(previous, choice.delta);
 	}
 
-	private getSystemPrompt(): string {
+	private getSystemPrompt(contextFiles?: TFile[]): string {
 		// Get vault path correctly - try multiple methods
 		let vaultPath = '/Users/vault'; // fallback
 		
@@ -553,6 +553,24 @@ export default class HelloWorldPlugin extends Plugin {
 		console.log('🔍 [SYSTEM] Vault path:', vaultPath);
 		console.log('🔍 [SYSTEM] Vault path type:', typeof vaultPath);
 		const osInfo = navigator.platform;
+		
+		// Build context files section if any are provided
+		let contextFilesSection = '';
+		if (contextFiles && contextFiles.length > 0) {
+			const contextFilesList = contextFiles.map(file => {
+				const lastModified = new Date(file.stat.mtime).toISOString();
+				return `- ${file.path} (${file.name}) - Last modified: ${lastModified}`;
+			}).join('\n');
+			
+			contextFilesSection = `
+
+<context_files>
+The user has specifically selected the following files as context for this conversation:
+${contextFilesList}
+
+These files represent the user's current focus and are most relevant to their immediate needs. ALWAYS prioritize examining and referencing these files when responding to the user's queries. When the user asks questions or requests actions, first consider how these context files relate to their request and use them as your primary source of information.
+</context_files>`;
+		}
 		
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
 
@@ -601,7 +619,7 @@ This is the ONLY acceptable format for note citations.
 The USER is working in Obsidian with Markdown files under a single vault directory. 
 The user's OS version is: \`${osInfo}\`
 The absolute path to the vault is: \`${vaultPath}\`
-</user_info>
+</user_info>${contextFilesSection}
 
 Answer the USER's request using available context and tools. If a required parameter is missing, ask for it. Otherwise, proceed with the tool call or provide the response directly.
 If citing notes or inserting content, ensure Markdown compatibility and coherence with existing structure.`;
