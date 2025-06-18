@@ -35,22 +35,23 @@ if (typeof document !== 'undefined') {
   document.head.appendChild(styleSheet);
 }
 
-interface ToolStep {
+interface ToolCall {
   id: string;
-  type: 'call' | 'result';
-  toolName: string;
-  content: string;
-  args?: any;
-  timestamp: Date;
-  status?: 'pending' | 'completed' | 'error';
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
 }
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant' | 'tool-session';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
   timestamp: Date;
-  toolSteps?: ToolStep[]; // 只有 tool-session 類型才有
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+  name?: string;
 }
 
 interface ChatHistory {
@@ -163,11 +164,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragFileCount, setDragFileCount] = useState(0);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [currentToolSession, setCurrentToolSession] = useState<{
-    messageId: string;
-    toolSteps: ToolStep[];
-    assistantContent: string;
-  } | null>(null);
+  const [currentStreamingContent, setCurrentStreamingContent] = useState<string>('');
   const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
   const [pendingEditConfirmation, setPendingEditConfirmation] = useState<PendingEditConfirmation | null>(null);
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
@@ -177,16 +174,6 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const currentToolSessionRef = useRef<{
-    messageId: string;
-    toolSteps: ToolStep[];
-    assistantContent: string;
-  } | null>(null);
-
-  // Sync ref with state
-  useEffect(() => {
-    currentToolSessionRef.current = currentToolSession;
-  }, [currentToolSession]);
 
   // Listen for edit confirmation changes
   useEffect(() => {
@@ -269,7 +256,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
 
     const userMessage: Message = {
       id: generateId(),
-      type: 'user',
+      role: 'user',
       content: messageContent,
       timestamp: new Date()
     };
@@ -283,20 +270,15 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       const toolSessionId = generateId();
       setStreamingMessageId(toolSessionId);
       
-      // Initialize tool session tracking
-      setCurrentToolSession({
-        messageId: toolSessionId,
-        toolSteps: [],
-        assistantContent: ''
-      });
-      console.log('Initialized tool session with ID:', toolSessionId);
-
-      // Convert messages to plugin format (only user and assistant messages)
+      // Convert messages to plugin format - now include tool messages too
       const chatMessages = messages
-        .filter(msg => msg.type === 'user' || msg.type === 'assistant')
+        .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
         .map(msg => ({
-          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
-          content: msg.content
+          role: msg.role,
+          content: msg.content,
+          ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+          ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+          ...(msg.name && { name: msg.name })
         }));
       
       // Add the current user message
@@ -313,138 +295,67 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           chatMessages,
           contextTFiles,
           (chunk: string) => {
-            // Handle streaming chunks - distinguish between tool output and assistant response
-            if (chunk.includes('🔧 Using tool:')) {
-              // This is a tool call indicator
-              const toolName = chunk.match(/🔧 Using tool: (\w+)/)?.[1] || 'unknown';
-              console.log(`🎯 [UI] Tool call detected: ${toolName}`);
-              
-              const newToolStep: ToolStep = {
-                id: generateId(),
-                type: 'call',
-                toolName: toolName,
-                content: chunk,
-                timestamp: new Date(),
-                status: 'pending'
-              };
-              
-              console.log('🎯 [UI] Adding tool step:', newToolStep);
-              
-              setCurrentToolSession(prev => prev ? {
-                ...prev,
-                toolSteps: [...prev.toolSteps, newToolStep]
-              } : null);
-            } else if (chunk.includes('✅ Tool result:') || chunk.includes('❌ Tool error:')) {
-              // This is a tool result
-              const isError = chunk.includes('❌ Tool error:');
-              console.log(`🎯 [UI] Tool result detected (error: ${isError}):`, chunk);
-              
-              setCurrentToolSession(prev => {
-                if (!prev || prev.toolSteps.length === 0) {
-                  console.warn('🎯 [UI] No previous tool steps found for result');
-                  return prev;
-                }
-                
-                const updatedSteps = [...prev.toolSteps];
-                const lastStep = updatedSteps[updatedSteps.length - 1];
-                
-                if (lastStep.type === 'call') {
-                  // Update the last call step status and add result step
-                  lastStep.status = isError ? 'error' : 'completed';
-                  
-                  const resultStep: ToolStep = {
-                    id: generateId(),
-                    type: 'result',
-                    toolName: lastStep.toolName,
-                    content: chunk,
-                    timestamp: new Date(),
-                    status: isError ? 'error' : 'completed'
-                  };
-                  
-                  console.log('🎯 [UI] Adding result step:', resultStep);
-                  updatedSteps.push(resultStep);
-                } else {
-                  console.warn('🎯 [UI] Last step is not a call step:', lastStep);
-                }
-                
-                return {
-                  ...prev,
-                  toolSteps: updatedSteps
-                };
-              });
-            } else {
-              // This is regular assistant content
-              setCurrentToolSession(prev => prev ? {
-                ...prev,
-                assistantContent: prev.assistantContent + chunk
-              } : null);
-              console.log('Updated assistant content, total length:', currentToolSessionRef.current?.assistantContent.length);
-            }
+            // Handle streaming for assistant response content
+            setCurrentStreamingContent(prev => prev + chunk);
           },
           (toolCall: any) => {
-            // Handle tool calls - detailed logging for debugging
-            console.log('🎯 [UI] Tool call initiated:', {
-              id: toolCall.id,
-              function_name: toolCall.function?.name,
-              arguments: toolCall.function?.arguments,
-              parsed_arguments: toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : null,
-              full_tool_call: toolCall
-            });
+            // Handle tool call - add as message immediately
+            const toolCallMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentStreamingContent || '',
+              timestamp: new Date(),
+              tool_calls: [toolCall]
+            };
+            
+            setMessages(prev => [...prev, toolCallMessage]);
+            setCurrentStreamingContent(''); // Reset streaming content
           },
           () => {
-            // Handle completion - create the final message
-            const session = currentToolSessionRef.current;
-            if (session) {
-              console.log('Creating final message with session:', session);
-              const finalMessage: Message = session.toolSteps.length > 0 ? {
-                id: session.messageId,
-                type: 'tool-session',
-                content: session.assistantContent,
-                timestamp: new Date(),
-                toolSteps: session.toolSteps
-              } : {
-                id: session.messageId,
-                type: 'assistant',
-                content: session.assistantContent,
+            // Handle completion
+            if (currentStreamingContent.trim()) {
+              // Add final assistant message if there's remaining content
+              const finalMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: currentStreamingContent,
                 timestamp: new Date()
               };
-              
-              setMessages(prev => {
-                console.log('Adding final message to messages:', finalMessage);
-                return [...prev, finalMessage];
-              });
-              
-              // Auto-expand if there are tool steps
-              if (session.toolSteps.length > 0) {
-                setExpandedToolSessions(prev => new Set([...prev, session.messageId]));
-              }
-            } else {
-              console.warn('No current tool session found on completion');
+              setMessages(prev => [...prev, finalMessage]);
             }
             
             setIsLoading(false);
             setStreamingMessageId(null);
-            setCurrentToolSession(null);
+            setCurrentStreamingContent('');
             console.log('Agent conversation completed');
           },
           (error: string) => {
             // Handle error
             console.error('Agent chat error:', error);
             
-            const session = currentToolSessionRef.current;
-            if (session) {
-              const errorMessage: Message = {
-                id: session.messageId,
-                type: 'assistant',
-                content: session.assistantContent + `\n\n❌ Error: ${error}`,
-                timestamp: new Date()
-              };
-              setMessages(prev => [...prev, errorMessage]);
-            }
+            const errorMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentStreamingContent + `\n\n❌ Error: ${error}`,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, errorMessage]);
             
             setIsLoading(false);
             setStreamingMessageId(null);
-            setCurrentToolSession(null);
+            setCurrentStreamingContent('');
+          },
+          (toolResult: { toolCallId: string; result: string }) => {
+            // Handle tool result - add as tool message
+            const toolResultMessage: Message = {
+              id: generateId(),
+              role: 'tool',
+              content: toolResult.result,
+              timestamp: new Date(),
+              tool_call_id: toolResult.toolCallId
+            };
+            
+            setMessages(prev => [...prev, toolResultMessage]);
           }
         );
       } catch (error) {
@@ -452,7 +363,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         
         const errorMessage: Message = {
           id: generateId(),
-          type: 'assistant',
+          role: 'assistant',
           content: `❌ Error: ${error.message || 'Unknown error occurred'}`,
           timestamp: new Date()
         };
@@ -460,7 +371,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         
         setIsLoading(false);
         setStreamingMessageId(null);
-        setCurrentToolSession(null);
+        setCurrentStreamingContent('');
       }
     } else {
       // Original Ask mode - simulate AI response
@@ -474,7 +385,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         
         const assistantMessage: Message = {
           id: generateId(),
-          type: 'assistant',
+          role: 'assistant',
           content: responseContent,
           timestamp: new Date()
         };
@@ -528,7 +439,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       // You could add a message indicating file was uploaded
       const fileMessage: Message = {
         id: generateId(),
-        type: 'user',
+        role: 'user',
         content: `📎 Uploaded file: ${file.name}`,
         timestamp: new Date()
       };
@@ -891,124 +802,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     // This prevents duplicate handling
   };
 
-  const renderToolSteps = (toolSteps: ToolStep[], messageId: string) => {
-    const isExpanded = expandedToolSessions.has(messageId);
-    
-    return (
-      <div className="tool-session-container" style={{
-        marginTop: '8px',
-        padding: '12px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        border: '1px solid #e1e5e9'
-      }}>
-        <div 
-          className="tool-session-header"
-          onClick={() => toggleToolSession(messageId)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            userSelect: 'none' as const,
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#6c757d',
-            marginBottom: isExpanded ? '8px' : '0'
-          }}
-        >
-          <span style={{ marginRight: '8px' }}>
-            {isExpanded ? '🔽' : '▶️'}
-          </span>
-          <span>
-            🔧 Used {toolSteps.filter(step => step.type === 'call').length} tool{toolSteps.filter(step => step.type === 'call').length > 1 ? 's' : ''}
-          </span>
-        </div>
-        
-        {isExpanded && (
-          <div className="tool-steps">
-            {toolSteps.map((step, index) => (
-              <div 
-                key={step.id}
-                className={`tool-step tool-step-${step.type}`}
-                style={{
-                  padding: '8px 12px',
-                  marginBottom: '6px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  backgroundColor: step.type === 'call' 
-                    ? (step.status === 'error' ? '#fff5f5' : '#f0f9ff')
-                    : (step.status === 'error' ? '#fef2f2' : '#f0fdf4'),
-                  borderLeft: `3px solid ${
-                    step.type === 'call' 
-                      ? (step.status === 'error' ? '#ef4444' : '#3b82f6')
-                      : (step.status === 'error' ? '#ef4444' : '#10b981')
-                  }`
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: '4px',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  color: '#64748b'
-                }}>
-                  <span style={{ marginRight: '6px' }}>
-                    {step.type === 'call' 
-                      ? (step.status === 'pending' ? '⏳' : step.status === 'error' ? '❌' : '🔧')
-                      : (step.status === 'error' ? '❌' : '✅')
-                    }
-                  </span>
-                  <span>
-                    {step.type === 'call' ? `Calling ${step.toolName}` : `Result from ${step.toolName}`}
-                  </span>
-                  <span style={{ marginLeft: 'auto', fontSize: '11px', opacity: 0.7 }}>
-                    {step.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-                                        <div style={{
-                          color: '#374151',
-                          lineHeight: '1.4',
-                          whiteSpace: 'pre-wrap',
-                          userSelect: 'text',
-                          WebkitUserSelect: 'text',
-                          MozUserSelect: 'text',
-                          msUserSelect: 'text',
-                        }}>
-                  {step.content.replace(/^\*[🔧✅❌][^*]*\*/g, '').trim()}
-                </div>
-                {step.args && (
-                  <details style={{ marginTop: '6px' }}>
-                    <summary style={{ 
-                      fontSize: '11px', 
-                      color: '#6b7280', 
-                      cursor: 'pointer'
-                    }}>
-                      Parameters
-                    </summary>
-                    <pre style={{
-                      fontSize: '11px',
-                      color: '#4b5563',
-                      backgroundColor: '#f9fafb',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      margin: '4px 0 0 0',
-                      overflow: 'auto'
-                    }}>
-                      {JSON.stringify(step.args, null, 2)}
-                    </pre>
-                  </details>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderMessage = (message: Message) => {
-    const isUser = message.type === 'user';
+    const isUser = message.role === 'user';
     const isStreaming = streamingMessageId === message.id;
     
     return (
@@ -1028,14 +823,48 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             borderRadius: '12px',
             backgroundColor: isUser 
               ? '#007acc' 
-              : message.type === 'tool-session' 
-                ? '#ffffff'
+              : message.role === 'tool' 
+                ? '#f8f9fa'
                 : '#f0f0f0',
-            color: isUser ? 'white' : '#333',
-            border: message.type === 'tool-session' ? '1px solid #e1e5e9' : 'none',
+            color: isUser 
+              ? 'white' 
+              : message.role === 'tool'
+                ? '#333'
+                : '#333',
+            border: message.role === 'tool' ? '1px solid #e1e5e9' : 'none',
             position: 'relative',
           }}
         >
+          {/* Tool call indicator for assistant messages with tool_calls */}
+          {message.role === 'assistant' && message.tool_calls && (
+            <div style={{
+              fontSize: '12px',
+              color: '#6c757d',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>🔧</span>
+              <span>Called {message.tool_calls.map(tc => tc.function.name).join(', ')}</span>
+            </div>
+          )}
+
+          {/* Tool result indicator for tool messages */}
+          {message.role === 'tool' && (
+            <div style={{
+              fontSize: '12px',
+              color: '#10b981',
+              marginBottom: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>✅</span>
+              <span>Tool result</span>
+            </div>
+          )}
+
           {/* Main message content */}
           <div style={{
             whiteSpace: 'pre-wrap',
@@ -1057,11 +886,6 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               }} />
             )}
           </div>
-
-          {/* Tool steps for tool-session type */}
-          {message.type === 'tool-session' && message.toolSteps && (
-            renderToolSteps(message.toolSteps, message.id)
-          )}
 
           {/* Timestamp */}
           <div style={{
@@ -1251,8 +1075,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           messages.map(message => renderMessage(message))
         )}
         
-        {/* Real-time tool session display */}
-        {currentToolSession && (
+        {/* Current streaming content */}
+        {isLoading && currentStreamingContent && (
           <div style={{
             display: 'flex',
             justifyContent: 'flex-start',
@@ -1262,12 +1086,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               maxWidth: '70%',
               padding: '12px 16px',
               borderRadius: '12px',
-              backgroundColor: '#ffffff',
+              backgroundColor: '#f0f0f0',
               color: '#333',
-              border: '1px solid #e1e5e9',
               position: 'relative',
             }}>
-              {/* Current assistant content being streamed */}
               <div style={{
                 whiteSpace: 'pre-wrap',
                 lineHeight: '1.5',
@@ -1276,7 +1098,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                 MozUserSelect: 'text',
                 msUserSelect: 'text',
               }}>
-                {currentToolSession.assistantContent}
+                {currentStreamingContent}
                 <span className="streaming-cursor" style={{
                   display: 'inline-block',
                   width: '2px',
@@ -1286,95 +1108,18 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                   animation: 'blink 1s infinite',
                 }} />
               </div>
-
-              {/* Live tool steps */}
-              {currentToolSession.toolSteps.length > 0 && (
-                <div className="tool-session-container" style={{
-                  marginTop: '8px',
-                  padding: '12px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  border: '1px solid #e1e5e9'
-                }}>
-                  <div style={{
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#6c757d',
-                    marginBottom: '8px',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{ marginRight: '8px' }}>🔧</span>
-                    <span>Tool execution in progress...</span>
-                  </div>
-                  
-                  <div className="tool-steps">
-                    {currentToolSession.toolSteps.map((step, index) => (
-                      <div 
-                        key={step.id}
-                        className={`tool-step tool-step-${step.type}`}
-                        style={{
-                          padding: '8px 12px',
-                          marginBottom: '6px',
-                          borderRadius: '6px',
-                          fontSize: '13px',
-                          backgroundColor: step.type === 'call' 
-                            ? (step.status === 'error' ? '#fff5f5' : '#f0f9ff')
-                            : (step.status === 'error' ? '#fef2f2' : '#f0fdf4'),
-                          borderLeft: `3px solid ${
-                            step.type === 'call' 
-                              ? (step.status === 'error' ? '#ef4444' : '#3b82f6')
-                              : (step.status === 'error' ? '#ef4444' : '#10b981')
-                          }`
-                        }}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          marginBottom: '4px',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          color: '#64748b'
-                        }}>
-                          <span style={{ marginRight: '6px' }}>
-                            {step.type === 'call' 
-                              ? (step.status === 'pending' ? '⏳' : step.status === 'error' ? '❌' : '🔧')
-                              : (step.status === 'error' ? '❌' : '✅')
-                            }
-                          </span>
-                          <span>
-                            {step.type === 'call' ? `Calling ${step.toolName}` : `Result from ${step.toolName}`}
-                          </span>
-                          <span style={{ marginLeft: 'auto', fontSize: '11px', opacity: 0.7 }}>
-                            {step.timestamp.toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <div style={{
-                          color: '#374151',
-                          lineHeight: '1.4',
-                          whiteSpace: 'pre-wrap'
-                        }}>
-                          {step.content.replace(/^\*[🔧✅❌][^*]*\*/g, '').trim()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Timestamp */}
               <div style={{
                 fontSize: '11px',
                 opacity: 0.7,
                 marginTop: '8px',
                 textAlign: 'left',
               }}>
-                {new Date().toLocaleTimeString()} • Processing...
+                {new Date().toLocaleTimeString()} • Typing...
               </div>
             </div>
           </div>
         )}
-
+        
         <div ref={messagesEndRef} />
       </div>
 

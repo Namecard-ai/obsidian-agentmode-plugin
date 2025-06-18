@@ -239,7 +239,8 @@ export default class HelloWorldPlugin extends Plugin {
 		onChunk: (chunk: string) => void,
 		onToolCall: (toolCall: any) => void,
 		onComplete: () => void,
-		onError: (error: string) => void
+		onError: (error: string) => void,
+		onToolResult: (result: { toolCallId: string; result: string }) => void
 	): Promise<void> {
 		if (!this.openaiClient) {
 			onError('OpenAI API key not configured');
@@ -478,8 +479,6 @@ export default class HelloWorldPlugin extends Plugin {
 				// Execute tool calls and add results to conversation
 				for (const toolCall of currentMessage.tool_calls) {
 					try {
-						onChunk(`\n\n*🔧 Using tool: ${toolCall.function.name}*\n`);
-						
 						const args = JSON.parse(toolCall.function.arguments || '{}');
 						
 						// Debug: Log tool call input payload
@@ -529,7 +528,7 @@ export default class HelloWorldPlugin extends Plugin {
 						};
 						
 						chatMessages.push(toolMessage);
-						onChunk(`*✅ Tool result:* ${result.slice(0, 200)}${result.length > 200 ? '...' : ''}\n\n`);
+						onToolResult({ toolCallId: toolCall.id, result });
 						
 					} catch (error: any) {
 						// Debug: Log tool call error
@@ -548,7 +547,7 @@ export default class HelloWorldPlugin extends Plugin {
 						};
 						
 						chatMessages.push(errorMessage);
-						onChunk(`*❌ Tool error:* ${error.message || 'Unknown error'}\n\n`);
+						onToolResult({ toolCallId: toolCall.id, result: `Error: ${error.message || 'Unknown error'}` });
 					}
 				}
 				
