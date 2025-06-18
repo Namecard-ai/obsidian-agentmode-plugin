@@ -165,6 +165,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [dragFileCount, setDragFileCount] = useState(0);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentStreamingContent, setCurrentStreamingContent] = useState<string>('');
+  const currentStreamingContentRef = useRef<string>('');
   const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
   const [pendingEditConfirmation, setPendingEditConfirmation] = useState<PendingEditConfirmation | null>(null);
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
@@ -174,6 +175,11 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync ref with state
+  useEffect(() => {
+    currentStreamingContentRef.current = currentStreamingContent;
+  }, [currentStreamingContent]);
 
   // Listen for edit confirmation changes
   useEffect(() => {
@@ -229,7 +235,13 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     scrollToBottom();
   }, [messages]);
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Debug: Monitor messages changes
+  useEffect(() => {
+    console.log('🎯 [DEBUG] Messages changed, current count:', messages.length);
+    console.log('🎯 [DEBUG] Messages:', messages.map(m => ({ id: m.id, role: m.role, content: m.content.slice(0, 50) })));
+  }, [messages]);
 
   const toggleToolSession = (messageId: string) => {
     setExpandedToolSessions(prev => {
@@ -269,6 +281,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       // Use the Agent mode with OpenAI streaming
       const toolSessionId = generateId();
       setStreamingMessageId(toolSessionId);
+      let lastToolCallContent = ''; // Track content before tool calls
       
       // Convert messages to plugin format - now include tool messages too
       const chatMessages = messages
@@ -299,34 +312,53 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             setCurrentStreamingContent(prev => prev + chunk);
           },
           (toolCall: any) => {
-            // Handle tool call - add as message immediately
+            // Handle tool call - save current content and create tool call message
+            const currentContent = currentStreamingContentRef.current;
+            lastToolCallContent = currentContent;
+            
             const toolCallMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: currentStreamingContent || '',
+              content: currentContent,
               timestamp: new Date(),
               tool_calls: [toolCall]
             };
             
             setMessages(prev => [...prev, toolCallMessage]);
-            setCurrentStreamingContent(''); // Reset streaming content
+            setCurrentStreamingContent(''); // Reset for new content after tool call
           },
           () => {
-            // Handle completion
-            if (currentStreamingContent.trim()) {
-              // Add final assistant message if there's remaining content
+            // Handle completion - create final message for content after tool calls
+            console.log('🎯 [DEBUG] Completion callback triggered');
+            console.log('🎯 [DEBUG] currentStreamingContent:', currentStreamingContentRef.current);
+            console.log('🎯 [DEBUG] current messages count:', messages.length);
+            
+            if (currentStreamingContentRef.current) {
               const finalMessage: Message = {
                 id: generateId(),
                 role: 'assistant',
-                content: currentStreamingContent,
+                content: currentStreamingContentRef.current,
                 timestamp: new Date()
               };
-              setMessages(prev => [...prev, finalMessage]);
+              
+              console.log('🎯 [DEBUG] Creating final message:', finalMessage);
+              
+              setMessages(prev => {
+                const newMessages = [...prev, finalMessage];
+                console.log('🎯 [DEBUG] New messages array length:', newMessages.length);
+                console.log('🎯 [DEBUG] Last message:', newMessages[newMessages.length - 1]);
+                return newMessages;
+              });
             }
             
-            setIsLoading(false);
-            setStreamingMessageId(null);
-            setCurrentStreamingContent('');
+            // Use setTimeout to ensure the message is rendered before clearing states
+            setTimeout(() => {
+              console.log('🎯 [DEBUG] Clearing loading states');
+              setIsLoading(false);
+              setStreamingMessageId(null);
+              setCurrentStreamingContent('');
+            }, 50); // Small delay to ensure rendering
+            
             console.log('Agent conversation completed');
           },
           (error: string) => {
@@ -336,7 +368,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             const errorMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: currentStreamingContent + `\n\n❌ Error: ${error}`,
+              content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
               timestamp: new Date()
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -1072,7 +1104,11 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             <p>Copilot is powered by AI, so mistakes are possible. Review output carefully before use.</p>
           </div>
         ) : (
-          messages.map(message => renderMessage(message))
+          messages.map(message => (
+            <div key={message.id}>
+              {renderMessage(message)}
+            </div>
+          ))
         )}
         
         {/* Current streaming content */}
