@@ -1135,6 +1135,25 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				this.createNoteConfirmationCallbacks = {
 					onAccept: async () => {
 						try {
+							// Extract directory path from note_path
+							const pathParts = args.note_path.split('/');
+							if (pathParts.length > 1) {
+								// Remove the filename to get the directory path
+								const directoryPath = pathParts.slice(0, -1).join('/');
+								
+								// Check if directory exists, if not create it
+								try {
+									const dirExists = await this.app.vault.adapter.exists(directoryPath);
+									if (!dirExists) {
+										console.log(`Creating directory: ${directoryPath}`);
+										await this.app.vault.adapter.mkdir(directoryPath);
+									}
+								} catch (dirError: any) {
+									console.log(`Directory creation attempt for ${directoryPath}:`, dirError);
+									// Directory might already exist or be created by another process
+								}
+							}
+							
 							// Create the note
 							await this.app.vault.create(args.note_path, args.content);
 							resolve(`✅ Note creation confirmed and completed: ${args.note_path}`);
