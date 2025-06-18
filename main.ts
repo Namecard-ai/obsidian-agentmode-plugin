@@ -5,6 +5,7 @@ import { ReactView } from './ReactView';
 import { ExampleView, VIEW_TYPE_EXAMPLE } from './ExampleView';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import * as Diff from 'diff';
 
 // Remember to rename these classes and interfaces!
 
@@ -1017,97 +1018,61 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return result;
 	}
 
-	// Generate diff based on edit operations rather than simple line comparison
+	// Generate diff using the diff library for accurate results
 	private generateDiff(originalLines: string[], modifiedLines: string[], edits: EditOperation[]): DiffLine[] {
-		const diff: DiffLine[] = [];
+		// Use the diff library to compare the original and modified text
+		const originalText = originalLines.join('\n');
+		const modifiedText = modifiedLines.join('\n');
 		
-		// Create a set of line numbers that are affected by edits
-		const affectedLines = new Set<number>();
-		const replacements = new Map<number, string>();
-		const insertions = new Map<number, string[]>(); // line -> lines to insert after
+		// Get line-by-line diff using the diff library
+		const diffParts = Diff.diffLines(originalText, modifiedText);
 		
-		// Process all edits to determine affected lines
-		for (const edit of edits) {
-			switch (edit.operation) {
-				case 'delete':
-					for (let i = edit.start_line; i <= edit.end_line!; i++) {
-						affectedLines.add(i);
-					}
-					break;
-				case 'replace':
-					for (let i = edit.start_line; i <= edit.end_line!; i++) {
-						affectedLines.add(i);
-						// For replace, we'll show the new content
-						if (i === edit.start_line) {
-							replacements.set(i, edit.content!);
-						}
-					}
-					break;
-				case 'insert':
-					// Insert operations don't affect existing lines directly
-					insertions.set(edit.start_line, edit.content!.split('\n'));
-					break;
-			}
-		}
+		const result: DiffLine[] = [];
+		let originalLineNumber = 1;
+		let modifiedLineNumber = 1;
 		
-		// Build diff line by line
-		for (let i = 1; i <= originalLines.length; i++) {
-			// Check if this line is affected by any edit
-			if (affectedLines.has(i)) {
-				// Check what type of edit affects this line
-				const deleteEdit = edits.find(e => e.operation === 'delete' && i >= e.start_line && i <= e.end_line!);
-				const replaceEdit = edits.find(e => e.operation === 'replace' && i >= e.start_line && i <= e.end_line!);
-				
-				if (deleteEdit) {
-					// Line is deleted
-					diff.push({
-						type: 'deleted',
-						line_number: i,
-						content: originalLines[i - 1]
-					});
-				} else if (replaceEdit && i === replaceEdit.start_line) {
-					// Line is replaced - show original as deleted and new as inserted
-					diff.push({
-						type: 'deleted',
-						line_number: i,
-						content: originalLines[i - 1]
-					});
-					diff.push({
-						type: 'inserted',
-						line_number: i,
-						content: replaceEdit.content!
-					});
-				} else if (replaceEdit && i > replaceEdit.start_line) {
-					// This is part of a multi-line replace, but we only show the replacement once
-					diff.push({
-						type: 'deleted',
-						line_number: i,
-						content: originalLines[i - 1]
-					});
-				}
-			} else {
-				// Line is unchanged
-				diff.push({
-					type: 'unchanged',
-					line_number: i,
-					content: originalLines[i - 1]
-				});
+		for (const part of diffParts) {
+			const lines = part.value.split('\n');
+			// Remove the last empty line if it exists (split artifact)
+			if (lines[lines.length - 1] === '') {
+				lines.pop();
 			}
 			
-			// Check for insertions after this line
-			if (insertions.has(i)) {
-				const linesToInsert = insertions.get(i)!;
-				for (let j = 0; j < linesToInsert.length; j++) {
-					diff.push({
+			if (part.added) {
+				// Added lines
+				for (const line of lines) {
+					result.push({
 						type: 'inserted',
-						line_number: i + j + 1,
-						content: linesToInsert[j]
+						line_number: modifiedLineNumber,
+						content: line
 					});
+					modifiedLineNumber++;
+				}
+			} else if (part.removed) {
+				// Removed lines
+				for (const line of lines) {
+					result.push({
+						type: 'deleted',
+						line_number: originalLineNumber,
+						content: line
+					});
+					originalLineNumber++;
+				}
+			} else {
+				// Unchanged lines
+				for (const line of lines) {
+					result.push({
+						type: 'unchanged',
+						line_number: originalLineNumber,
+						content: line
+					});
+					originalLineNumber++;
+					modifiedLineNumber++;
 				}
 			}
 		}
 		
-		return diff;
+		return result;
 	}
 
 	// Format diff for display with context
