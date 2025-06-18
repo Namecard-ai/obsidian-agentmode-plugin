@@ -875,7 +875,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			const modifiedContent = modifiedLines.join('\n');
 			
 			// Generate diff for preview
-			const diff = this.generateDiff(originalLines, modifiedLines);
+			const diff = this.generateDiff(originalLines, modifiedLines, args.edits);
 			
 			// Return a Promise that will be resolved when user confirms or rejects
 			return new Promise<string>((resolve, reject) => {
@@ -1017,56 +1017,96 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return result;
 	}
 
-	// Generate diff between original and modified lines
-	private generateDiff(originalLines: string[], modifiedLines: string[]): DiffLine[] {
+	// Generate diff based on edit operations rather than simple line comparison
+	private generateDiff(originalLines: string[], modifiedLines: string[], edits: EditOperation[]): DiffLine[] {
 		const diff: DiffLine[] = [];
-		let originalIndex = 0;
-		let modifiedIndex = 0;
-
-		// Simple diff algorithm - this could be enhanced with proper LCS algorithm
-		while (originalIndex < originalLines.length || modifiedIndex < modifiedLines.length) {
-			if (originalIndex >= originalLines.length) {
-				// Only modified lines left
-				diff.push({
-					type: 'inserted',
-					line_number: originalIndex + 1,
-					content: modifiedLines[modifiedIndex]
-				});
-				modifiedIndex++;
-			} else if (modifiedIndex >= modifiedLines.length) {
-				// Only original lines left
-				diff.push({
-					type: 'deleted',
-					line_number: originalIndex + 1,
-					content: originalLines[originalIndex]
-				});
-				originalIndex++;
-			} else if (originalLines[originalIndex] === modifiedLines[modifiedIndex]) {
-				// Lines are the same
-				diff.push({
-					type: 'unchanged',
-					line_number: originalIndex + 1,
-					content: originalLines[originalIndex]
-				});
-				originalIndex++;
-				modifiedIndex++;
-			} else {
-				// Lines are different - mark as deleted and inserted
-				diff.push({
-					type: 'deleted',
-					line_number: originalIndex + 1,
-					content: originalLines[originalIndex]
-				});
-				diff.push({
-					type: 'inserted',
-					line_number: originalIndex + 1,
-					content: modifiedLines[modifiedIndex]
-				});
-				originalIndex++;
-				modifiedIndex++;
+		
+		// Create a set of line numbers that are affected by edits
+		const affectedLines = new Set<number>();
+		const replacements = new Map<number, string>();
+		const insertions = new Map<number, string[]>(); // line -> lines to insert after
+		
+		// Process all edits to determine affected lines
+		for (const edit of edits) {
+			switch (edit.operation) {
+				case 'delete':
+					for (let i = edit.start_line; i <= edit.end_line!; i++) {
+						affectedLines.add(i);
+					}
+					break;
+				case 'replace':
+					for (let i = edit.start_line; i <= edit.end_line!; i++) {
+						affectedLines.add(i);
+						// For replace, we'll show the new content
+						if (i === edit.start_line) {
+							replacements.set(i, edit.content!);
+						}
+					}
+					break;
+				case 'insert':
+					// Insert operations don't affect existing lines directly
+					insertions.set(edit.start_line, edit.content!.split('\n'));
+					break;
 			}
 		}
-
+		
+		// Build diff line by line
+		for (let i = 1; i <= originalLines.length; i++) {
+			// Check if this line is affected by any edit
+			if (affectedLines.has(i)) {
+				// Check what type of edit affects this line
+				const deleteEdit = edits.find(e => e.operation === 'delete' && i >= e.start_line && i <= e.end_line!);
+				const replaceEdit = edits.find(e => e.operation === 'replace' && i >= e.start_line && i <= e.end_line!);
+				
+				if (deleteEdit) {
+					// Line is deleted
+					diff.push({
+						type: 'deleted',
+						line_number: i,
+						content: originalLines[i - 1]
+					});
+				} else if (replaceEdit && i === replaceEdit.start_line) {
+					// Line is replaced - show original as deleted and new as inserted
+					diff.push({
+						type: 'deleted',
+						line_number: i,
+						content: originalLines[i - 1]
+					});
+					diff.push({
+						type: 'inserted',
+						line_number: i,
+						content: replaceEdit.content!
+					});
+				} else if (replaceEdit && i > replaceEdit.start_line) {
+					// This is part of a multi-line replace, but we only show the replacement once
+					diff.push({
+						type: 'deleted',
+						line_number: i,
+						content: originalLines[i - 1]
+					});
+				}
+			} else {
+				// Line is unchanged
+				diff.push({
+					type: 'unchanged',
+					line_number: i,
+					content: originalLines[i - 1]
+				});
+			}
+			
+			// Check for insertions after this line
+			if (insertions.has(i)) {
+				const linesToInsert = insertions.get(i)!;
+				for (let j = 0; j < linesToInsert.length; j++) {
+					diff.push({
+						type: 'inserted',
+						line_number: i + j + 1,
+						content: linesToInsert[j]
+					});
+				}
+			}
+		}
+		
 		return diff;
 	}
 
