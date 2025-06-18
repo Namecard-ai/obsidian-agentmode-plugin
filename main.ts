@@ -36,6 +36,56 @@ interface ChatMessage {
 	name?: string;
 }
 
+// New interfaces for precise line-by-line editing
+interface EditOperation {
+	operation: 'insert' | 'delete' | 'replace';
+	start_line: number;      // 1-indexed line number
+	end_line?: number;       // For delete/replace operations
+	content?: string;        // For insert/replace operations
+	description: string;     // Description of this edit operation
+}
+
+interface DiffLine {
+	type: 'unchanged' | 'deleted' | 'inserted';
+	line_number: number;     // Original line number for context
+	content: string;
+}
+
+// Interface for pending edit confirmation
+interface PendingEditConfirmation {
+	id: string;
+	note_path: string;
+	instructions: string;
+	edits: EditOperation[];
+	originalContent: string;
+	modifiedContent: string;
+	diff: DiffLine[];
+	toolCallId: string;
+	timestamp: Date;
+}
+
+// Interface for edit confirmation callback
+interface EditConfirmationCallbacks {
+	onAccept: () => void;
+	onReject: (reason?: string) => void;
+}
+
+// Interface for pending create note confirmation
+interface PendingCreateNoteConfirmation {
+	id: string;
+	note_path: string;
+	content: string;
+	explanation: string;
+	toolCallId: string;
+	timestamp: Date;
+}
+
+// Interface for create note confirmation callback
+interface CreateNoteConfirmationCallbacks {
+	onAccept: () => void;
+	onReject: (reason?: string) => void;
+}
+
 export default class HelloWorldPlugin extends Plugin {
 	settings: HelloWorldPluginSettings;
 	vectorDbPath: string = '';
@@ -43,6 +93,18 @@ export default class HelloWorldPlugin extends Plugin {
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 	private openaiClient: OpenAI | null = null;
+	
+	// Edit confirmation state
+	private pendingEditConfirmation: PendingEditConfirmation | null = null;
+	private editConfirmationCallbacks: EditConfirmationCallbacks | null = null;
+	
+	// Create note confirmation state
+	private pendingCreateNoteConfirmation: PendingCreateNoteConfirmation | null = null;
+	private createNoteConfirmationCallbacks: CreateNoteConfirmationCallbacks | null = null;
+	
+	// Event emitter for UI updates
+	private editConfirmationListeners: ((confirmation: PendingEditConfirmation | null) => void)[] = [];
+	private createNoteConfirmationListeners: ((confirmation: PendingCreateNoteConfirmation | null) => void)[] = [];
 
 	async onload() {
 		await this.loadSettings();
@@ -274,7 +336,7 @@ export default class HelloWorldPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'edit_note',
-						description: 'Edit or insert content into an existing note.',
+						description: 'Edit an existing note with precise line-by-line operations. Multiple non-overlapping edit operations can be performed in a single call. Edit operations are applied in reverse order (highest line numbers first) to maintain line number accuracy.',
 						parameters: {
 							type: 'object',
 							properties: {
@@ -284,14 +346,43 @@ export default class HelloWorldPlugin extends Plugin {
 								},
 								instructions: {
 									type: 'string',
-									description: 'A single sentence describing the intention of the edit.'
+									description: 'Overall description of what this edit aims to accomplish.'
 								},
-								markdown_edit: {
-									type: 'string',
-									description: 'ONLY the changed lines or content. Use <!-- ... existing content ... --> to indicate unchanged regions.'
+								edits: {
+									type: 'array',
+									description: 'Array of edit operations to perform. Operations must not overlap (no two operations can affect the same line numbers). The system will validate and reject overlapping operations.',
+									items: {
+										type: 'object',
+										properties: {
+											operation: {
+												type: 'string',
+												enum: ['insert', 'delete', 'replace'],
+												description: 'Type of operation: insert (add new lines), delete (remove lines), replace (replace existing lines with new content)'
+											},
+											start_line: {
+												type: 'integer',
+												minimum: 1,
+												description: 'Starting line number (1-indexed). For insert: line number after which to insert. For delete/replace: first line to affect.'
+											},
+											end_line: {
+												type: 'integer',
+												minimum: 1,
+												description: 'Ending line number (1-indexed), inclusive. Required for delete and replace operations. Must be >= start_line.'
+											},
+											content: {
+												type: 'string',
+												description: 'New content to insert or replace with. Required for insert and replace operations. For multiple lines, use \\n to separate lines.'
+											},
+											description: {
+												type: 'string',
+												description: 'Brief description of what this specific edit operation does.'
+											}
+										},
+										required: ['operation', 'start_line', 'description']
+									}
 								}
 							},
-							required: ['note_path', 'instructions', 'markdown_edit']
+							required: ['note_path', 'instructions', 'edits']
 						}
 					}
 				},
@@ -599,6 +690,24 @@ Ensure your edits respect the following:
 4. When inserting content (e.g. summaries, backlinks, tables), place it in the correct context — don't guess.
 5. When refactoring or reorganizing content, preserve original meaning and ordering unless improved otherwise.
 6. Fix formatting or syntax issues if they are obvious, but do not make stylistic assumptions without instruction.
+
+IMPORTANT: Both edit_note and create_note tools require user confirmation before applying changes.
+
+For edit_note:
+- The system will show the user a detailed preview of the proposed changes
+- The user can either accept or reject the edit
+- If rejected, the user may provide a reason for the rejection
+- If an edit is rejected, DO NOT automatically try the same edit again
+- Instead, ask the user what they would prefer or how you should modify the approach
+- Use the rejection feedback to better understand the user's preferences for future edits
+
+For create_note:
+- The system will show the user a preview of the note content and path before creation
+- The user can either accept or reject the note creation
+- If rejected, the user may provide a reason for the rejection
+- If a note creation is rejected, DO NOT automatically try to create the same note again
+- Instead, ask the user what they would prefer for the note path, content, or approach
+- Use the rejection feedback to better understand the user's preferences for future note creations
 </editing_notes>
 
 <searching_and_reading>
@@ -607,6 +716,38 @@ You can search across the vault or read from specific notes. Follow these princi
 2. When reading notes, retrieve the full content only if needed. Use sections or block references when appropriate.
 3. Avoid redundant reads — once you have enough context to answer or make a change, proceed without further searching.
 </searching_and_reading>
+
+<handling_rejections>
+When a user rejects an edit or note creation, respond appropriately:
+
+For EDIT rejections:
+1. **Acknowledge the rejection gracefully** - Thank the user for their feedback
+2. **Ask clarifying questions** to understand their concerns:
+   - "What aspect of the proposed changes didn't work for you?"
+   - "Would you prefer a different approach to organizing this content?"
+   - "Are there specific parts you'd like me to focus on or avoid?"
+3. **Offer alternatives** based on their feedback
+4. **Learn from the rejection** - Use the feedback to improve future suggestions
+5. **Never repeat the same rejected edit** without significant modifications
+
+For CREATE NOTE rejections:
+1. **Acknowledge the rejection gracefully** - Thank the user for their feedback
+2. **Ask clarifying questions** to understand their concerns:
+   - "What didn't work about the proposed note path or content?"
+   - "Would you prefer a different location or structure for this note?"
+   - "Should I adjust the content, format, or focus differently?"
+3. **Offer alternatives** based on their feedback:
+   - Different file paths or naming conventions
+   - Alternative content structures or formats
+   - Different approaches to organizing the information
+4. **Learn from the rejection** - Use the feedback to improve future note creation suggestions
+5. **Never repeat the same rejected note creation** without significant modifications
+
+Example responses:
+- "I understand that approach didn't work for you. Could you help me understand what you'd prefer instead?"
+- "Thanks for the feedback! Would you like me to try a different location or content structure?"
+- "I see that wasn't quite right. What would be the most helpful way to create or organize this information?"
+</handling_rejections>
 
 You MUST use the following format when citing note sections:
 \`\`\`
@@ -697,32 +838,325 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		}
 	}
 
-	private async toolEditNote(args: { note_path: string; instructions: string; markdown_edit: string }) {
+	private async toolEditNote(args: { note_path: string; instructions: string; edits: EditOperation[] }): Promise<string> {
 		try {
 			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
 			if (!file) {
 				return `Note not found: ${args.note_path}`;
 			}
 
-			// For now, append the edit to the end of the file
-			// In a more sophisticated implementation, you'd parse the markdown_edit 
-			// and apply it at the appropriate location
-			const existingContent = await this.app.vault.read(file);
-			const newContent = existingContent + '\n\n' + args.markdown_edit;
+			// Read the current file content
+			const originalContent = await this.app.vault.read(file);
+			const originalLines = originalContent.split('\n');
+
+			// Validate edits for overlaps and constraints
+			const validationResult = this.validateEditOperations(args.edits, originalLines.length);
+			if (!validationResult.valid) {
+				return `Error: ${validationResult.error}`;
+			}
+
+			// Apply edits in reverse order (highest line numbers first)
+			const sortedEdits = [...args.edits].sort((a, b) => b.start_line - a.start_line);
+			let modifiedLines = [...originalLines];
+
+			for (const edit of sortedEdits) {
+				modifiedLines = this.applyEditOperation(modifiedLines, edit);
+			}
+
+			const modifiedContent = modifiedLines.join('\n');
 			
-			await this.app.vault.modify(file, newContent);
-			return `Successfully edited note: ${args.note_path}`;
+			// Generate diff for preview
+			const diff = this.generateDiff(originalLines, modifiedLines);
+			
+			// Return a Promise that will be resolved when user confirms or rejects
+			return new Promise<string>((resolve, reject) => {
+				// Create pending edit confirmation
+				const confirmationId = Math.random().toString(36).substr(2, 9);
+				const pendingConfirmation: PendingEditConfirmation = {
+					id: confirmationId,
+					note_path: args.note_path,
+					instructions: args.instructions,
+					edits: args.edits,
+					originalContent: originalContent,
+					modifiedContent: modifiedContent,
+					diff: diff,
+					toolCallId: confirmationId, // This would be set by caller
+					timestamp: new Date()
+				};
+
+				// Set up callbacks for user decision
+				this.editConfirmationCallbacks = {
+					onAccept: async () => {
+						try {
+							// Apply the changes
+							await this.app.vault.modify(file, modifiedContent);
+							const diffPreview = this.formatDiffForDisplay(diff);
+							resolve(`✅ Edit confirmed and applied to: ${args.note_path}\n\nChanges:\n${diffPreview}`);
+						} catch (error: any) {
+							reject(new Error(`Failed to apply changes: ${error.message}`));
+						}
+					},
+					onReject: (reason?: string) => {
+						const message = reason 
+							? `❌ Edit rejected by user: ${reason}`
+							: `❌ Edit rejected by user. No changes were made to: ${args.note_path}`;
+						resolve(message);
+					}
+				};
+
+				// Store the pending confirmation and notify listeners
+				this.pendingEditConfirmation = pendingConfirmation;
+				this.notifyEditConfirmationListeners();
+			});
+
 		} catch (error: any) {
-			return `Error editing note: ${error.message}`;
+			return `Error preparing edit: ${error.message}`;
 		}
 	}
 
-	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }) {
+	// Validate edit operations for overlaps and constraints
+	private validateEditOperations(edits: EditOperation[], totalLines: number): { valid: boolean; error?: string } {
+		// Check for required fields and constraints
+		for (const edit of edits) {
+			// Validate operation type
+			if (!['insert', 'delete', 'replace'].includes(edit.operation)) {
+				return { valid: false, error: `Invalid operation type: ${edit.operation}` };
+			}
+
+			// Validate line numbers
+			if (edit.start_line < 1) {
+				return { valid: false, error: `Invalid start_line: ${edit.start_line}. Line numbers must be >= 1.` };
+			}
+
+			// For delete and replace operations, validate end_line
+			if (edit.operation === 'delete' || edit.operation === 'replace') {
+				if (!edit.end_line) {
+					return { valid: false, error: `end_line is required for ${edit.operation} operations.` };
+				}
+				if (edit.end_line < edit.start_line) {
+					return { valid: false, error: `end_line (${edit.end_line}) must be >= start_line (${edit.start_line}).` };
+				}
+				if (edit.end_line > totalLines) {
+					return { valid: false, error: `end_line (${edit.end_line}) exceeds file length (${totalLines} lines).` };
+				}
+			}
+
+			// For insert and replace operations, validate content
+			if ((edit.operation === 'insert' || edit.operation === 'replace') && !edit.content) {
+				return { valid: false, error: `content is required for ${edit.operation} operations.` };
+			}
+
+			// For insert operations, validate start_line doesn't exceed file length + 1
+			if (edit.operation === 'insert' && edit.start_line > totalLines + 1) {
+				return { valid: false, error: `Cannot insert after line ${edit.start_line}. File only has ${totalLines} lines.` };
+			}
+		}
+
+		// Check for overlapping edits
+		const ranges: Array<{ start: number; end: number }> = [];
+		for (const edit of edits) {
+			let start: number, end: number;
+			
+			if (edit.operation === 'insert') {
+				// Insert operations affect the line after start_line
+				start = edit.start_line + 1;
+				end = edit.start_line + 1;
+			} else if (edit.operation === 'delete') {
+				start = edit.start_line;
+				end = edit.end_line!;
+			} else { // replace
+				start = edit.start_line;
+				end = edit.end_line!;
+			}
+
+			// Check for overlaps with existing ranges
+			for (const range of ranges) {
+				if (!(end < range.start || start > range.end)) {
+					return { valid: false, error: `Edit operations overlap: lines ${start}-${end} conflicts with lines ${range.start}-${range.end}.` };
+				}
+			}
+
+			ranges.push({ start, end });
+		}
+
+		return { valid: true };
+	}
+
+	// Apply a single edit operation to the lines array
+	private applyEditOperation(lines: string[], edit: EditOperation): string[] {
+		const result = [...lines];
+
+		switch (edit.operation) {
+			case 'insert': {
+				const newLines = edit.content!.split('\n');
+				result.splice(edit.start_line, 0, ...newLines);
+				break;
+			}
+			case 'delete': {
+				const deleteCount = edit.end_line! - edit.start_line + 1;
+				result.splice(edit.start_line - 1, deleteCount);
+				break;
+			}
+			case 'replace': {
+				const deleteCount = edit.end_line! - edit.start_line + 1;
+				const newLines = edit.content!.split('\n');
+				result.splice(edit.start_line - 1, deleteCount, ...newLines);
+				break;
+			}
+		}
+
+		return result;
+	}
+
+	// Generate diff between original and modified lines
+	private generateDiff(originalLines: string[], modifiedLines: string[]): DiffLine[] {
+		const diff: DiffLine[] = [];
+		let originalIndex = 0;
+		let modifiedIndex = 0;
+
+		// Simple diff algorithm - this could be enhanced with proper LCS algorithm
+		while (originalIndex < originalLines.length || modifiedIndex < modifiedLines.length) {
+			if (originalIndex >= originalLines.length) {
+				// Only modified lines left
+				diff.push({
+					type: 'inserted',
+					line_number: originalIndex + 1,
+					content: modifiedLines[modifiedIndex]
+				});
+				modifiedIndex++;
+			} else if (modifiedIndex >= modifiedLines.length) {
+				// Only original lines left
+				diff.push({
+					type: 'deleted',
+					line_number: originalIndex + 1,
+					content: originalLines[originalIndex]
+				});
+				originalIndex++;
+			} else if (originalLines[originalIndex] === modifiedLines[modifiedIndex]) {
+				// Lines are the same
+				diff.push({
+					type: 'unchanged',
+					line_number: originalIndex + 1,
+					content: originalLines[originalIndex]
+				});
+				originalIndex++;
+				modifiedIndex++;
+			} else {
+				// Lines are different - mark as deleted and inserted
+				diff.push({
+					type: 'deleted',
+					line_number: originalIndex + 1,
+					content: originalLines[originalIndex]
+				});
+				diff.push({
+					type: 'inserted',
+					line_number: originalIndex + 1,
+					content: modifiedLines[modifiedIndex]
+				});
+				originalIndex++;
+				modifiedIndex++;
+			}
+		}
+
+		return diff;
+	}
+
+	// Format diff for display with context
+	private formatDiffForDisplay(diff: DiffLine[]): string {
+		const lines: string[] = [];
+		const contextLines = 2; // Show 2 lines of context around changes
+		
+		// Find lines with changes
+		const changedIndices = new Set<number>();
+		diff.forEach((line, index) => {
+			if (line.type !== 'unchanged') {
+				// Add context around changes
+				for (let i = Math.max(0, index - contextLines); i <= Math.min(diff.length - 1, index + contextLines); i++) {
+					changedIndices.add(i);
+				}
+			}
+		});
+		
+		let lastShownIndex = -1;
+		
+		for (let i = 0; i < diff.length; i++) {
+			if (changedIndices.has(i)) {
+				// Show separator if there's a gap
+				if (lastShownIndex >= 0 && i > lastShownIndex + 1) {
+					lines.push('...');
+				}
+				
+				const line = diff[i];
+				switch (line.type) {
+					case 'deleted':
+						lines.push(`- ${line.line_number}: ${line.content}`);
+						break;
+					case 'inserted':
+						lines.push(`+ ${line.line_number}: ${line.content}`);
+						break;
+					case 'unchanged':
+						lines.push(`  ${line.line_number}: ${line.content}`);
+						break;
+				}
+				lastShownIndex = i;
+			}
+		}
+
+		return lines.join('\n');
+	}
+
+	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }): Promise<string> {
 		try {
-			await this.app.vault.create(args.note_path, args.content);
-			return `Successfully created note: ${args.note_path}`;
+			// Check if the file already exists
+			const existingFile = this.app.vault.getAbstractFileByPath(args.note_path);
+			if (existingFile) {
+				return `Error: A file already exists at path: ${args.note_path}`;
+			}
+
+			// Validate the file path
+			if (!args.note_path.endsWith('.md')) {
+				return `Error: Note path must end with .md extension: ${args.note_path}`;
+			}
+
+			// Return a Promise that will be resolved when user confirms or rejects
+			return new Promise<string>((resolve, reject) => {
+				// Create pending create note confirmation
+				const confirmationId = Math.random().toString(36).substr(2, 9);
+				const pendingConfirmation: PendingCreateNoteConfirmation = {
+					id: confirmationId,
+					note_path: args.note_path,
+					content: args.content,
+					explanation: args.explanation,
+					toolCallId: confirmationId, // This would be set by caller
+					timestamp: new Date()
+				};
+
+				// Set up callbacks for user decision
+				this.createNoteConfirmationCallbacks = {
+					onAccept: async () => {
+						try {
+							// Create the note
+							await this.app.vault.create(args.note_path, args.content);
+							resolve(`✅ Note creation confirmed and completed: ${args.note_path}`);
+						} catch (error: any) {
+							reject(new Error(`Failed to create note: ${error.message}`));
+						}
+					},
+					onReject: (reason?: string) => {
+						const message = reason 
+							? `❌ Note creation rejected by user: ${reason}`
+							: `❌ Note creation rejected by user. No note was created at: ${args.note_path}`;
+						resolve(message);
+					}
+				};
+
+				// Store the pending confirmation and notify listeners
+				this.pendingCreateNoteConfirmation = pendingConfirmation;
+				this.notifyCreateNoteConfirmationListeners();
+			});
+
 		} catch (error: any) {
-			return `Error creating note: ${error.message}`;
+			return `Error preparing note creation: ${error.message}`;
 		}
 	}
 
@@ -1026,6 +1460,92 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			this.processFileForEmbedding(file);
 			this.fileProcessingTimeouts.delete(fileKey);
 		}, this.DEBOUNCE_DELAY));
+	}
+
+	// Edit confirmation management methods
+	addEditConfirmationListener(listener: (confirmation: PendingEditConfirmation | null) => void) {
+		this.editConfirmationListeners.push(listener);
+	}
+
+	removeEditConfirmationListener(listener: (confirmation: PendingEditConfirmation | null) => void) {
+		const index = this.editConfirmationListeners.indexOf(listener);
+		if (index > -1) {
+			this.editConfirmationListeners.splice(index, 1);
+		}
+	}
+
+	private notifyEditConfirmationListeners() {
+		this.editConfirmationListeners.forEach(listener => {
+			listener(this.pendingEditConfirmation);
+		});
+	}
+
+	// Accept the pending edit confirmation
+	acceptEditConfirmation() {
+		if (this.editConfirmationCallbacks) {
+			this.editConfirmationCallbacks.onAccept();
+			this.pendingEditConfirmation = null;
+			this.editConfirmationCallbacks = null;
+			this.notifyEditConfirmationListeners();
+		}
+	}
+
+	// Reject the pending edit confirmation
+	rejectEditConfirmation(reason?: string) {
+		if (this.editConfirmationCallbacks) {
+			this.editConfirmationCallbacks.onReject(reason);
+			this.pendingEditConfirmation = null;
+			this.editConfirmationCallbacks = null;
+			this.notifyEditConfirmationListeners();
+		}
+	}
+
+	// Get current pending edit confirmation
+	getPendingEditConfirmation(): PendingEditConfirmation | null {
+		return this.pendingEditConfirmation;
+	}
+
+	// Create note confirmation management methods
+	addCreateNoteConfirmationListener(listener: (confirmation: PendingCreateNoteConfirmation | null) => void) {
+		this.createNoteConfirmationListeners.push(listener);
+	}
+
+	removeCreateNoteConfirmationListener(listener: (confirmation: PendingCreateNoteConfirmation | null) => void) {
+		const index = this.createNoteConfirmationListeners.indexOf(listener);
+		if (index > -1) {
+			this.createNoteConfirmationListeners.splice(index, 1);
+		}
+	}
+
+	private notifyCreateNoteConfirmationListeners() {
+		this.createNoteConfirmationListeners.forEach(listener => {
+			listener(this.pendingCreateNoteConfirmation);
+		});
+	}
+
+	// Accept the pending create note confirmation
+	acceptCreateNoteConfirmation() {
+		if (this.createNoteConfirmationCallbacks) {
+			this.createNoteConfirmationCallbacks.onAccept();
+			this.pendingCreateNoteConfirmation = null;
+			this.createNoteConfirmationCallbacks = null;
+			this.notifyCreateNoteConfirmationListeners();
+		}
+	}
+
+	// Reject the pending create note confirmation
+	rejectCreateNoteConfirmation(reason?: string) {
+		if (this.createNoteConfirmationCallbacks) {
+			this.createNoteConfirmationCallbacks.onReject(reason);
+			this.pendingCreateNoteConfirmation = null;
+			this.createNoteConfirmationCallbacks = null;
+			this.notifyCreateNoteConfirmationListeners();
+		}
+	}
+
+	// Get current pending create note confirmation
+	getPendingCreateNoteConfirmation(): PendingCreateNoteConfirmation | null {
+		return this.pendingCreateNoteConfirmation;
 	}
 }
 

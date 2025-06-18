@@ -66,6 +66,42 @@ interface ContextFile {
   displayName: string;
 }
 
+// Import interfaces from main.ts
+interface EditOperation {
+  operation: 'insert' | 'delete' | 'replace';
+  start_line: number;
+  end_line?: number;
+  content?: string;
+  description: string;
+}
+
+interface DiffLine {
+  type: 'unchanged' | 'deleted' | 'inserted';
+  line_number: number;
+  content: string;
+}
+
+interface PendingEditConfirmation {
+  id: string;
+  note_path: string;
+  instructions: string;
+  edits: EditOperation[];
+  originalContent: string;
+  modifiedContent: string;
+  diff: DiffLine[];
+  toolCallId: string;
+  timestamp: Date;
+}
+
+interface PendingCreateNoteConfirmation {
+  id: string;
+  note_path: string;
+  content: string;
+  explanation: string;
+  toolCallId: string;
+  timestamp: Date;
+}
+
 // File picker modal using Obsidian's native FuzzySuggestModal
 class FilePickerModal extends FuzzySuggestModal<TFile> {
   private onChooseFile: (file: TFile) => void;
@@ -133,6 +169,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     assistantContent: string;
   } | null>(null);
   const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
+  const [pendingEditConfirmation, setPendingEditConfirmation] = useState<PendingEditConfirmation | null>(null);
+  const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
+  const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,6 +187,52 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   useEffect(() => {
     currentToolSessionRef.current = currentToolSession;
   }, [currentToolSession]);
+
+  // Listen for edit confirmation changes
+  useEffect(() => {
+    const listener = (confirmation: PendingEditConfirmation | null) => {
+      setPendingEditConfirmation(confirmation);
+      if (!confirmation) {
+        setShowRejectReasonInput(false);
+        setRejectReason('');
+      }
+    };
+
+    plugin.addEditConfirmationListener(listener);
+
+    // Get initial state
+    const initialConfirmation = plugin.getPendingEditConfirmation();
+    if (initialConfirmation) {
+      setPendingEditConfirmation(initialConfirmation);
+    }
+
+    return () => {
+      plugin.removeEditConfirmationListener(listener);
+    };
+  }, [plugin]);
+
+  // Listen for create note confirmation changes
+  useEffect(() => {
+    const listener = (confirmation: PendingCreateNoteConfirmation | null) => {
+      setPendingCreateNoteConfirmation(confirmation);
+      if (!confirmation) {
+        setShowRejectReasonInput(false);
+        setRejectReason('');
+      }
+    };
+
+    plugin.addCreateNoteConfirmationListener(listener);
+
+    // Get initial state
+    const initialConfirmation = plugin.getPendingCreateNoteConfirmation();
+    if (initialConfirmation) {
+      setPendingCreateNoteConfirmation(initialConfirmation);
+    }
+
+    return () => {
+      plugin.removeCreateNoteConfirmationListener(listener);
+    };
+  }, [plugin]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -736,6 +822,37 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     };
     
     setContextFiles(prev => [...prev, contextFile]);
+  };
+
+  // Edit confirmation handlers
+  const handleAcceptEdit = () => {
+    plugin.acceptEditConfirmation();
+  };
+
+  const handleRejectEdit = () => {
+    if (showRejectReasonInput) {
+      plugin.rejectEditConfirmation(rejectReason.trim() || undefined);
+    } else {
+      setShowRejectReasonInput(true);
+    }
+  };
+
+  const handleCancelReject = () => {
+    setShowRejectReasonInput(false);
+    setRejectReason('');
+  };
+
+  // Create note confirmation handlers
+  const handleAcceptCreateNote = () => {
+    plugin.acceptCreateNoteConfirmation();
+  };
+
+  const handleRejectCreateNote = () => {
+    if (showRejectReasonInput) {
+      plugin.rejectCreateNoteConfirmation(rejectReason.trim() || undefined);
+    } else {
+      setShowRejectReasonInput(true);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1474,6 +1591,509 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         onChange={handleFileChange}
         multiple
       />
+
+      {/* Create Note Confirmation Modal */}
+      {pendingCreateNoteConfirmation && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '800px',
+            maxHeight: '80vh',
+            width: '100%',
+            overflow: 'auto',
+            border: '1px solid #555',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '20px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid #444'
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  📄 確認創建新筆記
+                </h3>
+                <p style={{
+                  margin: '4px 0 0 0',
+                  fontSize: '14px',
+                  color: '#bbb'
+                }}>
+                  路徑: <code style={{ 
+                    backgroundColor: '#3a3a3a', 
+                    padding: '2px 6px', 
+                    borderRadius: '4px',
+                    fontSize: '13px'
+                  }}>{pendingCreateNoteConfirmation.note_path}</code>
+                </p>
+              </div>
+            </div>
+
+            {/* Explanation */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff'
+              }}>創建說明:</h4>
+              <p style={{
+                margin: 0,
+                fontSize: '14px',
+                color: '#ddd',
+                backgroundColor: '#3a3a3a',
+                padding: '12px',
+                borderRadius: '6px',
+                border: '1px solid #555'
+              }}>
+                {pendingCreateNoteConfirmation.explanation}
+              </p>
+            </div>
+
+            {/* Content Preview */}
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff'
+              }}>筆記內容預覽:</h4>
+              <div style={{
+                backgroundColor: '#1a1a1a',
+                padding: '16px',
+                borderRadius: '6px',
+                border: '1px solid #555',
+                maxHeight: '400px',
+                overflow: 'auto',
+                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                color: '#ddd',
+                whiteSpace: 'pre-wrap'
+              }}>
+                {pendingCreateNoteConfirmation.content}
+              </div>
+            </div>
+
+            {/* Reject Reason Input */}
+            {showRejectReasonInput && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{
+                  margin: '0 0 8px 0',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#fff'
+                }}>拒絕原因 (選填):</h4>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="請說明為什麼要拒絕創建這個筆記..."
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#3a3a3a',
+                    color: '#fff',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              paddingTop: '16px',
+              borderTop: '1px solid #444'
+            }}>
+              {showRejectReasonInput ? (
+                <>
+                  <button
+                    onClick={handleCancelReject}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: '1px solid #666',
+                      backgroundColor: 'transparent',
+                      color: '#bbb',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleRejectCreateNote}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#dc2626',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    確認拒絕
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleRejectCreateNote}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: '1px solid #dc2626',
+                      backgroundColor: 'transparent',
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    ❌ 拒絕
+                  </button>
+                  <button
+                    onClick={handleAcceptCreateNote}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#16a34a',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    ✅ 確認創建
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Confirmation Modal */}
+      {pendingEditConfirmation && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '800px',
+            maxHeight: '80vh',
+            width: '100%',
+            overflow: 'auto',
+            border: '1px solid #555',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '20px',
+              paddingBottom: '16px',
+              borderBottom: '1px solid #444'
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  📝 確認編輯
+                </h3>
+                <p style={{
+                  margin: '4px 0 0 0',
+                  fontSize: '14px',
+                  color: '#bbb'
+                }}>
+                  檔案: <code style={{ 
+                    backgroundColor: '#3a3a3a', 
+                    padding: '2px 6px', 
+                    borderRadius: '4px',
+                    fontSize: '13px'
+                  }}>{pendingEditConfirmation.note_path}</code>
+                </p>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff'
+              }}>編輯說明:</h4>
+              <p style={{
+                margin: 0,
+                fontSize: '14px',
+                color: '#ddd',
+                backgroundColor: '#3a3a3a',
+                padding: '12px',
+                borderRadius: '6px',
+                border: '1px solid #555'
+              }}>
+                {pendingEditConfirmation.instructions}
+              </p>
+            </div>
+
+            {/* Edit Operations Summary */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff'
+              }}>編輯操作:</h4>
+              <div style={{
+                backgroundColor: '#3a3a3a',
+                padding: '12px',
+                borderRadius: '6px',
+                border: '1px solid #555'
+              }}>
+                {pendingEditConfirmation.edits.map((edit, index) => (
+                  <div key={index} style={{
+                    fontSize: '13px',
+                    color: '#ddd',
+                    marginBottom: index < pendingEditConfirmation.edits.length - 1 ? '8px' : '0',
+                    padding: '8px',
+                    backgroundColor: '#4a4a4a',
+                    borderRadius: '4px',
+                    border: '1px solid #555'
+                  }}>
+                    <div style={{ 
+                      fontWeight: '600', 
+                      marginBottom: '4px',
+                      color: edit.operation === 'insert' ? '#4ade80' : 
+                             edit.operation === 'delete' ? '#f87171' : '#fbbf24'
+                    }}>
+                      {edit.operation === 'insert' ? '➕ 插入' : 
+                       edit.operation === 'delete' ? '➖ 刪除' : '🔄 替換'} 
+                      {edit.operation === 'insert' 
+                        ? ` 在第 ${edit.start_line} 行後`
+                        : ` 第 ${edit.start_line}${edit.end_line && edit.end_line !== edit.start_line ? `-${edit.end_line}` : ''} 行`
+                      }
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#bbb' }}>
+                      {edit.description}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Diff Preview */}
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{
+                margin: '0 0 8px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff'
+              }}>差異預覽:</h4>
+              <div style={{
+                backgroundColor: '#1a1a1a',
+                padding: '16px',
+                borderRadius: '6px',
+                border: '1px solid #555',
+                maxHeight: '300px',
+                overflow: 'auto',
+                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                fontSize: '12px',
+                lineHeight: '1.5'
+              }}>
+                {pendingEditConfirmation.diff.map((line, index) => {
+                  // Only show lines that are changed or context lines
+                  const showLine = line.type !== 'unchanged' || 
+                    (index > 0 && pendingEditConfirmation.diff[index - 1].type !== 'unchanged') ||
+                    (index < pendingEditConfirmation.diff.length - 1 && pendingEditConfirmation.diff[index + 1].type !== 'unchanged');
+                  
+                  if (!showLine) return null;
+                  
+                  return (
+                    <div key={index} style={{
+                      color: line.type === 'deleted' ? '#f87171' : 
+                             line.type === 'inserted' ? '#4ade80' : '#bbb',
+                      backgroundColor: line.type === 'deleted' ? 'rgba(248, 113, 113, 0.1)' : 
+                                      line.type === 'inserted' ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                      padding: '2px 8px',
+                      margin: '1px 0',
+                      borderRadius: '2px'
+                    }}>
+                      <span style={{ marginRight: '8px', opacity: 0.6 }}>
+                        {line.type === 'deleted' ? '-' : 
+                         line.type === 'inserted' ? '+' : ' '}
+                      </span>
+                      <span style={{ marginRight: '12px', opacity: 0.4, fontSize: '11px' }}>
+                        {line.line_number}:
+                      </span>
+                      {line.content}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reject Reason Input */}
+            {showRejectReasonInput && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{
+                  margin: '0 0 8px 0',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#fff'
+                }}>拒絕原因 (選填):</h4>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="請說明為什麼要拒絕這個編輯..."
+                  style={{
+                    width: '100%',
+                    minHeight: '80px',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#3a3a3a',
+                    color: '#fff',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              paddingTop: '16px',
+              borderTop: '1px solid #444'
+            }}>
+              {showRejectReasonInput ? (
+                <>
+                  <button
+                    onClick={handleCancelReject}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: '1px solid #666',
+                      backgroundColor: 'transparent',
+                      color: '#bbb',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleRejectEdit}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#dc2626',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    確認拒絕
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleRejectEdit}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: '1px solid #dc2626',
+                      backgroundColor: 'transparent',
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    ❌ 拒絕
+                  </button>
+                  <button
+                    onClick={handleAcceptEdit}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#16a34a',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    ✅ 接受編輯
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Drag overlay */}
       {isDragOver && (
