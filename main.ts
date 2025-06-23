@@ -440,11 +440,11 @@ export default class HelloWorldPlugin extends Plugin {
 			while (true) {
 				// Start streaming chat completion
 				const stream = await this.openaiClient.chat.completions.create({
-					model: 'gpt-4o',
+					model: 'o4-mini',
 					messages: chatMessages,
 					tools: tools,
 					stream: true,
-					temperature: 0.7
+					// temperature: 0.7
 				});
 
 				// Build up the message from streaming chunks
