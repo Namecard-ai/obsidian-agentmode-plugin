@@ -944,7 +944,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: '100%',
         backgroundColor: '#1e1e1e',
         color: '#ffffff',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
