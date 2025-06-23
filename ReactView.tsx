@@ -840,64 +840,63 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     const isUser = message.role === 'user';
     const isStreaming = streamingMessageId === message.id;
     
+    // 定義不同訊息類型的背景色（深淺不同的灰色階層）
+    const getBackgroundColor = () => {
+      if (isUser) return '#3a3a3a'; // 用戶訊息 - 中等深灰
+      if (message.role === 'tool') return '#2a2a2a'; // 工具訊息 - 最深灰
+      return '#4a4a4a'; // 助理訊息 - 稍淺灰
+    };
+    
+    const getTextColor = () => {
+      return '#ffffff'; // 統一使用白色文字
+    };
+    
     return (
       <div
         key={message.id}
         className={`message ${isUser ? 'user' : 'assistant'}`}
         style={{
-          display: 'flex',
-          justifyContent: isUser ? 'flex-end' : 'flex-start',
-          marginBottom: '16px',
+          width: '100%',
+          marginBottom: '2px', // 減少間距讓訊息更緊湊
         }}
       >
         <div
           style={{
-            maxWidth: '70%',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            backgroundColor: isUser 
-              ? '#007acc' 
-              : message.role === 'tool' 
-                ? '#f8f9fa'
-                : '#f0f0f0',
-            color: isUser 
-              ? 'white' 
-              : message.role === 'tool'
-                ? '#333'
-                : '#333',
-            border: message.role === 'tool' ? '1px solid #e1e5e9' : 'none',
+            width: '100%',
+            padding: '8px 12px',
+            backgroundColor: getBackgroundColor(),
+            color: getTextColor(),
+            border: 'none',
             position: 'relative',
           }}
         >
-          {/* Tool call indicator for assistant messages with tool_calls */}
-          {message.role === 'assistant' && message.tool_calls && (
-            <div style={{
-              fontSize: '12px',
-              color: '#6c757d',
-              marginBottom: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
+          {/* Message type indicator */}
+          <div style={{
+            fontSize: '12px',
+            color: '#bbb',
+            marginBottom: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            opacity: 0.8
+          }}>
+            <span style={{ 
+              fontSize: '14px',
+              minWidth: '20px'
             }}>
-              <span>🔧</span>
-              <span>Called {message.tool_calls.map(tc => tc.function.name).join(', ')}</span>
-            </div>
-          )}
-
-          {/* Tool result indicator for tool messages */}
-          {message.role === 'tool' && (
-            <div style={{
-              fontSize: '12px',
-              color: '#10b981',
-              marginBottom: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span>✅</span>
-              <span>Tool result</span>
-            </div>
-          )}
+              {isUser ? '👤' : message.role === 'tool' ? '🔧' : '🤖'}
+            </span>
+            <span style={{ fontWeight: '500' }}>
+              {isUser 
+                ? '用戶' 
+                : message.role === 'tool' 
+                  ? '工具結果' 
+                  : message.tool_calls 
+                    ? `助理 (調用: ${message.tool_calls.map(tc => tc.function.name).join(', ')})` 
+                    : '助理'
+              }
+            </span>
+          </div>
 
           {/* Main message content */}
           <div style={{
@@ -925,7 +924,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           <div style={{
             fontSize: '11px',
             opacity: 0.7,
-            marginTop: '8px',
+            marginTop: '4px',
             textAlign: isUser ? 'right' : 'left',
           }}>
             {message.timestamp.toLocaleTimeString()}
@@ -1070,10 +1069,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '16px',
+        padding: '8px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px'
+        gap: '8px'
       }}>
         {isLoading && (
           <div style={{
@@ -1116,16 +1115,14 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         {/* Current streaming content */}
         {isLoading && currentStreamingContent && (
           <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '16px',
+            width: '100%',
+            marginBottom: '2px',
           }}>
             <div style={{
-              maxWidth: '70%',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: '#f0f0f0',
-              color: '#333',
+              width: '100%',
+              padding: '8px 12px',
+              backgroundColor: '#4a4a4a', // 助理訊息的背景色
+              color: '#ffffff',
               position: 'relative',
             }}>
               <div style={{
