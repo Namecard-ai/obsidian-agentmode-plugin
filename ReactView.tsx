@@ -1180,27 +1180,6 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             }
           `}
         </style>
-        {/* Model Selection */}
-        <div style={{ marginBottom: '12px' }}>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            style={{
-              backgroundColor: '#3a3a3a',
-              border: '1px solid #555',
-              borderRadius: '6px',
-              color: '#fff',
-              padding: '8px 12px',
-              fontSize: '14px',
-              width: '200px'
-            }}
-          >
-            {AI_MODELS.map(model => (
-              <option key={model} value={model}>{model}</option>
-            ))}
-          </select>
-        </div>
-
         {/* Context Files Tags */}
         {contextFiles.length > 0 && (
           <div style={{
@@ -1296,11 +1275,41 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             <div style={{
               display: 'flex',
               gap: '8px',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'space-between'
             }}>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center'
+              }}>
+                <select
+                  value={chatMode}
+                  onChange={(e) => setChatMode(e.target.value as 'Ask' | 'Agent')}
+                  style={{
+                    backgroundColor: '#3a3a3a',
+                    border: '1px solid #555',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    minWidth: '80px'
+                  }}
+                >
+                  <option value="Ask">Ask</option>
+                  <option value="Agent">Agent</option>
+                </select>
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: '#888',
+                  fontWeight: '500'
+                }}>
+                  {chatMode === 'Ask' ? 'Ask mode' : 'Agent mode'}
+                </span>
+              </div>
               <select
-                value={chatMode}
-                onChange={(e) => setChatMode(e.target.value as 'Ask' | 'Agent')}
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
                 style={{
                   backgroundColor: '#3a3a3a',
                   border: '1px solid #555',
@@ -1308,19 +1317,13 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                   color: '#fff',
                   padding: '6px 12px',
                   fontSize: '14px',
-                  minWidth: '80px'
+                  minWidth: '120px'
                 }}
               >
-                <option value="Ask">Ask</option>
-                <option value="Agent">Agent</option>
+                {AI_MODELS.map(model => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
               </select>
-              <span style={{ 
-                fontSize: '12px', 
-                color: '#888',
-                fontWeight: '500'
-              }}>
-                {chatMode === 'Ask' ? 'Ask mode' : 'Agent mode'}
-              </span>
             </div>
             <textarea
               ref={textareaRef}
