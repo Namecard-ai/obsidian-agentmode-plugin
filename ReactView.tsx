@@ -26,6 +26,11 @@ const styles = `
   .tool-step:hover {
     transform: translateX(2px);
   }
+  
+  .tool-result-header:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
 `;
 
 // Inject styles
@@ -168,6 +173,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [currentStreamingContent, setCurrentStreamingContent] = useState<string>('');
   const currentStreamingContentRef = useRef<string>('');
   const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
+  const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
   const [pendingEditConfirmation, setPendingEditConfirmation] = useState<PendingEditConfirmation | null>(null);
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
   const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
@@ -246,6 +252,18 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
 
   const toggleToolSession = (messageId: string) => {
     setExpandedToolSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleToolResult = (messageId: string) => {
+    setExpandedToolResults(prev => {
       const newSet = new Set(prev);
       if (newSet.has(messageId)) {
         newSet.delete(messageId);
@@ -839,6 +857,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const renderMessage = (message: Message) => {
     const isUser = message.role === 'user';
     const isStreaming = streamingMessageId === message.id;
+    const isToolResult = message.role === 'tool';
+    const isToolResultExpanded = expandedToolResults.has(message.id);
     
     // 定義不同訊息類型的背景色（深淺不同的灰色階層）
     const getBackgroundColor = () => {
@@ -871,15 +891,24 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           }}
         >
           {/* Message type indicator */}
-          <div style={{
-            fontSize: '12px',
-            color: '#bbb',
-            marginBottom: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            opacity: 0.8
-          }}>
+          <div 
+            className={isToolResult ? 'tool-result-header' : ''}
+            style={{
+              fontSize: '12px',
+              color: '#bbb',
+              marginBottom: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: 0.8,
+              cursor: isToolResult ? 'pointer' : 'default',
+              userSelect: 'none',
+              padding: isToolResult ? '4px' : '0',
+              margin: isToolResult ? '-4px' : '0',
+              transition: 'background-color 0.2s ease'
+            }}
+            onClick={isToolResult ? () => toggleToolResult(message.id) : undefined}
+          >
             <span style={{ 
               fontSize: '14px',
               minWidth: '20px'
@@ -896,29 +925,76 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                     : '助理'
               }
             </span>
+            {isToolResult && (
+              <span style={{ 
+                fontSize: '12px',
+                marginLeft: 'auto',
+                transform: isToolResultExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease'
+              }}>
+                ▶
+              </span>
+            )}
           </div>
 
           {/* Main message content */}
-          <div style={{
-            whiteSpace: 'pre-wrap',
-            lineHeight: '1.5',
-            userSelect: 'text',
-            WebkitUserSelect: 'text',
-            MozUserSelect: 'text',
-            msUserSelect: 'text',
-          }}>
-            {message.content}
-            {isStreaming && (
-              <span className="streaming-cursor" style={{
-                display: 'inline-block',
-                width: '2px',
-                height: '20px',
-                backgroundColor: '#007acc',
-                marginLeft: '2px',
-                animation: 'blink 1s infinite',
-              }} />
-            )}
-          </div>
+          {isToolResult ? (
+            <div>
+              {/* 工具結果摘要（總是顯示）*/}
+              <div style={{
+                fontSize: '13px',
+                color: '#888',
+                marginBottom: '8px',
+                fontStyle: 'italic'
+              }}>
+                點擊展開查看詳細結果 ({message.content.length} 字符)
+              </div>
+              
+              {/* 可收折的內容 */}
+              {isToolResultExpanded && (
+                <div style={{
+                  backgroundColor: '#1a1a1a',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  marginTop: '8px',
+                  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                  fontSize: '13px',
+                  lineHeight: '1.4',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                  MozUserSelect: 'text',
+                  msUserSelect: 'text',
+                }}>
+                  {message.content}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.5',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
+              MozUserSelect: 'text',
+              msUserSelect: 'text',
+            }}>
+              {message.content}
+              {isStreaming && (
+                <span className="streaming-cursor" style={{
+                  display: 'inline-block',
+                  width: '2px',
+                  height: '20px',
+                  backgroundColor: '#007acc',
+                  marginLeft: '2px',
+                  animation: 'blink 1s infinite',
+                }} />
+              )}
+            </div>
+          )}
 
           {/* Timestamp */}
           <div style={{
