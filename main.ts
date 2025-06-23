@@ -237,6 +237,7 @@ export default class HelloWorldPlugin extends Plugin {
 	async streamAgentChat(
 		messages: ChatMessage[], 
 		contextFiles: TFile[],
+		model: string,
 		onChunk: (chunk: string) => void,
 		onToolCall: (toolCall: any) => void,
 		onComplete: () => void,
@@ -440,7 +441,7 @@ export default class HelloWorldPlugin extends Plugin {
 			while (true) {
 				// Start streaming chat completion
 				const stream = await this.openaiClient.chat.completions.create({
-					model: 'o4-mini',
+					model: model,
 					messages: chatMessages,
 					tools: tools,
 					stream: true,

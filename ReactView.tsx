@@ -138,12 +138,13 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
 }
 
 const AI_MODELS = [
-  'Claude 3.5 Sonnet',
-  'Claude 3 Opus',
-  'Claude 3 Haiku',
-  'GPT-4',
-  'GPT-3.5 Turbo',
-  'Gemini Pro'
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4.1',
+  'o4-mini',
+  'o3',
+  'o3-pro',
+  'o3-mini',
 ];
 
 interface ReactViewProps {
@@ -307,6 +308,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         await plugin.streamAgentChat(
           chatMessages,
           contextTFiles,
+          selectedModel,
           (chunk: string) => {
             // Handle streaming for assistant response content
             setCurrentStreamingContent(prev => prev + chunk);
