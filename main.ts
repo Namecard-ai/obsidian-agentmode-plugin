@@ -790,7 +790,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			}
 
 			console.log('🔍 [TOOL] vault_search: Generated embedding, length:', embedding.length);
-			const similarFiles = await this.searchSimilarFiles(embedding, 5);
+			const similarFiles = await this.searchSimilarFiles(embedding, 10);
 			
 			console.log('🔍 [TOOL] vault_search: Found similar files:', similarFiles.length);
 			
