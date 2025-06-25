@@ -1150,22 +1150,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         flexDirection: 'column',
         gap: '8px'
       }}>
-        {isLoading && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start'
-          }}>
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              backgroundColor: '#3a3a3a',
-              color: '#fff',
-              fontSize: '14px'
-            }}>
-              {chatMode === 'Agent' ? 'Agent thinking...' : 'Thinking...'}
-            </div>
-          </div>
-        )}
+
 
         {messages.length === 0 ? (
           <div style={{
@@ -1250,6 +1235,10 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             @keyframes blink {
               0%, 50% { opacity: 1; }
               51%, 100% { opacity: 0; }
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
             }
           `}
         </style>
@@ -1434,10 +1423,26 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               cursor: inputText.trim() && !isLoading ? 'pointer' : 'not-allowed',
               fontSize: '14px',
               fontWeight: '500',
-              alignSelf: 'flex-end'
+              alignSelf: 'flex-end',
+              minWidth: '80px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            Send
+{isLoading ? (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderTop: '2px solid #fff',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+            ) : (
+              'Send'
+            )}
           </button>
         </div>
       </div>
