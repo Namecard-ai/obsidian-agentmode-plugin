@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { FuzzySuggestModal, TFile, App } from 'obsidian';
+import { FuzzySuggestModal, TFile, App, Notice } from 'obsidian';
 
 // Add CSS styles
 const styles = `
@@ -108,6 +108,20 @@ interface PendingCreateNoteConfirmation {
   timestamp: Date;
 }
 
+interface UploadedImage {
+  id: string;
+  file: File;
+  name: string;
+  base64Data: string; // 用於 OpenAI API
+  size: number;
+}
+
+interface AIModel {
+  id: string;
+  name: string;
+  supportVision: boolean;
+}
+
 // File picker modal using Obsidian's native FuzzySuggestModal
 class FilePickerModal extends FuzzySuggestModal<TFile> {
   private onChooseFile: (file: TFile) => void;
@@ -142,14 +156,14 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
   }
 }
 
-const AI_MODELS = [
-  'gpt-4o',
-  'gpt-4o-mini',
-  'gpt-4.1',
-  'o4-mini',
-  'o3',
-  'o3-pro',
-  'o3-mini',
+const AI_MODELS: AIModel[] = [
+  { id: 'gpt-4o', name: 'gpt-4o', supportVision: true },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', supportVision: true },
+  { id: 'gpt-4.1', name: 'gpt-4.1', supportVision: true },
+  { id: 'o4-mini', name: 'o4-mini', supportVision: true },
+  { id: 'o3', name: 'o3', supportVision: true },
+  { id: 'o3-pro', name: 'o3-pro', supportVision: true },
+  { id: 'o3-mini', name: 'o3-mini', supportVision: false },
 ];
 
 interface ReactViewProps {
@@ -160,13 +174,14 @@ interface ReactViewProps {
 export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chatMode, setChatMode] = useState<'Ask' | 'Agent'>('Ask');
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragFileCount, setDragFileCount] = useState(0);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -277,12 +292,24 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
 
+    // 檢查如果有圖片但模型不支援 Vision，給出警告
+    if (uploadedImages.length > 0 && !currentModelSupportsVision) {
+      new Notice(`當前模型 "${getCurrentModel()?.name}" 不支援圖片分析。請選擇支援 Vision 的模型（如 GPT-4o）`);
+      return;
+    }
+
     let messageContent = inputText.trim();
     
     // Add context files information if any are selected
     if (contextFiles.length > 0) {
       const contextInfo = contextFiles.map(cf => `[[${cf.file.path}]]`).join(' ');
       messageContent += `\n\nContext files: ${contextInfo}`;
+    }
+
+    // Add image information if any are uploaded
+    if (uploadedImages.length > 0) {
+      const imageInfo = uploadedImages.map(img => `[Image: ${img.name}]`).join(' ');
+      messageContent += `\n\nUploaded images: ${imageInfo}`;
     }
 
     const userMessage: Message = {
@@ -313,11 +340,24 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
           ...(msg.name && { name: msg.name })
         }));
       
-      // Add the current user message
-      chatMessages.push({
+      // Add the current user message with images if any
+      const currentUserMessage: any = {
         role: 'user' as const,
-        content: messageContent
-      });
+        content: uploadedImages.length > 0 ? [
+          {
+            type: 'text',
+            text: messageContent
+          },
+          ...uploadedImages.map(img => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${img.file.type};base64,${img.base64Data}`
+            }
+          }))
+        ] : messageContent
+      };
+      
+      chatMessages.push(currentUserMessage);
 
       // Get context files as TFile objects
       const contextTFiles = contextFiles.map(cf => cf.file);
@@ -428,11 +468,17 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     } else {
       // Original Ask mode - simulate AI response
       setTimeout(() => {
-        let responseContent = `This is a simulated response from ${selectedModel} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`;
+        const currentModel = getCurrentModel();
+        let responseContent = `This is a simulated response from ${currentModel?.name} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`;
         
         // Acknowledge context files if any were provided
         if (contextFiles.length > 0) {
           responseContent += `\n\nI can see you've provided ${contextFiles.length} context file${contextFiles.length > 1 ? 's' : ''}: ${contextFiles.map(cf => cf.displayName).join(', ')}. In a real implementation, I would analyze the content of these files to provide more relevant responses.`;
+        }
+
+        // Acknowledge uploaded images if any were provided
+        if (uploadedImages.length > 0) {
+          responseContent += `\n\nI can see you've uploaded ${uploadedImages.length} image${uploadedImages.length > 1 ? 's' : ''}: ${uploadedImages.map(img => img.name).join(', ')}. ${currentModel?.supportVision ? 'I can analyze these images to provide more relevant responses.' : 'However, the current model does not support image analysis.'}`;
         }
         
         const assistantMessage: Message = {
@@ -462,6 +508,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     
     setMessages([]);
     setContextFiles([]);
+    setUploadedImages([]);
     setCurrentChatId(generateId());
   };
 
@@ -469,6 +516,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     setMessages(chat.messages);
     setCurrentChatId(chat.id);
     setContextFiles([]);
+    setUploadedImages([]);
     setShowHistory(false);
   };
 
@@ -479,24 +527,86 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     }
   };
 
-  const handleFileUpload = () => {
+  // 檢查當前模型是否支援 Vision
+  const getCurrentModel = () => AI_MODELS.find(model => model.id === selectedModel);
+  const currentModelSupportsVision = getCurrentModel()?.supportVision || false;
+
+  const handleImageUpload = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // In a real implementation, you would handle file upload here
-      console.log('File selected:', file.name);
-      // You could add a message indicating file was uploaded
-      const fileMessage: Message = {
-        id: generateId(),
-        role: 'user',
-        content: `📎 Uploaded file: ${file.name}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, fileMessage]);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // 檢查檔案類型
+      if (!supportedTypes.includes(file.type)) {
+        new Notice(`檔案 "${file.name}" 不是支援的圖片格式。支援格式：JPG, PNG, GIF, WebP, BMP`);
+        continue;
+      }
+
+      // 檢查檔案大小
+      if (file.size > maxSize) {
+        new Notice(`檔案 "${file.name}" 超過 50MB 大小限制`);
+        continue;
+      }
+
+      // 檢查是否已經上傳過
+      if (uploadedImages.some(img => img.name === file.name && img.size === file.size)) {
+        new Notice(`圖片 "${file.name}" 已經上傳過了`);
+        continue;
+      }
+
+      try {
+        // 將圖片轉換為 base64
+        const base64Data = await fileToBase64(file);
+        
+        const uploadedImage: UploadedImage = {
+          id: generateId(),
+          file: file,
+          name: file.name,
+          base64Data: base64Data,
+          size: file.size
+        };
+
+        setUploadedImages(prev => [...prev, uploadedImage]);
+        new Notice(`圖片 "${file.name}" 上傳成功`);
+      } catch (error) {
+        console.error('Error processing image:', error);
+        new Notice(`處理圖片 "${file.name}" 時發生錯誤`);
+      }
     }
+
+    // 清除 input value 以允許重複選擇同一檔案
+    e.target.value = '';
+  };
+
+  // 將檔案轉換為 base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          // 移除 data:image/...;base64, 前綴，只保留 base64 內容
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        } else {
+          reject(new Error('Failed to read file as base64'));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeUploadedImage = (imageId: string) => {
+    setUploadedImages(prev => prev.filter(img => img.id !== imageId));
   };
 
   // Set up drag and drop event listeners for better Obsidian integration
@@ -1069,7 +1179,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             🕒 History
           </button>
           <button
-            onClick={handleFileUpload}
+            onClick={handleImageUpload}
             style={{
               background: 'transparent',
               border: '1px solid #555',
@@ -1080,7 +1190,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               fontSize: '14px'
             }}
           >
-            📎 Upload
+            🖼️ Upload Image
           </button>
           <button
             onClick={handleAddContext}
@@ -1242,6 +1352,86 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             }
           `}
         </style>
+        {/* Uploaded Images Tags */}
+        {uploadedImages.length > 0 && (
+          <div style={{
+            marginBottom: '12px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px',
+            alignItems: 'center'
+          }}>
+            <span style={{
+              fontSize: '12px',
+              color: '#888',
+              fontWeight: '500',
+              marginRight: '4px'
+            }}>
+              Images:
+            </span>
+            {uploadedImages.map(image => (
+              <div
+                key={image.id}
+                title={`${image.name} (${(image.size / 1024 / 1024).toFixed(1)}MB)`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: '#3a6b3a',
+                  borderRadius: '12px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  color: '#fff',
+                  gap: '4px',
+                  border: '1px solid #4a7c4a',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4a7c4a';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#3a6b3a';
+                }}
+              >
+                <span>🖼️ {image.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeUploadedImage(image.id);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ccc',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    fontSize: '14px',
+                    lineHeight: '1',
+                    marginLeft: '2px',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#ff4444';
+                    e.currentTarget.style.color = '#fff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#ccc';
+                  }}
+                  title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Context Files Tags */}
         {contextFiles.length > 0 && (
           <div style={{
@@ -1379,13 +1569,28 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                   color: '#fff',
                   padding: '6px 12px',
                   fontSize: '14px',
-                  minWidth: '120px'
+                  minWidth: '140px'
                 }}
               >
-                {AI_MODELS.map(model => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
+                                  {AI_MODELS.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.name} {model.supportVision ? '🖼️' : ''}
+                    </option>
+                  ))}
+                </select>
+                {uploadedImages.length > 0 && !currentModelSupportsVision && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#ff6b6b',
+                    fontWeight: '500',
+                    marginLeft: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    ⚠️ 請選擇支援圖片的模型
+                  </div>
+                )}
             </div>
             <textarea
               ref={textareaRef}
@@ -1447,10 +1652,11 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
         </div>
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden image input */}
       <input
         ref={fileInputRef}
         type="file"
+        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
         style={{ display: 'none' }}
         onChange={handleFileChange}
         multiple
