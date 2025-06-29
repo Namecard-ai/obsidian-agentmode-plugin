@@ -23,11 +23,11 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
     try {
       await navigator.clipboard.writeText(children);
       setCopied(true);
-      new Notice('代碼已複製到剪貼板');
+      new Notice('Code copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy:', error);
-      new Notice('複製失敗');
+      new Notice('Copy failed');
     }
   }, [children]);
 
@@ -100,7 +100,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
             }
           }}
         >
-          {copied ? '✓ 已複製' : '📋 複製'}
+          {copied ? '✓ Copied' : '📋 Copy'}
         </button>
       </div>
 
