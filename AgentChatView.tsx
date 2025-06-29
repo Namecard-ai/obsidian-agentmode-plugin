@@ -158,10 +158,10 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
 }
 
 const AI_MODELS: AIModel[] = [
+  { id: 'o4-mini', name: 'o4-mini', supportVision: true },
   { id: 'gpt-4o', name: 'gpt-4o', supportVision: true },
   { id: 'gpt-4o-mini', name: 'gpt-4o-mini', supportVision: true },
   { id: 'gpt-4.1', name: 'gpt-4.1', supportVision: true },
-  { id: 'o4-mini', name: 'o4-mini', supportVision: true },
   { id: 'o3', name: 'o3', supportVision: true },
   { id: 'o3-pro', name: 'o3-pro', supportVision: true },
   { id: 'o3-mini', name: 'o3-mini', supportVision: false },
@@ -309,7 +309,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     // 檢查如果有圖片但模型不支援 Vision，給出警告
     if (uploadedImages.length > 0 && !currentModelSupportsVision) {
-      new Notice(`當前模型 "${getCurrentModel()?.name}" 不支援圖片分析。請選擇支援 Vision 的模型（如 GPT-4o）`);
+      new Notice(`Current model "${getCurrentModel()?.name}" does not support image analysis. Please select a Vision-capable model (like GPT-4o)`);
       return;
     }
 
@@ -557,19 +557,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       
       // 檢查檔案類型
       if (!supportedTypes.includes(file.type)) {
-        new Notice(`檔案 "${file.name}" 不是支援的圖片格式。支援格式：JPG, PNG, GIF, WebP, BMP`);
+        new Notice(`File "${file.name}" is not a supported image format. Supported formats: JPG, PNG, GIF, WebP, BMP`);
         continue;
       }
 
       // 檢查檔案大小
       if (file.size > maxSize) {
-        new Notice(`檔案 "${file.name}" 超過 50MB 大小限制`);
+        new Notice(`File "${file.name}" exceeds 50MB size limit`);
         continue;
       }
 
       // 檢查是否已經上傳過
       if (uploadedImages.some(img => img.name === file.name && img.size === file.size)) {
-        new Notice(`圖片 "${file.name}" 已經上傳過了`);
+        new Notice(`Image "${file.name}" has already been uploaded`);
         continue;
       }
 
@@ -586,10 +586,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         };
 
         setUploadedImages(prev => [...prev, uploadedImage]);
-        new Notice(`圖片 "${file.name}" 上傳成功`);
+        new Notice(`Image "${file.name}" uploaded successfully`);
       } catch (error) {
         console.error('Error processing image:', error);
-        new Notice(`處理圖片 "${file.name}" 時發生錯誤`);
+        new Notice(`Error processing image "${file.name}"`);
       }
     }
 
@@ -1037,12 +1037,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             </span>
             <span style={{ fontWeight: '500' }}>
               {isUser 
-                ? '用戶' 
+                ? 'You' 
                 : message.role === 'tool' 
-                  ? '工具結果' 
+                  ? 'Tool Result' 
                   : message.tool_calls 
-                    ? `助理 (調用: ${message.tool_calls.map(tc => tc.function.name).join(', ')})` 
-                    : '助理'
+                    ? `Assistant (calling: ${message.tool_calls.map(tc => tc.function.name).join(', ')})` 
+                    : 'Assistant'
               }
             </span>
             {/* Ask Mode auto-rejection indicator */}
@@ -1056,7 +1056,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontWeight: '500',
                 marginLeft: '8px'
               }}>
-                🚫 Ask Mode 阻止
+                🚫 Ask Mode Blocked
               </span>
             )}
             {isToolResult && (
@@ -1081,7 +1081,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 marginBottom: '8px',
                 fontStyle: 'italic'
               }}>
-                點擊展開查看詳細結果 ({message.content.length} 字符)
+                Click to expand detailed results ({message.content.length} characters)
               </div>
               
               {/* 可收折的內容 */}
@@ -1703,7 +1703,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     alignItems: 'center',
                     gap: '4px'
                   }}>
-                    ⚠️ 請選擇支援圖片的模型
+                    ⚠️ Please select a model that supports images
                   </div>
                 )}
             </div>
@@ -1898,14 +1898,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  📄 確認創建新筆記
+                  📄 Confirm Create New Note
                 </h3>
                 <p style={{
                   margin: '4px 0 0 0',
                   fontSize: '14px',
                   color: '#bbb'
                 }}>
-                  路徑: <code style={{ 
+                  Path: <code style={{ 
                     backgroundColor: '#3a3a3a', 
                     padding: '2px 6px', 
                     borderRadius: '4px',
@@ -1922,7 +1922,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff'
-              }}>創建說明:</h4>
+              }}>Creation Description:</h4>
               <p style={{
                 margin: 0,
                 fontSize: '14px',
@@ -1943,7 +1943,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff'
-              }}>筆記內容預覽:</h4>
+              }}>Note Content Preview:</h4>
               <div style={{
                 backgroundColor: '#1a1a1a',
                 padding: '16px',
@@ -1969,11 +1969,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   fontSize: '14px',
                   fontWeight: '600',
                   color: '#fff'
-                }}>拒絕原因 (選填):</h4>
+                }}>Rejection Reason (Optional):</h4>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="請說明為什麼要拒絕創建這個筆記..."
+                  placeholder="Please explain why you want to reject creating this note..."
                   style={{
                     width: '100%',
                     minHeight: '80px',
@@ -2013,7 +2013,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    取消
+                    Cancel
                   </button>
                   <button
                     onClick={handleRejectCreateNote}
@@ -2028,7 +2028,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    確認拒絕
+                    Confirm Reject
                   </button>
                 </>
               ) : (
@@ -2046,7 +2046,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    ❌ 拒絕
+                    ❌ Reject
                   </button>
                   <button
                     onClick={handleAcceptCreateNote}
@@ -2061,7 +2061,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    ✅ 確認創建
+                    ✅ Confirm Create
                   </button>
                 </>
               )}
@@ -2114,14 +2114,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  📝 確認編輯
+                  📝 Confirm Edit
                 </h3>
                 <p style={{
                   margin: '4px 0 0 0',
                   fontSize: '14px',
                   color: '#bbb'
                 }}>
-                  檔案: <code style={{ 
+                  File: <code style={{ 
                     backgroundColor: '#3a3a3a', 
                     padding: '2px 6px', 
                     borderRadius: '4px',
@@ -2138,7 +2138,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff'
-              }}>編輯說明:</h4>
+              }}>Edit Description:</h4>
               <p style={{
                 margin: 0,
                 fontSize: '14px',
@@ -2159,7 +2159,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff'
-              }}>編輯操作:</h4>
+              }}>Edit Operations:</h4>
               <div style={{
                 backgroundColor: '#3a3a3a',
                 padding: '12px',
@@ -2182,11 +2182,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       color: edit.operation === 'insert' ? '#4ade80' : 
                              edit.operation === 'delete' ? '#f87171' : '#fbbf24'
                     }}>
-                      {edit.operation === 'insert' ? '➕ 插入' : 
-                       edit.operation === 'delete' ? '➖ 刪除' : '🔄 替換'} 
+                      {edit.operation === 'insert' ? '➕ Insert' : 
+                       edit.operation === 'delete' ? '➖ Delete' : '🔄 Replace'} 
                       {edit.operation === 'insert' 
-                        ? ` 在第 ${edit.start_line} 行後`
-                        : ` 第 ${edit.start_line}${edit.end_line && edit.end_line !== edit.start_line ? `-${edit.end_line}` : ''} 行`
+                        ? ` after line ${edit.start_line}`
+                        : ` line ${edit.start_line}${edit.end_line && edit.end_line !== edit.start_line ? `-${edit.end_line}` : ''}`
                       }
                     </div>
                     <div style={{ fontSize: '12px', color: '#bbb' }}>
@@ -2204,7 +2204,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff'
-              }}>差異預覽:</h4>
+              }}>Diff Preview:</h4>
               <div style={{
                 backgroundColor: '#1a1a1a',
                 padding: '16px',
@@ -2256,11 +2256,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   fontSize: '14px',
                   fontWeight: '600',
                   color: '#fff'
-                }}>拒絕原因 (選填):</h4>
+                }}>Rejection Reason (Optional):</h4>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="請說明為什麼要拒絕這個編輯..."
+                  placeholder="Please explain why you want to reject this edit..."
                   style={{
                     width: '100%',
                     minHeight: '80px',
@@ -2300,7 +2300,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    取消
+                    Cancel
                   </button>
                   <button
                     onClick={handleRejectEdit}
@@ -2315,7 +2315,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    確認拒絕
+                    Confirm Reject
                   </button>
                 </>
               ) : (
@@ -2333,7 +2333,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    ❌ 拒絕
+                    ❌ Reject
                   </button>
                   <button
                     onClick={handleAcceptEdit}
@@ -2348,7 +2348,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       fontWeight: '500'
                     }}
                   >
-                    ✅ 接受編輯
+                    ✅ Accept Edit
                   </button>
                 </>
               )}
