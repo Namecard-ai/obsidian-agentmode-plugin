@@ -238,6 +238,7 @@ export default class HelloWorldPlugin extends Plugin {
 		messages: ChatMessage[], 
 		contextFiles: TFile[],
 		model: string,
+		chatMode: 'Ask' | 'Agent',
 		onChunk: (chunk: string) => void,
 		onToolCall: (toolCall: any) => void,
 		onComplete: () => void,
@@ -501,10 +502,10 @@ export default class HelloWorldPlugin extends Plugin {
 								result = await this.toolReadNote(args);
 								break;
 							case 'edit_note':
-								result = await this.toolEditNote(args);
+								result = await this.toolEditNote(args, chatMode);
 								break;
 							case 'create_note':
-								result = await this.toolCreateNote(args);
+								result = await this.toolCreateNote(args, chatMode);
 								break;
 							case 'list_vault':
 								result = await this.toolListVault(args);
@@ -849,8 +850,13 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		}
 	}
 
-	private async toolEditNote(args: { note_path: string; instructions: string; edits: EditOperation[] }): Promise<string> {
+	private async toolEditNote(args: { note_path: string; instructions: string; edits: EditOperation[] }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
+			// Check if we're in Ask Mode - if so, auto-reject
+			if (chatMode === 'Ask') {
+				return "❌ I'm currently in Ask Mode, which prohibits note editing operations. If you need to create or edit notes, please ask the user to switch to Agent Mode and try again.";
+			}
+
 			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
 			if (!file) {
 				return `Note not found: ${args.note_path}`;
@@ -1120,8 +1126,13 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return lines.join('\n');
 	}
 
-	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }): Promise<string> {
+	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
+			// Check if we're in Ask Mode - if so, auto-reject
+			if (chatMode === 'Ask') {
+				return "❌ I'm currently in Ask Mode, which prohibits note editing operations. If you need to create or edit notes, please ask the user to switch to Agent Mode and try again.";
+			}
+
 			// Check if the file already exists
 			const existingFile = this.app.vault.getAbstractFileByPath(args.note_path);
 			if (existingFile) {

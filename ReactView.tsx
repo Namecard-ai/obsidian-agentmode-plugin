@@ -338,173 +338,154 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     setInputText('');
     setIsLoading(true);
 
-    if (chatMode === 'Agent') {
-      // Use the Agent mode with OpenAI streaming
-      const toolSessionId = generateId();
-      setStreamingMessageId(toolSessionId);
-      let lastToolCallContent = ''; // Track content before tool calls
-      
-      // Convert messages to plugin format - now include tool messages too
-      const chatMessages = messages
-        .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
-        .map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
-          ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
-          ...(msg.name && { name: msg.name })
-        }));
-      
-      // Add the current user message with images if any
-      const currentUserMessage: any = {
-        role: 'user' as const,
-        content: uploadedImages.length > 0 ? [
-          {
-            type: 'text',
-            text: messageContent
-          },
-          ...uploadedImages.map(img => ({
-            type: 'image_url',
-            image_url: {
-              url: `data:${img.file.type};base64,${img.base64Data}`
-            }
-          }))
-        ] : messageContent
-      };
-      
-      chatMessages.push(currentUserMessage);
+    // Both Ask and Agent modes now use the same streamAgentChat function
+    // The difference is handled internally by the chatMode parameter
+    const toolSessionId = generateId();
+    setStreamingMessageId(toolSessionId);
+    let lastToolCallContent = ''; // Track content before tool calls
+    
+    // Convert messages to plugin format - now include tool messages too
+    const chatMessages = messages
+      .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
+      .map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+        ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+        ...(msg.name && { name: msg.name })
+      }));
+    
+    // Add the current user message with images if any
+    const currentUserMessage: any = {
+      role: 'user' as const,
+      content: uploadedImages.length > 0 ? [
+        {
+          type: 'text',
+          text: messageContent
+        },
+        ...uploadedImages.map(img => ({
+          type: 'image_url',
+          image_url: {
+            url: `data:${img.file.type};base64,${img.base64Data}`
+          }
+        }))
+      ] : messageContent
+    };
+    
+    chatMessages.push(currentUserMessage);
 
-      // Get context files as TFile objects
-      const contextTFiles = contextFiles.map(cf => cf.file);
+    // Get context files as TFile objects
+    const contextTFiles = contextFiles.map(cf => cf.file);
 
-      try {
-        await plugin.streamAgentChat(
-          chatMessages,
-          contextTFiles,
-          selectedModel,
-          (chunk: string) => {
-            // Handle streaming for assistant response content
-            setCurrentStreamingContent(prev => prev + chunk);
-          },
-          (toolCall: any) => {
-            // Handle tool call - save current content and create tool call message
-            const currentContent = currentStreamingContentRef.current;
-            lastToolCallContent = currentContent;
-            
-            const toolCallMessage: Message = {
+    try {
+      await plugin.streamAgentChat(
+        chatMessages,
+        contextTFiles,
+        selectedModel,
+        chatMode,
+        (chunk: string) => {
+          // Handle streaming for assistant response content
+          setCurrentStreamingContent(prev => prev + chunk);
+        },
+        (toolCall: any) => {
+          // Handle tool call - save current content and create tool call message
+          const currentContent = currentStreamingContentRef.current;
+          lastToolCallContent = currentContent;
+          
+          const toolCallMessage: Message = {
+            id: generateId(),
+            role: 'assistant',
+            content: currentContent,
+            timestamp: new Date(),
+            tool_calls: [toolCall]
+          };
+          
+          setMessages(prev => [...prev, toolCallMessage]);
+          setCurrentStreamingContent(''); // Reset for new content after tool call
+        },
+        () => {
+          // Handle completion - create final message for content after tool calls
+          console.log('🎯 [DEBUG] Completion callback triggered');
+          console.log('🎯 [DEBUG] currentStreamingContent:', currentStreamingContentRef.current);
+          console.log('🎯 [DEBUG] current messages count:', messages.length);
+          
+          if (currentStreamingContentRef.current) {
+            const finalMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: currentContent,
-              timestamp: new Date(),
-              tool_calls: [toolCall]
-            };
-            
-            setMessages(prev => [...prev, toolCallMessage]);
-            setCurrentStreamingContent(''); // Reset for new content after tool call
-          },
-          () => {
-            // Handle completion - create final message for content after tool calls
-            console.log('🎯 [DEBUG] Completion callback triggered');
-            console.log('🎯 [DEBUG] currentStreamingContent:', currentStreamingContentRef.current);
-            console.log('🎯 [DEBUG] current messages count:', messages.length);
-            
-            if (currentStreamingContentRef.current) {
-              const finalMessage: Message = {
-                id: generateId(),
-                role: 'assistant',
-                content: currentStreamingContentRef.current,
-                timestamp: new Date()
-              };
-              
-              console.log('🎯 [DEBUG] Creating final message:', finalMessage);
-              
-              setMessages(prev => {
-                const newMessages = [...prev, finalMessage];
-                console.log('🎯 [DEBUG] New messages array length:', newMessages.length);
-                console.log('🎯 [DEBUG] Last message:', newMessages[newMessages.length - 1]);
-                return newMessages;
-              });
-            }
-            
-            // Use setTimeout to ensure the message is rendered before clearing states
-            setTimeout(() => {
-              console.log('🎯 [DEBUG] Clearing loading states');
-              setIsLoading(false);
-              setStreamingMessageId(null);
-              setCurrentStreamingContent('');
-            }, 50); // Small delay to ensure rendering
-            
-            console.log('Agent conversation completed');
-          },
-          (error: string) => {
-            // Handle error
-            console.error('Agent chat error:', error);
-            
-            const errorMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
+              content: currentStreamingContentRef.current,
               timestamp: new Date()
             };
-            setMessages(prev => [...prev, errorMessage]);
             
+            console.log('🎯 [DEBUG] Creating final message:', finalMessage);
+            
+            setMessages(prev => {
+              const newMessages = [...prev, finalMessage];
+              console.log('🎯 [DEBUG] New messages array length:', newMessages.length);
+              console.log('🎯 [DEBUG] Last message:', newMessages[newMessages.length - 1]);
+              return newMessages;
+            });
+          }
+          
+          // Use setTimeout to ensure the message is rendered before clearing states
+          setTimeout(() => {
+            console.log('🎯 [DEBUG] Clearing loading states');
             setIsLoading(false);
             setStreamingMessageId(null);
             setCurrentStreamingContent('');
-          },
-          (toolResult: { toolCallId: string; result: string }) => {
-            // Handle tool result - add as tool message
-            const toolResultMessage: Message = {
-              id: generateId(),
-              role: 'tool',
-              content: toolResult.result,
-              timestamp: new Date(),
-              tool_call_id: toolResult.toolCallId
-            };
-            
-            setMessages(prev => [...prev, toolResultMessage]);
+          }, 50); // Small delay to ensure rendering
+          
+          console.log(`${chatMode} conversation completed`);
+        },
+        (error: string) => {
+          // Handle error
+          console.error(`${chatMode} chat error:`, error);
+          
+          const errorMessage: Message = {
+            id: generateId(),
+            role: 'assistant',
+            content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, errorMessage]);
+          
+          setIsLoading(false);
+          setStreamingMessageId(null);
+          setCurrentStreamingContent('');
+        },
+        (toolResult: { toolCallId: string; result: string }) => {
+          // Handle tool result - add as tool message
+          const toolResultMessage: Message = {
+            id: generateId(),
+            role: 'tool',
+            content: toolResult.result,
+            timestamp: new Date(),
+            tool_call_id: toolResult.toolCallId
+          };
+          
+          setMessages(prev => [...prev, toolResultMessage]);
+          
+          // Add UI notification for Ask Mode auto-rejection
+          if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
+            // Show a subtle notification that editing was blocked
+            console.log('🚫 [Ask Mode] Edit operation was automatically blocked');
           }
-        );
-      } catch (error) {
-        console.error('Error starting agent chat:', error);
-        
-        const errorMessage: Message = {
-          id: generateId(),
-          role: 'assistant',
-          content: `❌ Error: ${error.message || 'Unknown error occurred'}`,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        
-        setIsLoading(false);
-        setStreamingMessageId(null);
-        setCurrentStreamingContent('');
-      }
-    } else {
-      // Original Ask mode - simulate AI response
-      setTimeout(() => {
-        const currentModel = getCurrentModel();
-        let responseContent = `This is a simulated response from ${currentModel?.name} in Ask mode. In a real implementation, this would connect to the actual AI service to answer your question.`;
-        
-        // Acknowledge context files if any were provided
-        if (contextFiles.length > 0) {
-          responseContent += `\n\nI can see you've provided ${contextFiles.length} context file${contextFiles.length > 1 ? 's' : ''}: ${contextFiles.map(cf => cf.displayName).join(', ')}. In a real implementation, I would analyze the content of these files to provide more relevant responses.`;
         }
-
-        // Acknowledge uploaded images if any were provided
-        if (uploadedImages.length > 0) {
-          responseContent += `\n\nI can see you've uploaded ${uploadedImages.length} image${uploadedImages.length > 1 ? 's' : ''}: ${uploadedImages.map(img => img.name).join(', ')}. ${currentModel?.supportVision ? 'I can analyze these images to provide more relevant responses.' : 'However, the current model does not support image analysis.'}`;
-        }
-        
-        const assistantMessage: Message = {
-          id: generateId(),
-          role: 'assistant',
-          content: responseContent,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        setIsLoading(false);
-      }, 1000);
+      );
+    } catch (error) {
+      console.error(`Error starting ${chatMode.toLowerCase()} chat:`, error);
+      
+      const errorMessage: Message = {
+        id: generateId(),
+        role: 'assistant',
+        content: `❌ Error: ${error.message || 'Unknown error occurred'}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      setIsLoading(false);
+      setStreamingMessageId(null);
+      setCurrentStreamingContent('');
     }
   };
 
@@ -1064,6 +1045,20 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                     : '助理'
               }
             </span>
+            {/* Ask Mode auto-rejection indicator */}
+            {isToolResult && message.content.includes("I'm currently in Ask Mode") && (
+              <span style={{
+                fontSize: '11px',
+                backgroundColor: '#ff6b6b',
+                color: '#fff',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: '500',
+                marginLeft: '8px'
+              }}>
+                🚫 Ask Mode 阻止
+              </span>
+            )}
             {isToolResult && (
               <span style={{ 
                 fontSize: '12px',
