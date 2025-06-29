@@ -1384,8 +1384,8 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             color: '#888'
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
-            <h3>Ask Copilot</h3>
-            <p>Copilot is powered by AI, so mistakes are possible. Review output carefully before use.</p>
+            <h3>Ask AI Agent</h3>
+            <p>Agent is powered by AI, so mistakes are possible. Review output carefully before use.</p>
           </div>
         ) : (
           messages.map(message => (

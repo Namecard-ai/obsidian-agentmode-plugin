@@ -22,6 +22,10 @@ export class ObsidianAgentChatView extends ItemView {
 		return 'Agent';
 	}
 
+	getIcon() {
+		return 'bot-message-square';
+	}
+
 	async onOpen() {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(

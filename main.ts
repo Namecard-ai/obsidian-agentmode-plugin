@@ -133,7 +133,11 @@ export default class HelloWorldPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-		this.activateAgentChatView();
+		this.addRibbonIcon('bot-message-square', 'Show Agent', () => {
+			this.activateAgentChatView();
+		});
+
+		
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
