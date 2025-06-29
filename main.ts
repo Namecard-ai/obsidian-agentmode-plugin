@@ -230,7 +230,7 @@ export default class AgentPlugin extends Plugin {
 		chatMode: 'Ask' | 'Agent',
 		onChunk: (chunk: string) => void,
 		onToolCall: (toolCall: any) => void,
-		onComplete: () => void,
+		onComplete: (finalContent: string) => void,
 		onError: (error: string) => void,
 		onToolResult: (result: { toolCallId: string; result: string }) => void
 	): Promise<void> {
@@ -427,46 +427,49 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
-			// Main conversation loop - continue until no more tool calls
-			while (true) {
-				// Start streaming chat completion
-				const stream = await this.openaiClient.chat.completions.create({
-					model: model,
-					messages: chatMessages,
-					tools: tools,
-					stream: true,
-					// temperature: 0.7
-				});
+					// Main conversation loop - continue until no more tool calls
+		let finalAssistantContent = '';
+		while (true) {
+			// Start streaming chat completion
+			const stream = await this.openaiClient.chat.completions.create({
+				model: model,
+				messages: chatMessages,
+				tools: tools,
+				stream: true,
+				// temperature: 0.7
+			});
 
-				// Build up the message from streaming chunks
-				let currentMessage: any = {};
+			// Build up the message from streaming chunks
+			let currentMessage: any = {};
+			
+			for await (const chunk of stream) {
+				currentMessage = this.messageReducer(currentMessage, chunk);
 				
-				for await (const chunk of stream) {
-					currentMessage = this.messageReducer(currentMessage, chunk);
-					
-					// Stream content to UI
-					const delta = chunk.choices[0]?.delta;
-					if (delta?.content) {
-						onChunk(delta.content);
-					}
-					
-					// Handle tool call deltas
-					if (delta?.tool_calls) {
-						for (const toolCall of delta.tool_calls) {
-							if (toolCall.function?.name) {
-								onToolCall(toolCall);
-							}
+				// Stream content to UI
+				const delta = chunk.choices[0]?.delta;
+				if (delta?.content) {
+					onChunk(delta.content);
+					// 累積最終內容
+					finalAssistantContent += delta.content;
+				}
+				
+				// Handle tool call deltas
+				if (delta?.tool_calls) {
+					for (const toolCall of delta.tool_calls) {
+						if (toolCall.function?.name) {
+							onToolCall(toolCall);
 						}
 					}
 				}
+			}
 
-				// Add the completed assistant message to conversation
-				chatMessages.push(currentMessage);
+			// Add the completed assistant message to conversation
+			chatMessages.push(currentMessage);
 
-				// If there are no tool calls, we're done
-				if (!currentMessage.tool_calls) {
-					break;
-				}
+			// If there are no tool calls, we're done
+			if (!currentMessage.tool_calls) {
+				break;
+			}
 
 				// Execute tool calls and add results to conversation
 				for (const toolCall of currentMessage.tool_calls) {
@@ -546,7 +549,7 @@ export default class AgentPlugin extends Plugin {
 				// Continue the loop for next round of chat completion
 			}
 
-			onComplete();
+			onComplete(finalAssistantContent);
 
 		} catch (error: any) {
 			console.error('Error in agent chat:', error);

@@ -404,17 +404,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           setMessages(prev => [...prev, toolCallMessage]);
           setCurrentStreamingContent(''); // Reset for new content after tool call
         },
-        () => {
-          // Handle completion - create final message for content after tool calls
+        (finalContent: string) => {
+          // Handle completion - create final message with complete content from main.ts
           console.log('🎯 [DEBUG] Completion callback triggered');
-          console.log('🎯 [DEBUG] currentStreamingContent:', currentStreamingContentRef.current);
+          console.log('🎯 [DEBUG] finalContent from main.ts:', finalContent);
+          console.log('🎯 [DEBUG] finalContent length:', finalContent.length);
           console.log('🎯 [DEBUG] current messages count:', messages.length);
           
-          if (currentStreamingContentRef.current) {
+          if (finalContent) {
             const finalMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: currentStreamingContentRef.current,
+              content: finalContent,
               timestamp: new Date()
             };
             
