@@ -171,6 +171,15 @@ interface ReactViewProps {
   plugin: any; // Reference to the HelloWorldPlugin
 }
 
+// Add new interface for wiki link parsing
+interface WikiLink {
+  start: number;
+  end: number;
+  path: string;
+  isValid: boolean;
+  fullMatch: string;
+}
+
 export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -193,10 +202,15 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
   const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  // Add new states for wiki link functionality
+  const [wikiLinks, setWikiLinks] = useState<WikiLink[]>([]);
+  const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const highlightLayerRef = useRef<HTMLDivElement>(null);
 
   // Sync ref with state
   useEffect(() => {
@@ -524,6 +538,20 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    } else if (e.key === '[' && textareaRef.current) {
+      // Check if this is the second [ to trigger wiki link input
+      const cursorPos = textareaRef.current.selectionStart || 0;
+      const beforeCursor = inputText.slice(0, cursorPos);
+      
+      // Check if the previous character is also [
+      if (beforeCursor.endsWith('[')) {
+        // This will be the second [, trigger file selection after the keystroke is processed
+        setTimeout(() => {
+          const newCursorPos = cursorPos + 1; // +1 because the [ key will be added
+          setPendingWikiLinkPosition(newCursorPos);
+          handleWikiLinkInput(newCursorPos);
+        }, 0);
+      }
     }
   };
 
@@ -1120,6 +1148,81 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
     );
   };
 
+  // Add wiki link parsing functions
+  const parseWikiLinks = (text: string): WikiLink[] => {
+    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+    const matches: WikiLink[] = [];
+    let match;
+    
+    while ((match = wikiLinkRegex.exec(text)) !== null) {
+      const path = match[1];
+      const file = app.vault.getAbstractFileByPath(path);
+      
+      matches.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        path: path,
+        isValid: !!(file && file instanceof TFile),
+        fullMatch: match[0]
+      });
+    }
+    
+    return matches;
+  };
+
+  // Update wiki links when input text changes
+  useEffect(() => {
+    const links = parseWikiLinks(inputText);
+    setWikiLinks(links);
+  }, [inputText, app.vault]);
+
+  // Handle [[ input detection and file selection
+  const handleWikiLinkInput = (position: number) => {
+    const modal = new FilePickerModal(app, (file: TFile) => {
+      // Insert the file path at the specified position
+      const beforeCursor = inputText.slice(0, position);
+      const afterCursor = inputText.slice(position);
+      const relativePath = file.path;
+      
+      // Remove the [[ that triggered this modal
+      const beforeWithoutBrackets = beforeCursor.slice(0, -2);
+      const newText = beforeWithoutBrackets + `[[${relativePath}]]` + afterCursor;
+      
+      setInputText(newText);
+      
+      // Set cursor position after the inserted link
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const newCursorPos = beforeWithoutBrackets.length + `[[${relativePath}]]`.length;
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textareaRef.current.focus();
+        }
+      }, 0);
+      
+      setPendingWikiLinkPosition(null);
+    });
+    modal.open();
+  };
+
+  // Add scroll sync for syntax highlighting
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    const highlightLayer = highlightLayerRef.current;
+    
+    if (!textarea || !highlightLayer) return;
+    
+    const syncScroll = () => {
+      highlightLayer.scrollTop = textarea.scrollTop;
+      highlightLayer.scrollLeft = textarea.scrollLeft;
+    };
+    
+    textarea.addEventListener('scroll', syncScroll);
+    
+    return () => {
+      textarea.removeEventListener('scroll', syncScroll);
+    };
+  }, []);
+
   return (
     <div 
       ref={chatContainerRef}
@@ -1592,29 +1695,106 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                   </div>
                 )}
             </div>
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={chatMode === 'Ask' 
-                ? "Ask GitHub Copilot something... Use [[]] to link notes" 
-                : "Give instructions to the agent... Use [[]] to link notes"
-              }
-              style={{
-                minHeight: '44px',
-                maxHeight: '120px',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid #555',
-                backgroundColor: '#3a3a3a',
-                color: '#fff',
-                fontSize: '14px',
-                resize: 'none',
-                fontFamily: 'inherit',
-                width: '100%'
-              }}
-            />
+            <div style={{
+              position: 'relative',
+              width: '100%'
+            }}>
+              {/* Syntax highlight background layer */}
+              <div
+                ref={highlightLayerRef}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  minHeight: '44px',
+                  maxHeight: '120px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid transparent',
+                  backgroundColor: 'transparent',
+                  color: 'transparent',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  lineHeight: '1.5',
+                  overflow: 'hidden',
+                  whiteSpace: 'pre-wrap',
+                  wordWrap: 'break-word',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }}
+              >
+                {/* Render text with wiki link highlights only */}
+                {(() => {
+                  const chars = inputText.split('');
+                  const result = [];
+                  let currentHighlight = null;
+                  
+                  for (let i = 0; i < chars.length; i++) {
+                    const wikiLink = wikiLinks.find(link => 
+                      i >= link.start && i < link.end
+                    );
+                    
+                    if (wikiLink && wikiLink !== currentHighlight) {
+                      // Start new highlight group
+                      if (currentHighlight) {
+                        result.push('</span>');
+                      }
+                      result.push(
+                        `<span style="background-color: ${
+                          wikiLink.isValid 
+                            ? 'rgba(100, 200, 100, 0.3)' 
+                            : 'rgba(255, 100, 100, 0.3)'
+                        }; color: ${
+                          wikiLink.isValid ? '#4CAF50' : '#f44336'
+                        }; border-radius: 3px; padding: 1px 2px;">`
+                      );
+                      currentHighlight = wikiLink;
+                    } else if (!wikiLink && currentHighlight) {
+                      // End highlight group
+                      result.push('</span>');
+                      currentHighlight = null;
+                    }
+                    
+                    result.push(chars[i]);
+                  }
+                  
+                  if (currentHighlight) {
+                    result.push('</span>');
+                  }
+                  
+                  return <div dangerouslySetInnerHTML={{ __html: result.join('') }} />;
+                })()}
+              </div>
+              
+              {/* Actual textarea */}
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={chatMode === 'Ask' 
+                  ? "Ask GitHub Copilot something... Use [[]] to link notes" 
+                  : "Give instructions to the agent... Use [[]] to link notes"
+                }
+                style={{
+                  position: 'relative',
+                  minHeight: '44px',
+                  maxHeight: '120px',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #555',
+                  backgroundColor: 'rgba(58, 58, 58, 0.8)',
+                  color: '#fff',
+                  fontSize: '14px',
+                  resize: 'none',
+                  fontFamily: 'inherit',
+                  width: '100%',
+                  zIndex: 2
+                }}
+              />
+            </div>
           </div>
           <button
             onClick={handleSendMessage}
