@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ReactView } from './ReactView';
-import { ExampleView, VIEW_TYPE_EXAMPLE } from './ExampleView';
+import { ObsidianAgentChatView, VIEW_TYPE_AGENT_CHAT } from './ObsidianAgentChatView';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import * as Diff from 'diff';
@@ -129,8 +129,8 @@ export default class HelloWorldPlugin extends Plugin {
 
 		// Register a new view
 		this.registerView(
-			VIEW_TYPE_EXAMPLE,
-			(leaf) => new ExampleView(leaf, this)
+			VIEW_TYPE_AGENT_CHAT,
+			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
 		this.addRibbonIcon('dice', 'Activate example view', () => {
@@ -1475,7 +1475,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		const { workspace } = this.app;
 
 		let leaf: WorkspaceLeaf | null = null;
-		const leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_AGENT_CHAT);
 
 		if (leaves.length > 0) {
 			// A leaf with our view already exists, use that
@@ -1485,7 +1485,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			// in the right sidebar for it
 			leaf = workspace.getRightLeaf(false);
 			if (leaf) {
-				await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
+				await leaf.setViewState({ type: VIEW_TYPE_AGENT_CHAT, active: true });
 			}
 		}
 

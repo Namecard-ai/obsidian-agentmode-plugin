@@ -3,9 +3,9 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ReactView } from './ReactView';
 
-export const VIEW_TYPE_EXAMPLE = 'example-view';
+export const VIEW_TYPE_AGENT_CHAT = 'obsidian-agent-chat-view';
 
-export class ExampleView extends ItemView {
+export class ObsidianAgentChatView extends ItemView {
 	root: Root | null = null;
 	plugin: any;
 
@@ -15,11 +15,11 @@ export class ExampleView extends ItemView {
 	}
 
 	getViewType() {
-		return VIEW_TYPE_EXAMPLE;
+		return VIEW_TYPE_AGENT_CHAT;
 	}
 
 	getDisplayText() {
-		return 'Example view';
+		return 'Agent';
 	}
 
 	async onOpen() {
