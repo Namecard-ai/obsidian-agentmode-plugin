@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { FuzzySuggestModal, TFile, App, Notice } from 'obsidian';
+import MarkdownRenderer from './MarkdownRenderer';
 
 // Add CSS styles
 const styles = `
@@ -1113,14 +1114,27 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
             </div>
           ) : (
             <div style={{
-              whiteSpace: 'pre-wrap',
-              lineHeight: '1.5',
               userSelect: 'text',
               WebkitUserSelect: 'text',
               MozUserSelect: 'text',
               msUserSelect: 'text',
             }}>
-              {message.content}
+              {/* 根據消息類型選擇渲染方式 */}
+              {message.role === 'assistant' ? (
+                <MarkdownRenderer 
+                  content={message.content}
+                  style={{
+                    lineHeight: '1.5'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.5'
+                }}>
+                  {message.content}
+                </div>
+              )}
               {isStreaming && (
                 <span className="streaming-cursor" style={{
                   display: 'inline-block',
@@ -1400,14 +1414,17 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
               position: 'relative',
             }}>
               <div style={{
-                whiteSpace: 'pre-wrap',
-                lineHeight: '1.5',
                 userSelect: 'text',
                 WebkitUserSelect: 'text',
                 MozUserSelect: 'text',
                 msUserSelect: 'text',
               }}>
-                {currentStreamingContent}
+                <MarkdownRenderer 
+                  content={currentStreamingContent}
+                  style={{
+                    lineHeight: '1.5'
+                  }}
+                />
                 <span className="streaming-cursor" style={{
                   display: 'inline-block',
                   width: '2px',
