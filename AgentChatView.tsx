@@ -385,6 +385,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         chatMode,
         (chunk: string) => {
           // Handle streaming for assistant response content
+          console.log('🎯 [DEBUG] Streaming chunk:', chunk);
           setCurrentStreamingContent(prev => prev + chunk);
         },
         (toolCall: any) => {
