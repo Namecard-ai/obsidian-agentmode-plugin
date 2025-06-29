@@ -1,11 +1,11 @@
 {
-	"id": "hello-sample-plugin",
-	"name": "Hello Sample Plugin",
+	"id": "agent",
+	"name": "Agent Plugin",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
+	"description": "An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.",
 	"author": "Obsidian",
 	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"fundingUrl": "https://obsidian.md/pricing",	
 	"isDesktopOnly": false
 }

@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
-import { ReactView } from './ReactView';
+import { AgentChatView } from './AgentChatView';
 
 export const VIEW_TYPE_AGENT_CHAT = 'obsidian-agent-chat-view';
 
@@ -30,7 +30,7 @@ export class ObsidianAgentChatView extends ItemView {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
 			<StrictMode>
-				<ReactView app={this.app} plugin={this.plugin} />
+				<AgentChatView app={this.app} plugin={this.plugin} />
 			</StrictMode>
 		);
 	}

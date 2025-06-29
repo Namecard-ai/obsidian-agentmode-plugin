@@ -1,17 +1,14 @@
-# Obsidian Sample Plugin
+# Obsidian Agent Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+This project uses TypeScript and React to provide a modern, responsive chat interface that integrates seamlessly with your Obsidian vault. The plugin leverages the latest Obsidian API and includes comprehensive AI agent capabilities.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
-- **NEW**: Includes a React-based chat interface with context file selection functionality.
+## Key Features
+- **Context-Aware Conversations**: Seamlessly integrate vault files into your chat context
+- **Agent Mode**: Execute tasks and automation through AI assistance
+- **File Integration**: Advanced drag-and-drop and file picker functionality
+- **Upload Image**: Upload image to the chat
 
 ## Chat Interface Features
 
@@ -39,19 +36,44 @@ The plugin now includes a modern chat interface with the following features:
 - File upload support
 - Responsive dark theme UI
 
-## First time developing plugins?
+## Development Setup
 
-Quick starting guide for new plugin devs:
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn package manager
+- Obsidian app installed
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Installation & Development
+
+1. **Clone and Install**
+   ```bash
+   git clone <repository-url>
+   cd obsidian-agent-plugin
+   npm install
+   ```
+
+2. **Development Mode**
+   ```bash
+   npm run dev
+   ```
+   This starts compilation in watch mode and automatically rebuilds when you make changes.
+
+3. **Plugin Installation**
+   - Copy the built files (`main.js`, `styles.css`, `manifest.json`) to your vault's plugin folder:
+     `VaultFolder/.obsidian/plugins/obsidian-agent-plugin/`
+   - Or for development, place the entire project folder in your vault's plugins directory
+   - Enable the plugin in Obsidian's settings
+
+4. **Testing Changes**
+   - After making changes, reload Obsidian (Ctrl/Cmd + R)
+   - The plugin will use the newly compiled code
+
+### Project Structure
+- `main.ts` - Main plugin entry point
+- `ObsidianAgentChatView.tsx` - React chat interface component
+- `ReactView.tsx` - React view wrapper
+- `MarkdownRenderer.tsx` - Markdown rendering utilities
+- `styles.css` - Plugin styling
 
 ## Releasing new releases
 
@@ -71,26 +93,53 @@ Quick starting guide for new plugin devs:
 - Make sure you have a `README.md` file in the root of your repo.
 - Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
 
-## How to use
+## How to Use the Plugin
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+Once installed and enabled, the Obsidian Agent Plugin provides:
 
-## Manually installing the plugin
+1. **Access the Chat Interface**
+   - Click the plugin icon in the ribbon
+   - Or use the command palette: "Open Agent Chat"
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+2. **Add Context Files**
+   - Use the "🔗 Add Context" button to browse and select files
+   - Or drag files directly from the file explorer into the chat area
+   - Selected files will be included in your conversation context
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+3. **Choose Your Mode**
+   - **Ask Mode**: For questions, research, and general inquiries
+   - **Agent Mode**: For task execution and automation
+
+4. **Select AI Model**
+   - Choose from available models (Claude, GPT, Gemini)
+   - Each model has different strengths and capabilities
+
+## Manual Installation
+
+If you prefer to install manually:
+
+1. Download the latest release files: `main.js`, `styles.css`, `manifest.json`
+2. Create a folder named `obsidian-agent-plugin` in your vault's plugins directory:
+   `VaultFolder/.obsidian/plugins/obsidian-agent-plugin/`
+3. Copy the downloaded files into this folder
+4. Restart Obsidian and enable the plugin in settings
+
+## Code Quality & Linting
+
+This project uses ESLint for code quality analysis:
+
+```bash
+# Install ESLint globally (if not already installed)
+npm install -g eslint
+
+# Analyze the main TypeScript files
+eslint main.ts *.tsx
+
+# Or analyze all TypeScript files
+eslint ./*.ts ./*.tsx
+```
+
+ESLint will provide suggestions for code improvements, help catch common bugs, and ensure consistent code style across the project.
 
 ## Funding URL
 

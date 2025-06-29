@@ -167,9 +167,9 @@ const AI_MODELS: AIModel[] = [
   { id: 'o3-mini', name: 'o3-mini', supportVision: false },
 ];
 
-interface ReactViewProps {
+interface AgentChatViewProps {
   app: App;
-  plugin: any; // Reference to the HelloWorldPlugin
+  plugin: any; // Reference to the AgentPlugin
 }
 
 // Add new interface for wiki link parsing
@@ -181,7 +181,7 @@ interface WikiLink {
   fullMatch: string;
 }
 
-export const ReactView = ({ app, plugin }: ReactViewProps) => {
+export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
