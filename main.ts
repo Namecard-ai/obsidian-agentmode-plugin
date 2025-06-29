@@ -133,9 +133,7 @@ export default class HelloWorldPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-		this.addRibbonIcon('dice', 'Activate example view', () => {
-			this.activateExampleView();
-		});
+		this.activateAgentChatView();
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
@@ -1471,7 +1469,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		this.initializeOpenAI();
 	}
 
-	async activateExampleView() {
+	async activateAgentChatView() {
 		const { workspace } = this.app;
 
 		let leaf: WorkspaceLeaf | null = null;
