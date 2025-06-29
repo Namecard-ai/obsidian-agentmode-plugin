@@ -1792,7 +1792,7 @@ export const ReactView = ({ app, plugin }: ReactViewProps) => {
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={chatMode === 'Ask' 
-                  ? "Ask GitHub Copilot something... Use [[]] to link notes" 
+                  ? "Ask something... Use [[]] to link notes" 
                   : "Give instructions to the agent... Use [[]] to link notes"
                 }
                 style={{
