@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS: AgentPluginSettings = {
 	openaiApiKey: ''
 }
 
-interface EmbeddingRecord {
+export interface EmbeddingRecord {
 	id: string;
 	vector: number[];
 	content: string;
@@ -27,16 +27,22 @@ interface EmbeddingRecord {
 	[key: string]: any; // Add index signature for compatibility
 }
 
-interface ChatMessage {
+export interface ChatMessage {
 	role: 'system' | 'user' | 'assistant' | 'tool';
 	content: string | Array<{type: 'text', text: string} | {type: 'image_url', image_url: {url: string}}>;
 	tool_calls?: any[];
 	tool_call_id?: string;
 	name?: string;
+	type?: 'standard' | 'edit-confirmation' | 'create-note-confirmation';
+	toolMessages?: {
+		callId: string;
+		content: any;
+	}[];
 }
 
+
 // New interfaces for precise line-by-line editing
-interface EditOperation {
+export interface EditOperation {
 	operation: 'insert' | 'delete' | 'replace';
 	start_line: number;      // 1-indexed line number
 	end_line?: number;       // For delete/replace operations
@@ -44,11 +50,24 @@ interface EditOperation {
 	description: string;     // Description of this edit operation
 }
 
-interface DiffLine {
+export interface DiffLine {
 	type: 'unchanged' | 'deleted' | 'inserted';
 	line_number: number;     // Original line number for context
 	content: string;
 }
+
+// Interface for pending edit confirmation
+export interface EditConfirmationArgs {
+	description: string;
+	diff: string;
+  }
+  
+  // Interface for create note confirmation
+  export interface CreateNoteConfirmationArgs {
+	description: string;
+	content: string;
+  }
+  
 
 // Interface for pending edit confirmation
 interface PendingEditConfirmation {
@@ -84,6 +103,18 @@ interface CreateNoteConfirmationCallbacks {
 	onAccept: () => void;
 	onReject: (reason?: string) => void;
 }
+
+export enum Model {
+	Gemini1_5Pro = 'gemini-1.5-pro-latest',
+	GPT4o_mini = 'gpt-4o-mini',
+	GPT4o = 'gpt-4o',
+	Claude3_5_Sonnet = 'claude-3-5-sonnet-20240620',
+  }
+  
+  export enum AgentMode {
+	Standard = 'Standard',
+	Ask = 'Ask',
+  }
 
 export default class AgentPlugin extends Plugin {
 	settings: AgentPluginSettings;

@@ -1,6 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { FuzzySuggestModal, TFile, App, Notice } from 'obsidian';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FuzzySuggestModal, TFile, App, Notice, setIcon } from 'obsidian';
 import MarkdownRenderer from './MarkdownRenderer';
+import AgentPlugin from './main';
+import {
+  ChatMessage,
+  Model,
+  AgentMode,
+  EditConfirmationArgs,
+  CreateNoteConfirmationArgs,
+} from './main';
 
 // Add CSS styles
 const styles = `
@@ -16,7 +24,7 @@ const styles = `
   }
   
   .tool-session-header:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--background-modifier-hover);
     border-radius: 4px;
   }
   
@@ -29,7 +37,7 @@ const styles = `
   }
   
   .tool-result-header:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--background-modifier-hover);
     border-radius: 4px;
   }
 `;
@@ -169,7 +177,7 @@ const AI_MODELS: AIModel[] = [
 
 interface AgentChatViewProps {
   app: App;
-  plugin: any; // Reference to the AgentPlugin
+  plugin: AgentPlugin;
 }
 
 // Add new interface for wiki link parsing
@@ -180,6 +188,50 @@ interface WikiLink {
   isValid: boolean;
   fullMatch: string;
 }
+
+// Reusable Icon Button Component
+interface IconButtonProps {
+  icon: string;
+  tooltip: string;
+  onClick: () => void;
+}
+
+const IconButton: React.FC<IconButtonProps> = ({ icon, tooltip, onClick }) => {
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (buttonRef.current) {
+      setIcon(buttonRef.current, icon);
+    }
+  }, [icon]);
+
+  return (
+    <button
+      ref={buttonRef}
+      title={tooltip}
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: 'var(--text-muted)',
+        cursor: 'pointer',
+        padding: '6px',
+        borderRadius: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
+        e.currentTarget.style.color = 'var(--text-normal)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.color = 'var(--text-muted)';
+      }}
+    />
+  );
+};
 
 export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -206,17 +258,53 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   // Add new states for wiki link functionality
   const [wikiLinks, setWikiLinks] = useState<WikiLink[]>([]);
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
+  const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
 
   // Sync ref with state
   useEffect(() => {
     currentStreamingContentRef.current = currentStreamingContent;
   }, [currentStreamingContent]);
+
+  useEffect(() => {
+    // Set background color based on theme
+    if (document.body.classList.contains('theme-light')) {
+      setViewBackgroundColor('#FFFFFF');
+    } else {
+      setViewBackgroundColor('var(--background-primary)');
+    }
+
+    // Optional: Add a mutation observer to watch for theme changes in real-time
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.attributeName === 'class') {
+          if (document.body.classList.contains('theme-light')) {
+            setViewBackgroundColor('#FFFFFF');
+          } else {
+            setViewBackgroundColor('var(--background-primary)');
+          }
+        }
+      });
+    });
+
+    observer.observe(document.body, { attributes: true });
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      textarea.style.height = 'auto'; // Reset height to recalculate
+      textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+    }
+  }, [inputText]);
 
   // Listen for edit confirmation changes
   useEffect(() => {
@@ -982,32 +1070,21 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const isToolResult = message.role === 'tool';
     const isToolResultExpanded = expandedToolResults.has(message.id);
     
-    // 定義不同訊息類型的背景色（深淺不同的灰色階層）
-    const getBackgroundColor = () => {
-      if (isUser) return '#3a3a3a'; // 用戶訊息 - 中等深灰
-      if (message.role === 'tool') return '#2a2a2a'; // 工具訊息 - 最深灰
-      return '#4a4a4a'; // 助理訊息 - 稍淺灰
-    };
-    
-    const getTextColor = () => {
-      return '#ffffff'; // 統一使用白色文字
-    };
-    
     return (
       <div
         key={message.id}
         className={`message ${isUser ? 'user' : 'assistant'}`}
         style={{
           width: '100%',
-          marginBottom: '2px', // 減少間距讓訊息更緊湊
+          // marginBottom is removed for a more document-like flow
         }}
       >
         <div
           style={{
             width: '100%',
-            padding: '8px 12px',
-            backgroundColor: getBackgroundColor(),
-            color: getTextColor(),
+            padding: '8px 0', // Vertical padding only
+            backgroundColor: 'transparent', // No more bubbles
+            color: 'var(--text-normal)', // Inherit text color
             border: 'none',
             position: 'relative',
           }}
@@ -1017,7 +1094,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             className={isToolResult ? 'tool-result-header' : ''}
             style={{
               fontSize: '12px',
-              color: '#bbb',
+              color: 'var(--text-muted)',
               marginBottom: '4px',
               display: 'flex',
               alignItems: 'center',
@@ -1148,6 +1225,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           {/* Timestamp */}
           <div style={{
             fontSize: '11px',
+            color: 'var(--text-muted)',
             opacity: 0.7,
             marginTop: '4px',
             textAlign: isUser ? 'right' : 'left',
@@ -1244,8 +1322,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        backgroundColor: '#1e1e1e',
-        color: '#ffffff',
+        backgroundColor: viewBackgroundColor,
+        color: 'var(--text-normal)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         position: 'relative'
       }}
@@ -1254,72 +1332,31 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 16px',
-        borderBottom: '1px solid #333',
-        backgroundColor: '#2d2d2d'
+        justifyContent: 'flex-end', // Align buttons to the right
+        padding: '8px', // Reduced padding
+        borderBottom: '1px solid var(--background-modifier-border)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Chat</h2>
-          <button
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <IconButton
+            icon="plus"
+            tooltip="New Chat"
             onClick={handleNewChat}
-            style={{
-              background: '#4a4a4a',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#fff',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            ➕ New Chat
-          </button>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
+          />
+          <IconButton
+            icon="history"
+            tooltip="History"
             onClick={() => setShowHistory(!showHistory)}
-            style={{
-              background: 'transparent',
-              border: '1px solid #555',
-              borderRadius: '6px',
-              color: '#fff',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            🕒 History
-          </button>
-          <button
+          />
+          <IconButton
+            icon="image"
+            tooltip="Upload Image"
             onClick={handleImageUpload}
-            style={{
-              background: 'transparent',
-              border: '1px solid #555',
-              borderRadius: '6px',
-              color: '#fff',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            🖼️ Upload Image
-          </button>
-          <button
+          />
+          <IconButton
+            icon="link"
+            tooltip="Add Context"
             onClick={handleAddContext}
-            style={{
-              background: 'transparent',
-              border: '1px solid #555',
-              borderRadius: '6px',
-              color: '#fff',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            🔗 Add Context
-          </button>
+          />
         </div>
       </div>
 
@@ -1331,8 +1368,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           right: '16px',
           width: '300px',
           maxHeight: '400px',
-          backgroundColor: '#2d2d2d',
-          border: '1px solid #555',
+          backgroundColor: 'var(--background-secondary)',
+          border: '1px solid var(--background-modifier-border)',
           borderRadius: '8px',
           padding: '12px',
           zIndex: 1000,
@@ -1340,7 +1377,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Chat History</h3>
           {chatHistory.length === 0 ? (
-            <p style={{ color: '#888', fontSize: '14px' }}>No chat history yet</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No chat history yet</p>
           ) : (
             chatHistory.map(chat => (
               <div
@@ -1351,12 +1388,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   borderRadius: '4px',
                   cursor: 'pointer',
                   marginBottom: '4px',
-                  backgroundColor: '#3a3a3a',
+                  backgroundColor: 'var(--background-primary)',
                   fontSize: '14px'
                 }}
               >
                 <div style={{ fontWeight: '500' }}>{chat.title}</div>
-                <div style={{ color: '#888', fontSize: '12px' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
                   {chat.timestamp.toLocaleDateString()}
                 </div>
               </div>
@@ -1377,18 +1414,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
 
         {messages.length === 0 ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: '#888'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
-            <h3>Ask AI Agent</h3>
-            <p>Agent is powered by AI, so mistakes are possible. Review output carefully before use.</p>
-          </div>
+          null
         ) : (
           messages.map(message => (
             <div key={message.id}>
@@ -1406,8 +1432,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             <div style={{
               width: '100%',
               padding: '8px 12px',
-              backgroundColor: '#4a4a4a', // 助理訊息的背景色
-              color: '#ffffff',
+              backgroundColor: 'var(--background-primary-alt)', // 助理訊息的背景色
+              color: 'var(--text-normal)',
               position: 'relative',
             }}>
               <div style={{
@@ -1426,7 +1452,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   display: 'inline-block',
                   width: '2px',
                   height: '20px',
-                  backgroundColor: '#007acc',
+                  backgroundColor: 'var(--interactive-accent)',
                   marginLeft: '2px',
                   animation: 'blink 1s infinite',
                 }} />
@@ -1448,16 +1474,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       {/* Input Area */}
       <div style={{
-        padding: '16px',
-        borderTop: '1px solid #333',
-        backgroundColor: '#2d2d2d'
+        padding: '16px 16px 8px 16px',
+        borderTop: '1px solid var(--background-modifier-border)',
+        backgroundColor: 'var(--background-secondary)'
       }}>
         <style>
           {`
             @keyframes pulse {
-              0% { border-bottom-color: #0066cc; }
-              50% { border-bottom-color: #004499; }
-              100% { border-bottom-color: #0066cc; }
+              0% { border-bottom-color: var(--interactive-accent); }
+              50% { border-bottom-color: var(--interactive-accent-hover); }
+              100% { border-bottom-color: var(--interactive-accent); }
             }
             @keyframes blink {
               0%, 50% { opacity: 1; }
@@ -1466,6 +1492,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             @keyframes spin {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
+            }
+            .chat-textarea::placeholder {
+              color: var(--text-faint);
             }
           `}
         </style>
@@ -1480,7 +1509,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           }}>
             <span style={{
               fontSize: '12px',
-              color: '#888',
+              color: 'var(--text-muted)',
               fontWeight: '500',
               marginRight: '4px'
             }}>
@@ -1493,20 +1522,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  backgroundColor: '#3a6b3a',
+                  backgroundColor: 'var(--background-modifier-success)',
                   borderRadius: '12px',
                   padding: '4px 8px',
                   fontSize: '12px',
-                  color: '#fff',
+                  color: 'var(--text-on-accent)',
                   gap: '4px',
-                  border: '1px solid #4a7c4a',
+                  border: '1px solid var(--background-modifier-success-border)',
                   transition: 'background-color 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4a7c4a';
+                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-success-hover)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#3a6b3a';
+                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-success)';
                 }}
               >
                 <span>🖼️ {image.name}</span>
@@ -1518,7 +1547,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#ccc',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     padding: '2px',
                     fontSize: '14px',
@@ -1533,12 +1562,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#ff4444';
-                    e.currentTarget.style.color = '#fff';
+                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
+                    e.currentTarget.style.color = 'var(--text-on-accent)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#ccc';
+                    e.currentTarget.style.color = 'var(--text-muted)';
                   }}
                   title="Remove image"
                 >
@@ -1560,7 +1589,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           }}>
             <span style={{
               fontSize: '12px',
-              color: '#888',
+              color: 'var(--text-muted)',
               fontWeight: '500',
               marginRight: '4px'
             }}>
@@ -1573,20 +1602,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  backgroundColor: '#4a4a4a',
+                  backgroundColor: 'var(--background-secondary)',
                   borderRadius: '12px',
                   padding: '4px 8px',
                   fontSize: '12px',
-                  color: '#fff',
+                  color: 'var(--text-normal)',
                   gap: '4px',
-                  border: '1px solid #555',
+                  border: '1px solid var(--background-modifier-border)',
                   transition: 'background-color 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#555';
+                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4a4a4a';
+                  e.currentTarget.style.backgroundColor = 'var(--background-secondary)';
                 }}
               >
                 <span>📄 {contextFile.displayName}</span>
@@ -1598,7 +1627,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#ccc',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     padding: '2px',
                     fontSize: '14px',
@@ -1613,12 +1642,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#ff4444';
-                    e.currentTarget.style.color = '#fff';
+                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
+                    e.currentTarget.style.color = 'var(--text-on-accent)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#ccc';
+                    e.currentTarget.style.color = 'var(--text-muted)';
                   }}
                   title="Remove file"
                 >
@@ -1641,79 +1670,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             gap: '8px',
             flex: 1
           }}>
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center'
-              }}>
-                <select
-                  value={chatMode}
-                  onChange={(e) => setChatMode(e.target.value as 'Ask' | 'Agent')}
-                  style={{
-                    backgroundColor: '#3a3a3a',
-                    border: '1px solid #555',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    padding: '6px 12px',
-                    fontSize: '14px',
-                    minWidth: '80px'
-                  }}
-                >
-                  <option value="Ask">Ask</option>
-                  <option value="Agent">Agent</option>
-                </select>
-                <span style={{ 
-                  fontSize: '12px', 
-                  color: '#888',
-                  fontWeight: '500'
-                }}>
-                  {chatMode === 'Ask' ? 'Ask mode' : 'Agent mode'}
-                </span>
-              </div>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                style={{
-                  backgroundColor: '#3a3a3a',
-                  border: '1px solid #555',
-                  borderRadius: '6px',
-                  color: '#fff',
-                  padding: '6px 12px',
-                  fontSize: '14px',
-                  minWidth: '140px'
-                }}
-              >
-                                  {AI_MODELS.map(model => (
-                    <option key={model.id} value={model.id}>
-                      {model.name} {model.supportVision ? '🖼️' : ''}
-                    </option>
-                  ))}
-                </select>
-                {uploadedImages.length > 0 && !currentModelSupportsVision && (
-                  <div style={{
-                    fontSize: '12px',
-                    color: '#ff6b6b',
-                    fontWeight: '500',
-                    marginLeft: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    ⚠️ Please select a model that supports images
-                  </div>
-                )}
-            </div>
+
+            {/* Main Textarea */}
             <div style={{
               position: 'relative',
               width: '100%'
             }}>
-              {/* Syntax highlight background layer */}
+              {/* Syntax highlight background layer can remain here */}
               <div
                 ref={highlightLayerRef}
                 style={{
@@ -1739,7 +1702,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   zIndex: 1
                 }}
               >
-                {/* Render text with wiki link highlights only */}
+                {/* Rendering logic for wiki links */}
                 {(() => {
                   const chars = inputText.split('');
                   const result = [];
@@ -1751,22 +1714,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     );
                     
                     if (wikiLink && wikiLink !== currentHighlight) {
-                      // Start new highlight group
                       if (currentHighlight) {
                         result.push('</span>');
                       }
                       result.push(
                         `<span style="background-color: ${
                           wikiLink.isValid 
-                            ? 'rgba(100, 200, 100, 0.3)' 
-                            : 'rgba(255, 100, 100, 0.3)'
+                            ? 'var(--background-modifier-success-hover)' 
+                            : 'var(--background-modifier-error-hover)'
                         }; color: ${
-                          wikiLink.isValid ? '#4CAF50' : '#f44336'
+                          wikiLink.isValid ? 'var(--text-success)' : 'var(--text-error)'
                         }; border-radius: 3px; padding: 1px 2px;">`
                       );
                       currentHighlight = wikiLink;
                     } else if (!wikiLink && currentHighlight) {
-                      // End highlight group
                       result.push('</span>');
                       currentHighlight = null;
                     }
@@ -1792,15 +1753,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   ? "Ask something... Use [[]] to link notes" 
                   : "Give instructions to the agent... Use [[]] to link notes"
                 }
+                className="chat-textarea"
                 style={{
                   position: 'relative',
+                  boxSizing: 'border-box',
                   minHeight: '44px',
-                  maxHeight: '120px',
+                  maxHeight: '250px',
+                  overflowY: 'auto',
                   padding: '12px',
                   borderRadius: '8px',
-                  border: '1px solid #555',
-                  backgroundColor: 'rgba(58, 58, 58, 0.8)',
-                  color: '#fff',
+                  border: '1px solid var(--background-modifier-border)',
+                  backgroundColor: 'var(--background-secondary)',
+                  color: 'var(--text-normal)',
                   fontSize: '14px',
                   resize: 'none',
                   fontFamily: 'inherit',
@@ -1809,40 +1773,113 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }}
               />
             </div>
-          </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={!inputText.trim() || isLoading}
-            style={{
-              padding: '12px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: inputText.trim() && !isLoading ? '#0066cc' : '#555',
-              color: '#fff',
-              cursor: inputText.trim() && !isLoading ? 'pointer' : 'not-allowed',
-              fontSize: '14px',
-              fontWeight: '500',
-              alignSelf: 'flex-end',
-              minWidth: '80px',
+
+            {/* New Bottom Control Strip */}
+            <div style={{
               display: 'flex',
+              gap: '8px',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-{isLoading ? (
+              justifyContent: 'space-between'
+            }}>
+              {/* Left side controls */}
               <div style={{
-                width: '16px',
-                height: '16px',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                borderTop: '2px solid #fff',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-            ) : (
-              'Send'
-            )}
-          </button>
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center'
+              }}>
+                <select
+                  value={chatMode}
+                  onChange={(e) => setChatMode(e.target.value as 'Ask' | 'Agent')}
+                  style={{
+                    backgroundColor: 'var(--background-secondary)',
+                    border: '1px solid var(--background-modifier-border)',
+                    borderRadius: '6px',
+                    color: 'var(--text-normal)',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    minWidth: '80px'
+                  }}
+                >
+                  <option value="Ask">Ask</option>
+                  <option value="Agent">Agent</option>
+                </select>
+                <span style={{ 
+                  fontSize: '12px', 
+                  color: 'var(--text-muted)',
+                  fontWeight: '500'
+                }}>
+                  {chatMode === 'Ask' ? 'Ask mode' : 'Agent mode'}
+                </span>
+              </div>
+
+              {/* Right side controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  style={{
+                    backgroundColor: 'var(--background-secondary)',
+                    border: '1px solid var(--background-modifier-border)',
+                    borderRadius: '6px',
+                    color: 'var(--text-normal)',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    minWidth: '140px'
+                  }}
+                >
+                  {AI_MODELS.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                {uploadedImages.length > 0 && !currentModelSupportsVision && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: 'var(--text-error)',
+                    fontWeight: '500',
+                    marginLeft: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    ⚠️ Please select a model that supports images
+                  </div>
+                )}
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputText.trim() || isLoading}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: inputText.trim() && !isLoading ? 'var(--interactive-accent)' : 'var(--background-modifier-border)',
+                    color: 'var(--text-on-accent)',
+                    cursor: inputText.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {isLoading ? (
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid var(--interactive-accent-border)',
+                      borderTop: '2px solid var(--text-on-accent)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                  ) : (
+                    'Send'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1864,38 +1901,38 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
+          backgroundColor: 'var(--background-translucent)',
+              display: 'flex',
+              alignItems: 'center',
           justifyContent: 'center',
           zIndex: 2000,
           padding: '20px'
         }}>
           <div style={{
-            backgroundColor: '#2a2a2a',
+            backgroundColor: 'var(--background-primary)',
             borderRadius: '12px',
             padding: '24px',
             maxWidth: '800px',
             maxHeight: '80vh',
             width: '100%',
             overflow: 'auto',
-            border: '1px solid #555',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+            border: '1px solid var(--background-modifier-border)',
+            boxShadow: 'var(--shadow-l)'
           }}>
             {/* Header */}
-            <div style={{
-              display: 'flex',
+              <div style={{
+                display: 'flex',
               alignItems: 'center',
               marginBottom: '20px',
               paddingBottom: '16px',
-              borderBottom: '1px solid #444'
+              borderBottom: '1px solid var(--background-modifier-border)'
             }}>
               <div>
                 <h3 style={{
                   margin: 0,
                   fontSize: '18px',
                   fontWeight: '600',
-                  color: '#fff',
+                  color: 'var(--text-normal)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
@@ -1905,10 +1942,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 <p style={{
                   margin: '4px 0 0 0',
                   fontSize: '14px',
-                  color: '#bbb'
+                  color: 'var(--text-muted)'
                 }}>
                   Path: <code style={{ 
-                    backgroundColor: '#3a3a3a', 
+                    backgroundColor: 'var(--background-secondary)',
                     padding: '2px 6px', 
                     borderRadius: '4px',
                     fontSize: '13px'
@@ -1923,16 +1960,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 margin: '0 0 8px 0',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff'
+                color: 'var(--text-normal)'
               }}>Creation Description:</h4>
               <p style={{
                 margin: 0,
                 fontSize: '14px',
-                color: '#ddd',
-                backgroundColor: '#3a3a3a',
+                color: 'var(--text-normal)',
+                backgroundColor: 'var(--background-secondary)',
                 padding: '12px',
                 borderRadius: '6px',
-                border: '1px solid #555'
+                border: '1px solid var(--background-modifier-border)'
               }}>
                 {pendingCreateNoteConfirmation.explanation}
               </p>
@@ -1944,19 +1981,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 margin: '0 0 8px 0',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff'
+                color: 'var(--text-normal)'
               }}>Note Content Preview:</h4>
               <div style={{
-                backgroundColor: '#1a1a1a',
+                backgroundColor: 'var(--background-primary)',
                 padding: '16px',
                 borderRadius: '6px',
-                border: '1px solid #555',
+                    border: '1px solid var(--background-modifier-border)',
                 maxHeight: '400px',
                 overflow: 'auto',
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
                 fontSize: '13px',
                 lineHeight: '1.5',
-                color: '#ddd',
+                color: 'var(--text-normal)',
                 whiteSpace: 'pre-wrap'
               }}>
                 {pendingCreateNoteConfirmation.content}
@@ -1970,7 +2007,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   margin: '0 0 8px 0',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#fff'
+                  color: 'var(--text-normal)'
                 }}>Rejection Reason (Optional):</h4>
                 <textarea
                   value={rejectReason}
@@ -1981,9 +2018,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     minHeight: '80px',
                     padding: '12px',
                     borderRadius: '6px',
-                    border: '1px solid #555',
-                    backgroundColor: '#3a3a3a',
-                    color: '#fff',
+                    border: '1px solid var(--background-modifier-border)',
+                    backgroundColor: 'var(--background-secondary)',
+                    color: 'var(--text-normal)',
                     fontSize: '14px',
                     resize: 'vertical',
                     fontFamily: 'inherit'
@@ -1998,7 +2035,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               gap: '12px',
               justifyContent: 'flex-end',
               paddingTop: '16px',
-              borderTop: '1px solid #444'
+              borderTop: '1px solid var(--background-modifier-border)'
             }}>
               {showRejectReasonInput ? (
                 <>
@@ -2007,12 +2044,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                      border: '1px solid #666',
+                      border: '1px solid var(--background-modifier-border)',
                       backgroundColor: 'transparent',
-                      color: '#bbb',
+                  color: 'var(--text-muted)',
                       cursor: 'pointer',
                       fontSize: '14px',
-                      fontWeight: '500'
+                  fontWeight: '500'
                     }}
                   >
                     Cancel
@@ -2023,8 +2060,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       padding: '10px 20px',
                       borderRadius: '6px',
                       border: 'none',
-                      backgroundColor: '#dc2626',
-                      color: '#fff',
+                      backgroundColor: 'var(--interactive-error)',
+                      color: 'var(--text-on-accent)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2040,9 +2077,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                      border: '1px solid #dc2626',
+                      border: '1px solid var(--interactive-error)',
                       backgroundColor: 'transparent',
-                      color: '#dc2626',
+                      color: 'var(--interactive-error)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2056,8 +2093,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       padding: '10px 20px',
                       borderRadius: '6px',
                       border: 'none',
-                      backgroundColor: '#16a34a',
-                      color: '#fff',
+                      backgroundColor: 'var(--interactive-success)',
+                      color: 'var(--text-on-accent)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2080,7 +2117,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: 'var(--background-translucent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2088,15 +2125,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           padding: '20px'
         }}>
           <div style={{
-            backgroundColor: '#2a2a2a',
+            backgroundColor: 'var(--background-primary)',
             borderRadius: '12px',
             padding: '24px',
             maxWidth: '800px',
             maxHeight: '80vh',
             width: '100%',
             overflow: 'auto',
-            border: '1px solid #555',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+            border: '1px solid var(--background-modifier-border)',
+            boxShadow: 'var(--shadow-l)'
           }}>
             {/* Header */}
             <div style={{
@@ -2104,14 +2141,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               alignItems: 'center',
               marginBottom: '20px',
               paddingBottom: '16px',
-              borderBottom: '1px solid #444'
+              borderBottom: '1px solid var(--background-modifier-border)'
             }}>
               <div>
                 <h3 style={{
                   margin: 0,
                   fontSize: '18px',
                   fontWeight: '600',
-                  color: '#fff',
+                  color: 'var(--text-normal)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
@@ -2121,10 +2158,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 <p style={{
                   margin: '4px 0 0 0',
                   fontSize: '14px',
-                  color: '#bbb'
+                  color: 'var(--text-muted)'
                 }}>
                   File: <code style={{ 
-                    backgroundColor: '#3a3a3a', 
+                    backgroundColor: 'var(--background-secondary)', 
                     padding: '2px 6px', 
                     borderRadius: '4px',
                     fontSize: '13px'
@@ -2139,16 +2176,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 margin: '0 0 8px 0',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff'
+                color: 'var(--text-normal)'
               }}>Edit Description:</h4>
               <p style={{
                 margin: 0,
                 fontSize: '14px',
-                color: '#ddd',
-                backgroundColor: '#3a3a3a',
+                color: 'var(--text-normal)',
+                backgroundColor: 'var(--background-secondary)',
                 padding: '12px',
                 borderRadius: '6px',
-                border: '1px solid #555'
+                border: '1px solid var(--background-modifier-border)'
               }}>
                 {pendingEditConfirmation.instructions}
               </p>
@@ -2160,29 +2197,29 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 margin: '0 0 8px 0',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff'
+                color: 'var(--text-normal)'
               }}>Edit Operations:</h4>
               <div style={{
-                backgroundColor: '#3a3a3a',
+                backgroundColor: 'var(--background-secondary)',
                 padding: '12px',
                 borderRadius: '6px',
-                border: '1px solid #555'
+                border: '1px solid var(--background-modifier-border)'
               }}>
                 {pendingEditConfirmation.edits.map((edit, index) => (
                   <div key={index} style={{
                     fontSize: '13px',
-                    color: '#ddd',
+                    color: 'var(--text-normal)',
                     marginBottom: index < pendingEditConfirmation.edits.length - 1 ? '8px' : '0',
                     padding: '8px',
-                    backgroundColor: '#4a4a4a',
+                    backgroundColor: 'var(--background-primary)',
                     borderRadius: '4px',
-                    border: '1px solid #555'
+                    border: '1px solid var(--background-modifier-border)'
                   }}>
                     <div style={{ 
                       fontWeight: '600', 
                       marginBottom: '4px',
-                      color: edit.operation === 'insert' ? '#4ade80' : 
-                             edit.operation === 'delete' ? '#f87171' : '#fbbf24'
+                      color: edit.operation === 'insert' ? 'var(--text-success)' : 
+                             edit.operation === 'delete' ? 'var(--text-error)' : 'var(--text-warning)'
                     }}>
                       {edit.operation === 'insert' ? '➕ Insert' : 
                        edit.operation === 'delete' ? '➖ Delete' : '🔄 Replace'} 
@@ -2191,7 +2228,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                         : ` line ${edit.start_line}${edit.end_line && edit.end_line !== edit.start_line ? `-${edit.end_line}` : ''}`
                       }
                     </div>
-                    <div style={{ fontSize: '12px', color: '#bbb' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       {edit.description}
                     </div>
                   </div>
@@ -2205,13 +2242,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 margin: '0 0 8px 0',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#fff'
+                color: 'var(--text-normal)'
               }}>Diff Preview:</h4>
               <div style={{
-                backgroundColor: '#1a1a1a',
+                backgroundColor: 'var(--background-primary)',
                 padding: '16px',
                 borderRadius: '6px',
-                border: '1px solid #555',
+                border: '1px solid var(--background-modifier-border)',
                 maxHeight: '300px',
                 overflow: 'auto',
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
@@ -2228,10 +2265,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   
                   return (
                     <div key={index} style={{
-                      color: line.type === 'deleted' ? '#f87171' : 
-                             line.type === 'inserted' ? '#4ade80' : '#bbb',
-                      backgroundColor: line.type === 'deleted' ? 'rgba(248, 113, 113, 0.1)' : 
-                                      line.type === 'inserted' ? 'rgba(74, 222, 128, 0.1)' : 'transparent',
+                      color: line.type === 'deleted' ? 'var(--text-error)' : 
+                             line.type === 'inserted' ? 'var(--text-success)' : 'var(--text-muted)',
+                      backgroundColor: line.type === 'deleted' ? 'var(--background-modifier-error-hover)' : 
+                                      line.type === 'inserted' ? 'var(--background-modifier-success-hover)' : 'transparent',
                       padding: '2px 8px',
                       margin: '1px 0',
                       borderRadius: '2px'
@@ -2239,12 +2276,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       <span style={{ marginRight: '8px', opacity: 0.6 }}>
                         {line.type === 'deleted' ? '-' : 
                          line.type === 'inserted' ? '+' : ' '}
-                      </span>
+                </span>
                       <span style={{ marginRight: '12px', opacity: 0.4, fontSize: '11px' }}>
                         {line.line_number}:
                       </span>
                       {line.content}
-                    </div>
+              </div>
                   );
                 })}
               </div>
@@ -2257,7 +2294,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   margin: '0 0 8px 0',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#fff'
+                  color: 'var(--text-normal)'
                 }}>Rejection Reason (Optional):</h4>
                 <textarea
                   value={rejectReason}
@@ -2268,9 +2305,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     minHeight: '80px',
                     padding: '12px',
                     borderRadius: '6px',
-                    border: '1px solid #555',
-                    backgroundColor: '#3a3a3a',
-                    color: '#fff',
+                    border: '1px solid var(--background-modifier-border)',
+                    backgroundColor: 'var(--background-secondary)',
+                    color: 'var(--text-normal)',
                     fontSize: '14px',
                     resize: 'vertical',
                     fontFamily: 'inherit'
@@ -2280,23 +2317,23 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             )}
 
             {/* Action Buttons */}
-            <div style={{
-              display: 'flex',
+                  <div style={{
+                    display: 'flex',
               gap: '12px',
               justifyContent: 'flex-end',
               paddingTop: '16px',
-              borderTop: '1px solid #444'
+              borderTop: '1px solid var(--background-modifier-border)'
             }}>
               {showRejectReasonInput ? (
                 <>
-                  <button
+                <button
                     onClick={handleCancelReject}
-                    style={{
+                  style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                      border: '1px solid #666',
+                      border: '1px solid var(--background-modifier-border)',
                       backgroundColor: 'transparent',
-                      color: '#bbb',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2309,11 +2346,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                      border: 'none',
-                      backgroundColor: '#dc2626',
-                      color: '#fff',
+                    border: 'none',
+                      backgroundColor: 'var(--interactive-error)',
+                    color: 'var(--text-on-accent)',
                       cursor: 'pointer',
-                      fontSize: '14px',
+                    fontSize: '14px',
                       fontWeight: '500'
                     }}
                   >
@@ -2327,9 +2364,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                      border: '1px solid #dc2626',
+                      border: '1px solid var(--interactive-error)',
                       backgroundColor: 'transparent',
-                      color: '#dc2626',
+                      color: 'var(--interactive-error)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2343,8 +2380,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       padding: '10px 20px',
                       borderRadius: '6px',
                       border: 'none',
-                      backgroundColor: '#16a34a',
-                      color: '#fff',
+                      backgroundColor: 'var(--interactive-success)',
+                      color: 'var(--text-on-accent)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2354,9 +2391,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   </button>
                 </>
               )}
+              </div>
             </div>
           </div>
-        </div>
       )}
 
       {/* Drag overlay */}
@@ -2367,8 +2404,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 102, 204, 0.1)',
-          border: '2px dashed #0066cc',
+          backgroundColor: 'var(--background-translucent)',
+          border: '2px dashed var(--interactive-accent)',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -2377,19 +2414,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           pointerEvents: 'none'
         }}>
                      <div style={{
-             backgroundColor: 'rgba(0, 102, 204, 0.9)',
-             color: '#fff',
+             backgroundColor: 'var(--interactive-accent-translucent)',
+             color: 'var(--text-on-accent)',
              padding: '20px 40px',
              borderRadius: '12px',
              fontSize: '18px',
              fontWeight: '600',
              textAlign: 'center',
-             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+             boxShadow: 'var(--shadow-l)'
            }}>
              <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
              Drop {dragFileCount > 1 ? `${dragFileCount} files` : 'file'} here to add as context
-           </div>
         </div>
+      </div>
       )}
     </div>
   );

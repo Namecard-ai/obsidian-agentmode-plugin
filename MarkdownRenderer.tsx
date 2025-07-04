@@ -36,12 +36,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
     return (
       <code 
         style={{
-          backgroundColor: '#3a3a3a',
-          color: '#e1e1e1',
+          backgroundColor: 'var(--background-secondary-alt)',
+          color: 'var(--text-normal)',
           padding: '2px 6px',
           borderRadius: '4px',
           fontSize: '0.9em',
-          fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
+          fontFamily: 'var(--font-monospace)'
         }}
       >
         {children}
@@ -59,8 +59,8 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
       marginBottom: '16px',
       borderRadius: '8px',
       overflow: 'hidden',
-      backgroundColor: '#1e1e1e',
-      border: '1px solid #444'
+      backgroundColor: 'var(--background-secondary)',
+      border: '1px solid var(--background-modifier-border)'
     }}>
       {/* 代碼區塊頭部 */}
       <div style={{
@@ -68,19 +68,19 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '8px 12px',
-        backgroundColor: '#2d2d2d',
-        borderBottom: '1px solid #444',
+        backgroundColor: 'var(--background-secondary-alt)',
+        borderBottom: '1px solid var(--background-modifier-border)',
         fontSize: '13px',
-        color: '#bbb'
+        color: 'var(--text-muted)'
       }}>
         <span style={{ fontWeight: '500' }}>{language}</span>
         <button
           onClick={handleCopy}
           style={{
             background: 'none',
-            border: '1px solid #555',
+            border: '1px solid var(--background-modifier-border)',
             borderRadius: '4px',
-            color: copied ? '#4ade80' : '#bbb',
+            color: copied ? 'var(--text-success)' : 'var(--text-muted)',
             cursor: 'pointer',
             padding: '4px 8px',
             fontSize: '12px',
@@ -89,14 +89,14 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
           }}
           onMouseEnter={(e) => {
             if (!copied) {
-              e.currentTarget.style.borderColor = '#777';
-              e.currentTarget.style.color = '#fff';
+              e.currentTarget.style.borderColor = 'var(--background-modifier-border-hover)';
+              e.currentTarget.style.color = 'var(--text-normal)';
             }
           }}
           onMouseLeave={(e) => {
             if (!copied) {
-              e.currentTarget.style.borderColor = '#555';
-              e.currentTarget.style.color = '#bbb';
+              e.currentTarget.style.borderColor = 'var(--background-modifier-border)';
+              e.currentTarget.style.color = 'var(--text-muted)';
             }
           }}
         >
@@ -108,11 +108,11 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
       <Suspense fallback={
         <div style={{
           padding: '16px',
-          fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+          fontFamily: 'var(--font-monospace)',
           fontSize: '14px',
           lineHeight: '1.5',
-          color: '#e1e1e1',
-          backgroundColor: '#1e1e1e',
+          color: 'var(--text-normal)',
+          backgroundColor: 'var(--background-secondary)',
           whiteSpace: 'pre-wrap'
         }}>
           {children}
@@ -126,23 +126,40 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
 
 // 懶加載的語法高亮組件
 const LazyCodeHighlighter: React.FC<{ language: string; code: string }> = ({ language, code }) => {
-  const [darkStyle, setDarkStyle] = useState<any>(null);
+  const [isLightTheme, setIsLightTheme] = useState(false);
+  const [style, setStyle] = useState<any>({});
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsLightTheme(document.body.classList.contains('theme-light'));
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    setIsLightTheme(document.body.classList.contains('theme-light')); // Initial check
+
+    return () => observer.disconnect();
+  }, []);
   
   useEffect(() => {
-    import('react-syntax-highlighter/dist/esm/styles/prism').then(module => {
-      setDarkStyle(module.oneDark);
-    });
-  }, []);
+    if (isLightTheme) {
+      import('react-syntax-highlighter/dist/esm/styles/prism').then(module => {
+        setStyle(module.oneLight);
+      });
+    } else {
+      import('react-syntax-highlighter/dist/esm/styles/prism').then(module => {
+        setStyle(module.oneDark);
+      });
+    }
+  }, [isLightTheme]);
   
   return (
     <Suspense fallback={
       <div style={{
         padding: '16px',
-        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+        fontFamily: 'var(--font-monospace)',
         fontSize: '14px',
         lineHeight: '1.5',
-        color: '#e1e1e1',
-        backgroundColor: '#1e1e1e',
+        color: 'var(--text-normal)',
+        backgroundColor: 'var(--background-secondary)',
         whiteSpace: 'pre-wrap'
       }}>
         {code}
@@ -150,22 +167,22 @@ const LazyCodeHighlighter: React.FC<{ language: string; code: string }> = ({ lan
     }>
       <LazySyntaxHighlighter
         language={language}
-        style={darkStyle || {}}
+        style={style}
         showLineNumbers={true}
         wrapLines={true}
         customStyle={{
           margin: 0,
           padding: '16px',
-          backgroundColor: '#1e1e1e',
+          backgroundColor: 'transparent', // Let parent handle background
           fontSize: '14px',
           lineHeight: '1.5'
         }}
         lineNumberStyle={{
           minWidth: '3em',
           paddingRight: '1em',
-          color: '#666',
+          color: 'var(--text-muted)',
           backgroundColor: 'transparent',
-          borderRight: '1px solid #444',
+          borderRight: '1px solid var(--background-modifier-border)',
           marginRight: '1em'
         }}
       >
@@ -208,97 +225,78 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 {String(children).replace(/\n$/, '')}
               </CodeBlock>
             ),
-            // 自定義其他元素的樣式以符合深色主題
             h1: ({ children, ...props }) => (
-              <h1 style={{ color: '#ffffff', borderBottom: '2px solid #444', paddingBottom: '8px' }} {...props}>
+              <h1 {...props}>
                 {children}
               </h1>
             ),
             h2: ({ children, ...props }) => (
-              <h2 style={{ color: '#ffffff', borderBottom: '1px solid #444', paddingBottom: '6px' }} {...props}>
+              <h2 {...props}>
                 {children}
               </h2>
             ),
             h3: ({ children, ...props }) => (
-              <h3 style={{ color: '#ffffff' }} {...props}>
+              <h3 {...props}>
                 {children}
               </h3>
             ),
             h4: ({ children, ...props }) => (
-              <h4 style={{ color: '#ffffff' }} {...props}>
+              <h4 {...props}>
                 {children}
               </h4>
             ),
             h5: ({ children, ...props }) => (
-              <h5 style={{ color: '#ffffff' }} {...props}>
+              <h5 {...props}>
                 {children}
               </h5>
             ),
             h6: ({ children, ...props }) => (
-              <h6 style={{ color: '#ffffff' }} {...props}>
+              <h6 {...props}>
                 {children}
               </h6>
             ),
             p: ({ children, ...props }) => (
-              <p style={{ color: '#ffffff', lineHeight: '1.6', marginBottom: '16px' }} {...props}>
+              <p style={{ lineHeight: '1.6', marginBottom: '16px' }} {...props}>
                 {children}
               </p>
             ),
             strong: ({ children, ...props }) => (
-              <strong style={{ color: '#ffffff', fontWeight: '600' }} {...props}>
+              <strong style={{ fontWeight: '600' }} {...props}>
                 {children}
               </strong>
             ),
             em: ({ children, ...props }) => (
-              <em style={{ color: '#ffffff', fontStyle: 'italic' }} {...props}>
+              <em {...props}>
                 {children}
               </em>
             ),
             blockquote: ({ children, ...props }) => (
-              <blockquote style={{
-                borderLeft: '4px solid #555',
+              <blockquote style={{ 
+                borderLeft: '4px solid var(--background-modifier-border)',
                 paddingLeft: '16px',
-                margin: '16px 0',
-                color: '#bbb',
-                fontStyle: 'italic',
-                backgroundColor: '#2a2a2a',
-                padding: '12px 16px',
-                borderRadius: '4px'
+                color: 'var(--text-muted)',
+                margin: '0 0 16px 0'
               }} {...props}>
                 {children}
               </blockquote>
             ),
             ul: ({ children, ...props }) => (
-              <ul style={{ color: '#ffffff', paddingLeft: '20px', marginBottom: '16px' }} {...props}>
+              <ul style={{ marginBottom: '16px', paddingLeft: '24px' }} {...props}>
                 {children}
               </ul>
             ),
             ol: ({ children, ...props }) => (
-              <ol style={{ color: '#ffffff', paddingLeft: '20px', marginBottom: '16px' }} {...props}>
+              <ol style={{ marginBottom: '16px', paddingLeft: '24px' }} {...props}>
                 {children}
               </ol>
             ),
             li: ({ children, ...props }) => (
-              <li style={{ color: '#ffffff', marginBottom: '4px' }} {...props}>
+              <li style={{ marginBottom: '8px' }} {...props}>
                 {children}
               </li>
             ),
-            a: ({ children, href, ...props }) => (
-              <a 
-                href={href} 
-                style={{ 
-                  color: '#4fc3f7', 
-                  textDecoration: 'underline',
-                  transition: 'color 0.2s ease'
-                }} 
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#81d4fa';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#4fc3f7';
-                }}
-                {...props}
-              >
+            a: ({ children, ...props }) => (
+              <a style={{ color: 'var(--text-accent)' }} {...props}>
                 {children}
               </a>
             ),
@@ -337,11 +335,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               </td>
             ),
             hr: ({ ...props }) => (
-              <hr style={{
-                border: 'none',
-                borderTop: '2px solid #444',
-                margin: '24px 0'
-              }} {...props} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--background-modifier-border)', margin: '32px 0' }} {...props} />
             )
           }}
         >

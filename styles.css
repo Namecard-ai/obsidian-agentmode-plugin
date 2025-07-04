@@ -7,6 +7,167 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+.agent-chat-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.chat-header-title {
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.chat-messages {
+  flex-grow: 1;
+  padding: 10px;
+  background-color: var(--background-primary);
+  border: none;
+  border-radius: 0;
+  padding: 10px;
+  resize: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-normal);
+  max-height: 250px;
+  line-height: 1.5;
+  background-color: var(--background-secondary);
+}
+
+.chat-input::placeholder {
+  color: var(--text-faint);
+}
+
+.chat-input-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.chat-input-controls button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.chat-input-controls button:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.chat-input-controls button:active {
+  background-color: var(--background-modifier-active);
+}
+
+.chat-input-controls button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tool-result details {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.tool-result summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  background-color: var(--background-secondary-alt);
+  color: var(--text-normal);
+}
+
+.tool-result-content {
+  padding: 0;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.tool-result-content .markdown-rendered {
+  padding: 0;
+}
+
+.edit-confirmation-container {
+  padding: 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  margin-top: 12px;
+  background-color: var(--background-secondary);
+}
+
+.edit-confirmation-container h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.edit-confirmation-container p {
+  margin-bottom: 16px;
+}
+
+.edit-preview {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 4px;
+  max-height: 300px;
+  overflow: auto;
+  background-color: var(--background-primary);
+}
+
+.edit-confirmation-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.edit-confirmation-buttons button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.edit-confirmation-buttons button:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.edit-confirmation-buttons button:active {
+  background-color: var(--background-modifier-active);
+}
+
+.edit-confirmation-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* 確保聊天訊息可以被選取 */
 .message {
   user-select: text !important;
