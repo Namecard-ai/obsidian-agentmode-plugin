@@ -1,6 +1,12 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import { config } from "dotenv";
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const banner =
 `/*
@@ -11,12 +17,26 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
+// Determine environment and load appropriate .env file
+const environment = process.env.NODE_ENV || (prod ? "production" : "development");
+const envFile = resolve(__dirname, `.env.${environment}`);
+
+// Load environment variables
+config({ path: envFile });
+
+// Define environment variables to inject into the build
+const define = {
+	'process.env.BACKEND_BASE_URL': JSON.stringify(process.env.BACKEND_BASE_URL || ''),
+	'process.env.NODE_ENV': JSON.stringify(environment),
+};
+
 const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
 	entryPoints: ["main.ts"],
 	bundle: true,
+	define,
 	external: [
 		"obsidian",
 		"electron",

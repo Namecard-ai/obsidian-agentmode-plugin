@@ -6,6 +6,7 @@ import { ObsidianAgentChatView, VIEW_TYPE_AGENT_CHAT } from './ObsidianAgentChat
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import * as Diff from 'diff';
+import { RequestOptions } from 'openai/internal/request-options';
 
 // Remember to rename these classes and interfaces!
 
@@ -220,12 +221,13 @@ export default class AgentPlugin extends Plugin {
 	}
 
 	initializeOpenAI() {
-		if (this.settings.openaiApiKey) {
-			this.openaiClient = new OpenAI({
-				apiKey: this.settings.openaiApiKey,
-				dangerouslyAllowBrowser: true
-			});
-		}
+		const backendUrl = process.env.BACKEND_BASE_URL;
+		const config: any = {
+			apiKey: '', // 這裡先不設定，在呼叫時才決定
+			dangerouslyAllowBrowser: true,
+			baseURL: backendUrl,
+		};
+		this.openaiClient = new OpenAI(config);
 	}
 
 	async initializeVectorDB() {
@@ -266,7 +268,7 @@ export default class AgentPlugin extends Plugin {
 		onToolResult: (result: { toolCallId: string; result: string }) => void
 	): Promise<void> {
 		if (!this.openaiClient) {
-			onError('OpenAI API key not configured');
+			onError('OpenAI not configured');
 			return;
 		}
 
@@ -462,13 +464,22 @@ export default class AgentPlugin extends Plugin {
 		let finalAssistantContent = '';
 		while (true) {
 			// Start streaming chat completion
+			var reqOptions: RequestOptions | undefined = undefined;
+			if (this.settings.openaiApiKey) {
+				reqOptions = {
+					headers: {
+						'X-BYOK': this.settings.openaiApiKey,
+					}
+				}
+			}
+
 			const stream = await this.openaiClient.chat.completions.create({
 				model: model,
 				messages: chatMessages,
 				tools: tools,
 				stream: true,
 				// temperature: 0.7
-			});
+			}, reqOptions);
 
 			// Build up the message from streaming chunks
 			let currentMessage: any = {};
@@ -1657,5 +1668,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.settings.openaiApiKey = value;
 					await this.plugin.saveSettings();
 				}));
+
+
 	}
 }
