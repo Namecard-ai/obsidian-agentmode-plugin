@@ -89,8 +89,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const startPolling = async (deviceAuth: DeviceAuthState) => {
 		try {
-			setState(prev => ({ ...prev, step: 'polling' }));
-
+			// 不要立即切換到 polling 狀態，讓用戶先看到 device-code 狀態
 			// 開始輪詢 token
 			const tokenResponse = await auth0Service.pollForToken(
 				deviceAuth.device_code, 
@@ -243,6 +242,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 						)}
 					</div>
 				)}
+
+			
 
 				{state.step === 'polling' && (
 					<div className="polling-state">
