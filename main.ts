@@ -164,6 +164,7 @@ export class Auth0Service {
 	private plugin: AgentPlugin;
 	private config: Auth0Config;
 	private pollingTimer: NodeJS.Timeout | null = null;
+	private isPolling: boolean = false;
 
 	constructor(plugin: AgentPlugin, config: Auth0Config) {
 		this.plugin = plugin;
@@ -199,22 +200,51 @@ export class Auth0Service {
 	// 輪詢檢查授權狀態
 	async pollForToken(deviceCode: string, interval: number = 2): Promise<TokenResponse> {
 		return new Promise((resolve, reject) => {
+			// 確保停止之前的 polling
+			this.stopPolling();
+			
 			let attempts = 0;
 			const maxAttempts = 150; // 5 分鐘超時 (150 * 2 秒)
+			
+			// 設置 polling 標誌
+			this.isPolling = true;
+			
+			// 包裝 resolve 和 reject 以確保清理狀態
+			const wrappedResolve = (value: TokenResponse) => {
+				this.isPolling = false;
+				resolve(value);
+			};
+			
+			const wrappedReject = (reason: any) => {
+				this.isPolling = false;
+				reject(reason);
+			};
 
 			const poll = async () => {
+				// 檢查是否已經停止 polling
+				if (!this.isPolling) {
+					console.log('Polling stopped, aborting current poll');
+					return;
+				}
+
 				if (attempts >= maxAttempts) {
 					if (this.pollingTimer) {
 						clearInterval(this.pollingTimer);
 						this.pollingTimer = null;
 					}
-					reject(new Error('授權超時，請重新嘗試'));
+					wrappedReject(new Error('授權超時，請重新嘗試'));
 					return;
 				}
 
 				attempts++;
 
 				try {
+					// 再次檢查是否已經停止 polling（在發送請求前）
+					if (!this.isPolling) {
+						console.log('Polling stopped, aborting before request');
+						return;
+					}
+
 					const url = `https://${this.config.domain}/oauth/token`;
 					const body = new URLSearchParams({
 						grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
@@ -230,6 +260,12 @@ export class Auth0Service {
 						body: body.toString()
 					});
 
+					// 檢查是否已經停止 polling（在處理響應前）
+					if (!this.isPolling) {
+						console.log('Polling stopped, aborting after request');
+						return;
+					}
+
 					const data = await response.json();
 
 					if (response.ok) {
@@ -237,7 +273,7 @@ export class Auth0Service {
 							clearInterval(this.pollingTimer);
 							this.pollingTimer = null;
 						}
-						resolve(data as TokenResponse);
+						wrappedResolve(data as TokenResponse);
 					} else if (data.error === 'authorization_pending') {
 						// 繼續輪詢
 						return;
@@ -246,17 +282,25 @@ export class Auth0Service {
 						if (this.pollingTimer) {
 							clearInterval(this.pollingTimer);
 						}
-						this.pollingTimer = setInterval(poll, (interval + 5) * 1000);
+						// 只有在還在 polling 時才設置新的 timer
+						if (this.isPolling) {
+							this.pollingTimer = setInterval(poll, (interval + 5) * 1000);
+						}
 						return;
 					} else {
 						if (this.pollingTimer) {
 							clearInterval(this.pollingTimer);
 							this.pollingTimer = null;
 						}
-						reject(new Error(data.error_description || data.error || '授權失敗'));
+						wrappedReject(new Error(data.error_description || data.error || '授權失敗'));
 					}
 				} catch (error: any) {
 					console.error('Polling error:', error);
+					// 檢查是否已經停止 polling（在錯誤發生後）
+					if (!this.isPolling) {
+						console.log('Polling stopped, aborting after error');
+						return;
+					}
 					// 網路錯誤，繼續嘗試
 				}
 			};
@@ -269,6 +313,8 @@ export class Auth0Service {
 
 	// 停止輪詢
 	stopPolling() {
+		console.log('stopPolling');
+		this.isPolling = false;
 		if (this.pollingTimer) {
 			clearInterval(this.pollingTimer);
 			this.pollingTimer = null;
@@ -280,7 +326,7 @@ export class Auth0Service {
 		if (!this.plugin.settings.refreshToken) {
 			throw new Error('沒有 refresh token');
 		}
-
+		console.log('refreshToken', this.plugin.settings.refreshToken);
 		const url = `https://${this.config.domain}/oauth/token`;
 		const body = new URLSearchParams({
 			grant_type: 'refresh_token',

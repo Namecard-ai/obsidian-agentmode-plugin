@@ -102,6 +102,9 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		} catch (error: any) {
 			console.error('Polling failed:', error);
 			
+			// 確保停止 polling 操作
+			auth0Service.stopPolling();
+			
 			if (error.message.includes('超時')) {
 				setState({ step: 'timeout' });
 			} else {
@@ -120,6 +123,9 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			if (countdownTimer) {
 				clearInterval(countdownTimer);
 			}
+
+			// 停止 polling 操作
+			auth0Service.stopPolling();
 
 			setState({ step: 'success' });
 
@@ -149,6 +155,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 		} catch (error: any) {
 			console.error('保存登入狀態失敗:', error);
+			
+			// 確保停止 polling 操作
+			auth0Service.stopPolling();
+			
 			setState({ 
 				step: 'error', 
 				errorMessage: '保存登入狀態失敗: ' + error.message 
@@ -158,6 +168,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	};
 
 	const handleRetry = () => {
+		// 確保停止之前的 polling 操作
+		auth0Service.stopPolling();
+		
+		// 清理倒數計時器
+		if (countdownTimer) {
+			clearInterval(countdownTimer);
+			setCountdownTimer(null);
+		}
+		
 		startDeviceAuth();
 	};
 
