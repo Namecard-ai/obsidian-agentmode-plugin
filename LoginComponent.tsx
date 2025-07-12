@@ -1,0 +1,302 @@
+import React, { useState, useEffect } from 'react';
+import { Auth0Service, DeviceAuthState, TokenResponse, Auth0UserInfo } from './main';
+
+interface LoginComponentProps {
+	auth0Service: Auth0Service;
+	onLoginSuccess: (userInfo: Auth0UserInfo) => void;
+	onLoginError: (error: string) => void;
+	onCancel: () => void;
+}
+
+interface LoginState {
+	step: 'loading' | 'device-code' | 'polling' | 'timeout' | 'error' | 'success';
+	deviceAuth?: DeviceAuthState;
+	errorMessage?: string;
+	timeRemaining?: number;
+}
+
+export const LoginComponent: React.FC<LoginComponentProps> = ({
+	auth0Service,
+	onLoginSuccess,
+	onLoginError,
+	onCancel
+}) => {
+	const [state, setState] = useState<LoginState>({ step: 'loading' });
+	const [countdownTimer, setCountdownTimer] = useState<NodeJS.Timeout | null>(null);
+
+	useEffect(() => {
+		startDeviceAuth();
+		return () => {
+			// 清理定時器
+			if (countdownTimer) {
+				clearInterval(countdownTimer);
+			}
+			// 停止輪詢
+			auth0Service.stopPolling();
+		};
+	}, []);
+
+	const startDeviceAuth = async () => {
+		try {
+			setState({ step: 'loading' });
+			
+			// 啟動 Device Authorization Flow
+			const deviceAuth = await auth0Service.startDeviceAuth();
+			
+			setState({ 
+				step: 'device-code', 
+				deviceAuth,
+				timeRemaining: deviceAuth.expires_in
+			});
+
+			// 開始倒數計時
+			startCountdown(deviceAuth.expires_in);
+			
+			// 開始輪詢
+			startPolling(deviceAuth);
+			
+		} catch (error: any) {
+			console.error('Device auth failed:', error);
+			setState({ 
+				step: 'error', 
+				errorMessage: error.message || '啟動登入流程失敗' 
+			});
+			onLoginError(error.message || '啟動登入流程失敗');
+		}
+	};
+
+	const startCountdown = (seconds: number) => {
+		if (countdownTimer) {
+			clearInterval(countdownTimer);
+		}
+
+		let remaining = seconds;
+		setState(prev => ({ ...prev, timeRemaining: remaining }));
+
+		const timer = setInterval(() => {
+			remaining -= 1;
+			setState(prev => ({ ...prev, timeRemaining: remaining }));
+
+			if (remaining <= 0) {
+				clearInterval(timer);
+				setState(prev => ({ ...prev, step: 'timeout' }));
+				auth0Service.stopPolling();
+			}
+		}, 1000);
+
+		setCountdownTimer(timer);
+	};
+
+	const startPolling = async (deviceAuth: DeviceAuthState) => {
+		try {
+			setState(prev => ({ ...prev, step: 'polling' }));
+
+			// 開始輪詢 token
+			const tokenResponse = await auth0Service.pollForToken(
+				deviceAuth.device_code, 
+				deviceAuth.interval
+			);
+
+			// 獲取用戶資訊
+			await handleLoginSuccess(tokenResponse);
+
+		} catch (error: any) {
+			console.error('Polling failed:', error);
+			
+			if (error.message.includes('超時')) {
+				setState({ step: 'timeout' });
+			} else {
+				setState({ 
+					step: 'error', 
+					errorMessage: error.message || '授權失敗' 
+				});
+				onLoginError(error.message || '授權失敗');
+			}
+		}
+	};
+
+	const handleLoginSuccess = async (tokenResponse: TokenResponse) => {
+		try {
+			// 停止倒數計時
+			if (countdownTimer) {
+				clearInterval(countdownTimer);
+			}
+
+			setState({ step: 'success' });
+
+			// 保存 token 到 plugin settings（通過 auth0Service）
+			const plugin = (auth0Service as any).plugin;
+			plugin.settings.isLoggedIn = true;
+			plugin.settings.accessToken = tokenResponse.access_token;
+			plugin.settings.refreshToken = tokenResponse.refresh_token;
+			plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
+
+			// 獲取用戶資訊
+			const userInfo = await auth0Service.getUserInfo();
+			plugin.settings.userInfo = {
+				email: userInfo.email,
+				name: userInfo.name,
+				sub: userInfo.sub
+			};
+
+			// 保存設定
+			await plugin.saveSettings();
+
+			// 設置 token 刷新定時器
+			auth0Service.setupTokenRefreshTimer();
+
+			console.log('登入成功:', userInfo);
+			onLoginSuccess(userInfo);
+
+		} catch (error: any) {
+			console.error('保存登入狀態失敗:', error);
+			setState({ 
+				step: 'error', 
+				errorMessage: '保存登入狀態失敗: ' + error.message 
+			});
+			onLoginError('保存登入狀態失敗: ' + error.message);
+		}
+	};
+
+	const handleRetry = () => {
+		startDeviceAuth();
+	};
+
+	const formatTime = (seconds: number): string => {
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		return `${mins}:${secs.toString().padStart(2, '0')}`;
+	};
+
+	const copyToClipboard = async (text: string) => {
+		try {
+			await navigator.clipboard.writeText(text);
+		} catch (err) {
+			console.error('複製失敗:', err);
+		}
+	};
+
+	return (
+		<div className="login-component">
+			<div className="login-header">
+				<h2>登入 NameCard AI</h2>
+			</div>
+
+			<div className="login-content">
+				{state.step === 'loading' && (
+					<div className="loading-state">
+						<div className="spinner"></div>
+						<p>正在初始化登入流程...</p>
+					</div>
+				)}
+
+				{state.step === 'device-code' && state.deviceAuth && (
+					<div className="device-code-state">
+						<div className="instruction">
+							<p>請使用您的瀏覽器訪問以下網址，並輸入設備代碼來完成登入：</p>
+						</div>
+
+						<div className="verification-info">
+							<div className="url-section">
+								<label>驗證網址：</label>
+								<div className="copy-field">
+									<code>{state.deviceAuth.verification_uri}</code>
+									<button 
+										className="copy-btn"
+										onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
+									>
+										複製
+									</button>
+								</div>
+							</div>
+
+							<div className="code-section">
+								<label>設備代碼：</label>
+								<div className="copy-field">
+									<code className="device-code">{state.deviceAuth.user_code}</code>
+									<button 
+										className="copy-btn"
+										onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
+									>
+										複製
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div className="direct-link">
+							<p>或者直接點擊以下連結（會自動填入設備代碼）：</p>
+							<a 
+								href={state.deviceAuth.verification_uri_complete}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="verification-link"
+							>
+								在瀏覽器中打開登入頁面
+							</a>
+						</div>
+
+						{state.timeRemaining && (
+							<div className="countdown">
+								<p>剩餘時間：{formatTime(state.timeRemaining)}</p>
+							</div>
+						)}
+					</div>
+				)}
+
+				{state.step === 'polling' && (
+					<div className="polling-state">
+						<div className="spinner"></div>
+						<p>等待授權完成...</p>
+						<p>請在瀏覽器中完成登入操作</p>
+						{state.timeRemaining && (
+							<div className="countdown">
+								<p>剩餘時間：{formatTime(state.timeRemaining)}</p>
+							</div>
+						)}
+					</div>
+				)}
+
+				{state.step === 'timeout' && (
+					<div className="timeout-state">
+						<div className="error-icon">⏰</div>
+						<h3>登入超時</h3>
+						<p>登入流程已超時，請重新開始。</p>
+						<div className="timeout-actions">
+							<button className="retry-btn" onClick={handleRetry}>
+								重新登入
+							</button>
+							<button className="cancel-btn" onClick={onCancel}>
+								取消
+							</button>
+						</div>
+					</div>
+				)}
+
+				{state.step === 'error' && (
+					<div className="error-state">
+						<div className="error-icon">❌</div>
+						<h3>登入失敗</h3>
+						<p>{state.errorMessage}</p>
+						<div className="error-actions">
+							<button className="retry-btn" onClick={handleRetry}>
+								重試
+							</button>
+							<button className="cancel-btn" onClick={onCancel}>
+								取消
+							</button>
+						</div>
+					</div>
+				)}
+
+				{state.step === 'success' && (
+					<div className="success-state">
+						<div className="success-icon">✅</div>
+						<h3>登入成功</h3>
+						<p>正在完成設定...</p>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}; 

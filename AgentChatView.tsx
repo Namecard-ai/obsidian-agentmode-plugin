@@ -233,6 +233,108 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, tooltip, onClick }) => {
   );
 };
 
+// 登入提示組件
+interface LoginPromptProps {
+  plugin: AgentPlugin;
+  onLoginClick: () => void;
+}
+
+const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '40px 20px',
+      backgroundColor: 'var(--background-primary)',
+      color: 'var(--text-normal)',
+      textAlign: 'center'
+    }}>
+      <div style={{
+        maxWidth: '400px',
+        width: '100%'
+      }}>
+        <div style={{
+          fontSize: '48px',
+          marginBottom: '20px'
+        }}>
+          🔐
+        </div>
+        
+        <h2 style={{
+          margin: '0 0 16px 0',
+          color: 'var(--text-normal)',
+          fontSize: 'var(--font-ui-large)',
+          fontWeight: '600'
+        }}>
+          需要登入才能使用
+        </h2>
+        
+        <p style={{
+          margin: '0 0 24px 0',
+          color: 'var(--text-muted)',
+          lineHeight: '1.5',
+          fontSize: 'var(--font-ui-medium)'
+        }}>
+          您需要登入 NameCard AI 帳號才能開始與 AI 助理對話。
+          登入後您將可以使用所有 AI 功能，包括筆記編輯、搜尋等。
+        </p>
+        
+        <button
+          onClick={onLoginClick}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: 'var(--interactive-accent)',
+            color: 'var(--text-on-accent)',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: 'var(--font-ui-medium)',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--interactive-accent-hover)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--interactive-accent)';
+          }}
+        >
+          開始登入
+        </button>
+        
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: 'var(--background-secondary)',
+          borderRadius: '8px',
+          border: '1px solid var(--background-modifier-border)'
+        }}>
+          <h4 style={{
+            margin: '0 0 8px 0',
+            fontSize: 'var(--font-ui-small)',
+            fontWeight: '600',
+            color: 'var(--text-normal)'
+          }}>
+            登入方式
+          </h4>
+          <p style={{
+            margin: '0',
+            fontSize: 'var(--font-ui-smaller)',
+            color: 'var(--text-muted)',
+            lineHeight: '1.4'
+          }}>
+            我們使用安全的 Device Authorization Flow，
+            您需要在瀏覽器中完成授權後即可開始使用。
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -259,6 +361,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [wikiLinks, setWikiLinks] = useState<WikiLink[]>([]);
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
+  
+  // 添加登入狀態監聽
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(plugin.isLoggedIn());
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -359,6 +464,21 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 監聽登入狀態變化
+  useEffect(() => {
+    const checkLoginStatus = () => {
+      setIsLoggedIn(plugin.isLoggedIn());
+    };
+
+    // 初始檢查
+    checkLoginStatus();
+
+    // 每 5 秒檢查一次登入狀態（以防狀態變化沒有及時更新）
+    const interval = setInterval(checkLoginStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, [plugin]);
 
   const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -1015,6 +1135,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     setRejectReason('');
   };
 
+  // 處理登入按鈕點擊
+  const handleLoginClick = async () => {
+    try {
+      await plugin.startLogin();
+      // 登入狀態會透過 useEffect 自動更新
+    } catch (error: any) {
+      console.error('登入失敗:', error);
+      new Notice(`登入失敗: ${error.message}`);
+    }
+  };
+
   // Create note confirmation handlers
   const handleAcceptCreateNote = () => {
     plugin.acceptCreateNoteConfirmation();
@@ -1311,6 +1442,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       textarea.removeEventListener('scroll', syncScroll);
     };
   }, []);
+
+  // 如果未登入，顯示登入提示
+  if (!isLoggedIn) {
+    return (
+      <LoginPrompt 
+        plugin={plugin}
+        onLoginClick={handleLoginClick}
+      />
+    );
+  }
 
   return (
     <div 

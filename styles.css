@@ -220,3 +220,348 @@ If your plugin does not need CSS, delete this file.
 .streaming-cursor {
   animation: blink 1s infinite;
 }
+
+/* Login Component 樣式 */
+.login-component {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  padding-bottom: 15px;
+}
+
+.login-header h2 {
+  margin: 0;
+  color: var(--text-normal);
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+}
+
+.login-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* Loading State */
+.loading-state, .polling-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--background-modifier-border);
+  border-top: 3px solid var(--text-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Device Code State */
+.device-code-state {
+  width: 100%;
+  max-width: 450px;
+}
+
+.instruction {
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: var(--font-ui-medium);
+}
+
+.verification-info {
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.url-section, .code-section {
+  margin-bottom: 16px;
+}
+
+.url-section:last-child, .code-section:last-child {
+  margin-bottom: 0;
+}
+
+.verification-info label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.copy-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-field code {
+  flex-grow: 1;
+  padding: 8px 12px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  word-break: break-all;
+}
+
+.copy-field code.device-code {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: var(--text-accent);
+}
+
+.copy-btn {
+  padding: 6px 12px;
+  background-color: var(--interactive-normal);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background-color: var(--interactive-hover);
+}
+
+.copy-btn:active {
+  background-color: var(--interactive-active);
+}
+
+.direct-link {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: var(--background-secondary-alt);
+  border-radius: 6px;
+}
+
+.direct-link p {
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+
+.verification-link {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.verification-link:hover {
+  background-color: var(--interactive-accent-hover);
+  text-decoration: none;
+}
+
+.countdown {
+  text-align: center;
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.countdown p {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+/* Error and Timeout States */
+.timeout-state, .error-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.timeout-state h3, .error-state h3 {
+  margin: 0 0 12px 0;
+  color: var(--text-error);
+  font-size: var(--font-ui-large);
+}
+
+.timeout-state p, .error-state p {
+  margin-bottom: 24px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.timeout-actions, .error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.retry-btn:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  background-color: var(--background-modifier-border);
+  color: var(--text-normal);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* Success State */
+.success-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.success-state h3 {
+  margin: 0 0 12px 0;
+  color: var(--text-success);
+  font-size: var(--font-ui-large);
+}
+
+.success-state p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* Status Bar 樣式 */
+.auth-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.auth-status-bar:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.auth-status-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.auth-status-icon.logged-in {
+  color: var(--text-success);
+}
+
+.auth-status-icon.logged-out {
+  color: var(--text-muted);
+}
+
+.auth-status-text {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Plugin Settings 樣式 */
+.auth-settings-container {
+  margin-bottom: 20px;
+}
+
+.auth-status-info {
+  padding: 12px;
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+}
+
+.auth-status-logged-in {
+  font-weight: 600;
+  color: var(--text-success);
+  margin-bottom: 8px;
+}
+
+.auth-status-logged-out {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.auth-user-info {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.auth-user-info:last-child {
+  margin-bottom: 0;
+}
+
+.auth-status-desc {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+}
+
+.auth-settings-separator {
+  margin: 24px 0;
+  border: none;
+  border-top: 1px solid var(--background-modifier-border);
+}

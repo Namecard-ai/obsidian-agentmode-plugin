@@ -1,8 +1,9 @@
-import { StrictMode } from 'react';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
+import React, { StrictMode } from 'react';
+import { App, Editor, MarkdownView, Modal, Menu, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { AgentChatView } from './AgentChatView';
 import { ObsidianAgentChatView, VIEW_TYPE_AGENT_CHAT } from './ObsidianAgentChatView';
+import { LoginComponent } from './LoginComponent';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import * as Diff from 'diff';
@@ -12,10 +13,51 @@ import { RequestOptions } from 'openai/internal/request-options';
 
 interface AgentPluginSettings {
 	openaiApiKey: string;
+	
+	// Auth0 登入狀態
+	isLoggedIn: boolean;
+	accessToken?: string;
+	refreshToken?: string;
+	tokenExpiry?: number;  // Unix timestamp
+	userInfo?: {
+		email?: string;
+		name?: string;
+		sub?: string;
+	};
 }
 
 const DEFAULT_SETTINGS: AgentPluginSettings = {
-	openaiApiKey: ''
+	openaiApiKey: '',
+	isLoggedIn: false
+}
+
+// Auth0 相關類型定義
+export interface Auth0Config {
+	domain: string;
+	clientId: string;
+	audience: string;
+}
+
+export interface DeviceAuthState {
+	device_code: string;
+	user_code: string;
+	verification_uri: string;
+	verification_uri_complete: string;
+	expires_in: number;
+	interval: number;
+}
+
+export interface TokenResponse {
+	access_token: string;
+	refresh_token?: string;
+	expires_in: number;
+	token_type: string;
+}
+
+export interface Auth0UserInfo {
+	email: string;
+	name: string;
+	sub: string;
 }
 
 export interface EmbeddingRecord {
@@ -117,6 +159,340 @@ export enum Model {
 	Ask = 'Ask',
   }
 
+// Auth0 服務類別
+export class Auth0Service {
+	private plugin: AgentPlugin;
+	private config: Auth0Config;
+	private pollingTimer: NodeJS.Timeout | null = null;
+
+	constructor(plugin: AgentPlugin, config: Auth0Config) {
+		this.plugin = plugin;
+		this.config = config;
+	}
+
+	// 啟動 Device Authorization Flow
+	async startDeviceAuth(): Promise<DeviceAuthState> {
+		const url = `https://${this.config.domain}/oauth/device/code`;
+		const body = new URLSearchParams({
+			client_id: this.config.clientId,
+			scope: 'openid profile email',
+			audience: this.config.audience
+		});
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: body.toString()
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`Auth0 Device Authorization failed: ${response.status} ${errorText}`);
+		}
+
+		const data = await response.json();
+		return data as DeviceAuthState;
+	}
+
+	// 輪詢檢查授權狀態
+	async pollForToken(deviceCode: string, interval: number = 2): Promise<TokenResponse> {
+		return new Promise((resolve, reject) => {
+			let attempts = 0;
+			const maxAttempts = 150; // 5 分鐘超時 (150 * 2 秒)
+
+			const poll = async () => {
+				if (attempts >= maxAttempts) {
+					if (this.pollingTimer) {
+						clearInterval(this.pollingTimer);
+						this.pollingTimer = null;
+					}
+					reject(new Error('授權超時，請重新嘗試'));
+					return;
+				}
+
+				attempts++;
+
+				try {
+					const url = `https://${this.config.domain}/oauth/token`;
+					const body = new URLSearchParams({
+						grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+						device_code: deviceCode,
+						client_id: this.config.clientId
+					});
+
+					const response = await fetch(url, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+						},
+						body: body.toString()
+					});
+
+					const data = await response.json();
+
+					if (response.ok) {
+						if (this.pollingTimer) {
+							clearInterval(this.pollingTimer);
+							this.pollingTimer = null;
+						}
+						resolve(data as TokenResponse);
+					} else if (data.error === 'authorization_pending') {
+						// 繼續輪詢
+						return;
+					} else if (data.error === 'slow_down') {
+						// Auth0 要求減慢輪詢頻率
+						if (this.pollingTimer) {
+							clearInterval(this.pollingTimer);
+						}
+						this.pollingTimer = setInterval(poll, (interval + 5) * 1000);
+						return;
+					} else {
+						if (this.pollingTimer) {
+							clearInterval(this.pollingTimer);
+							this.pollingTimer = null;
+						}
+						reject(new Error(data.error_description || data.error || '授權失敗'));
+					}
+				} catch (error: any) {
+					console.error('Polling error:', error);
+					// 網路錯誤，繼續嘗試
+				}
+			};
+
+			// 開始輪詢
+			this.pollingTimer = setInterval(poll, interval * 1000);
+			poll(); // 立即執行第一次
+		});
+	}
+
+	// 停止輪詢
+	stopPolling() {
+		if (this.pollingTimer) {
+			clearInterval(this.pollingTimer);
+			this.pollingTimer = null;
+		}
+	}
+
+	// 刷新 Token
+	async refreshToken(): Promise<TokenResponse> {
+		if (!this.plugin.settings.refreshToken) {
+			throw new Error('沒有 refresh token');
+		}
+
+		const url = `https://${this.config.domain}/oauth/token`;
+		const body = new URLSearchParams({
+			grant_type: 'refresh_token',
+			refresh_token: this.plugin.settings.refreshToken,
+			client_id: this.config.clientId
+		});
+
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: body.toString()
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
+		}
+
+		const data = await response.json();
+		return data as TokenResponse;
+	}
+
+	// 獲取用戶資訊
+	async getUserInfo(): Promise<Auth0UserInfo> {
+		if (!this.plugin.settings.accessToken) {
+			throw new Error('沒有 access token');
+		}
+
+		const url = `https://${this.config.domain}/userinfo`;
+		const response = await fetch(url, {
+			headers: {
+				'Authorization': `Bearer ${this.plugin.settings.accessToken}`,
+			}
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`Get user info failed: ${response.status} ${errorText}`);
+		}
+
+		const data = await response.json();
+		return data as Auth0UserInfo;
+	}
+
+	// 檢查 Token 是否即將過期（30分鐘內過期）
+	isTokenExpiringSoon(): boolean {
+		if (!this.plugin.settings.tokenExpiry) {
+			return true;
+		}
+		const now = Math.floor(Date.now() / 1000);
+		const thirtyMinutes = 30 * 60;
+		return (this.plugin.settings.tokenExpiry - now) < thirtyMinutes;
+	}
+
+	// 設置自動刷新定時器
+	setupTokenRefreshTimer() {
+		// 清除現有定時器
+		if (this.plugin.tokenRefreshTimer) {
+			clearInterval(this.plugin.tokenRefreshTimer);
+		}
+
+		// 每 5 分鐘檢查一次
+		this.plugin.tokenRefreshTimer = setInterval(async () => {
+			if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
+				try {
+					console.log('Token即將過期，開始自動刷新...');
+					await this.autoRefreshToken();
+				} catch (error: any) {
+					console.error('自動刷新Token失敗:', error);
+					new Notice('登入狀態已過期，請重新登入');
+					await this.logout();
+				}
+			}
+		}, 5 * 60 * 1000); // 5 分鐘
+	}
+
+	// 自動刷新 Token
+	private async autoRefreshToken() {
+		try {
+			const tokenResponse = await this.refreshToken();
+			
+			// 更新設定
+			this.plugin.settings.accessToken = tokenResponse.access_token;
+			if (tokenResponse.refresh_token) {
+				this.plugin.settings.refreshToken = tokenResponse.refresh_token;
+			}
+			this.plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
+			
+			await this.plugin.saveSettings();
+			console.log('Token 刷新成功');
+		} catch (error: any) {
+			console.error('Token 刷新失敗:', error);
+			throw error;
+		}
+	}
+
+	// 登出
+	async logout() {
+		// 停止輪詢
+		this.stopPolling();
+		
+		// 清除定時器
+		if (this.plugin.tokenRefreshTimer) {
+			clearInterval(this.plugin.tokenRefreshTimer);
+			this.plugin.tokenRefreshTimer = null;
+		}
+
+		// 清空登入狀態
+		this.plugin.settings.isLoggedIn = false;
+		this.plugin.settings.accessToken = undefined;
+		this.plugin.settings.refreshToken = undefined;
+		this.plugin.settings.tokenExpiry = undefined;
+		this.plugin.settings.userInfo = undefined;
+
+		await this.plugin.saveSettings();
+		
+		// 通知用戶
+		new Notice('已登出');
+		console.log('用戶已登出');
+
+		// 更新狀態欄
+		this.plugin.updateStatusBar();
+	}
+}
+
+// 登入 Modal
+export class LoginModal extends Modal {
+	private plugin: AgentPlugin;
+	private root: Root | null = null;
+	private resolvePromise: ((success: boolean) => void) | null = null;
+
+	constructor(app: App, plugin: AgentPlugin) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('login-modal');
+
+		// 設置 Modal 標題
+		this.titleEl.setText('登入 NameCard AI');
+
+		// 創建 React 根節點
+		this.root = createRoot(contentEl);
+		
+		// 渲染 LoginComponent
+		this.root.render(
+			React.createElement(StrictMode, null,
+				React.createElement(LoginComponent, {
+					auth0Service: this.plugin.getAuth0Service()!,
+					onLoginSuccess: (userInfo: Auth0UserInfo) => {
+						console.log('登入成功:', userInfo);
+						new Notice(`歡迎，${userInfo.name || userInfo.email}！`);
+						this.resolveLogin(true);
+						this.close();
+					},
+					onLoginError: (error: string) => {
+						console.error('登入錯誤:', error);
+						// 錯誤已經在 LoginComponent 中處理，這裡不關閉 Modal
+					},
+					onCancel: () => {
+						this.resolveLogin(false);
+						this.close();
+					}
+				})
+			)
+		);
+	}
+
+	onClose() {
+		if (this.root) {
+			this.root.unmount();
+			this.root = null;
+		}
+		
+		// 確保停止 Auth0Service 的輪詢
+		const auth0Service = this.plugin.getAuth0Service();
+		if (auth0Service) {
+			auth0Service.stopPolling();
+		}
+
+		// 如果 Promise 還沒有解決，就以取消處理
+		if (this.resolvePromise) {
+			this.resolvePromise(false);
+			this.resolvePromise = null;
+		}
+
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.removeClass('login-modal');
+	}
+
+	// 返回 Promise，讓調用者知道登入結果
+	async showLogin(): Promise<boolean> {
+		return new Promise((resolve) => {
+			this.resolvePromise = resolve;
+			this.open();
+		});
+	}
+
+	private resolveLogin(success: boolean) {
+		if (this.resolvePromise) {
+			this.resolvePromise(success);
+			this.resolvePromise = null;
+		}
+	}
+}
+
 export default class AgentPlugin extends Plugin {
 	settings: AgentPluginSettings;
 	vectorDbPath: string = '';
@@ -124,6 +500,14 @@ export default class AgentPlugin extends Plugin {
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 	private openaiClient: OpenAI | null = null;
+	
+	// Auth0 配置
+	private auth0Config: Auth0Config;
+	public tokenRefreshTimer: NodeJS.Timeout | null = null;
+	private auth0Service: Auth0Service | null = null;
+	
+	// Status Bar
+	private statusBarElement: HTMLElement | null = null;
 	
 	// Edit confirmation state
 	private pendingEditConfirmation: PendingEditConfirmation | null = null;
@@ -141,6 +525,9 @@ export default class AgentPlugin extends Plugin {
 		await this.loadSettings();
 		await this.initializeVectorDB();
 		this.initializeOpenAI();
+		this.initializeAuth0Config();
+		this.initializeAuth0Service();
+		this.initializeStatusBar();
 
 		// Listen for note changes and saves
 		this.registerEvent(
@@ -228,6 +615,131 @@ export default class AgentPlugin extends Plugin {
 			baseURL: backendUrl,
 		};
 		this.openaiClient = new OpenAI(config);
+	}
+
+	initializeAuth0Config() {
+		this.auth0Config = {
+			domain: process.env.AUTH0_DOMAIN || '',
+			clientId: process.env.AUTH0_CLIENT_ID || '',
+			audience: process.env.AUTH0_AUDIENCE || ''
+		};
+		
+		console.log('Auth0 Config initialized:', {
+			domain: this.auth0Config.domain,
+			clientId: this.auth0Config.clientId ? 'configured' : 'missing',
+			audience: this.auth0Config.audience ? 'configured' : 'missing'
+		});
+		
+		// 驗證配置是否完整
+		if (!this.auth0Config.domain || !this.auth0Config.clientId || !this.auth0Config.audience) {
+			console.warn('Auth0 configuration incomplete. Some Auth0 features may not work.');
+			new Notice('Auth0 設定不完整，請檢查環境變數設定');
+		}
+	}
+
+	initializeAuth0Service() {
+		// 創建 Auth0Service 實例
+		this.auth0Service = new Auth0Service(this, this.auth0Config);
+		
+		// 如果已經登入，設置 token 刷新定時器
+		if (this.settings.isLoggedIn && this.settings.accessToken) {
+			this.auth0Service.setupTokenRefreshTimer();
+			console.log('已登入用戶，已設置 token 刷新定時器');
+		}
+	}
+
+	initializeStatusBar() {
+		// 創建狀態欄元素
+		this.statusBarElement = this.addStatusBarItem();
+		this.statusBarElement.addClass('auth-status-bar');
+		
+		// 添加點擊事件
+		this.statusBarElement.addEventListener('click', () => {
+			this.showStatusBarMenu();
+		});
+		
+		// 更新狀態欄顯示
+		this.updateStatusBar();
+	}
+
+	updateStatusBar() {
+		if (!this.statusBarElement) return;
+		
+		this.statusBarElement.empty();
+		
+		if (this.isLoggedIn()) {
+			// 已登入狀態
+			const userInfo = this.getUserInfo();
+			const userName = userInfo?.name || userInfo?.email || '用戶';
+			
+			// 添加圖示
+			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-in' });
+			icon.innerHTML = '✅';
+			
+			// 添加用戶名稱
+			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
+			text.textContent = userName;
+			
+			this.statusBarElement.title = `已登入: ${userName}\n點擊查看選項`;
+		} else {
+			// 未登入狀態
+			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-out' });
+			icon.innerHTML = '⚫';
+			
+			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
+			text.textContent = '未登入';
+			
+			this.statusBarElement.title = '未登入\n點擊登入';
+		}
+	}
+
+	showStatusBarMenu() {
+		const menu = new Menu();
+		
+		if (this.isLoggedIn()) {
+			// 已登入，顯示用戶資訊和登出選項
+			const userInfo = this.getUserInfo();
+			const userName = userInfo?.name || userInfo?.email || '用戶';
+			const userEmail = userInfo?.email || '';
+			
+			menu.addItem((item: any) => {
+				item.setTitle(`用戶: ${userName}`)
+					.setIcon('user')
+					.setDisabled(true);
+			});
+			
+			if (userEmail && userEmail !== userName) {
+				menu.addItem((item: any) => {
+					item.setTitle(`Email: ${userEmail}`)
+						.setIcon('mail')
+						.setDisabled(true);
+				});
+			}
+			
+			menu.addSeparator();
+			
+			menu.addItem((item: any) => {
+				item.setTitle('登出')
+					.setIcon('log-out')
+					.onClick(async () => {
+						await this.logout();
+						this.updateStatusBar();
+					});
+			});
+		} else {
+			// 未登入，顯示登入選項
+			menu.addItem((item: any) => {
+				item.setTitle('登入')
+					.setIcon('log-in')
+					.onClick(async () => {
+						await this.startLogin();
+						this.updateStatusBar();
+					});
+			});
+		}
+		
+		// 顯示選單
+		menu.showAtMouseEvent(event as MouseEvent);
 	}
 
 	async initializeVectorDB() {
@@ -1491,6 +2003,16 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			clearTimeout(timeout);
 		});
 		this.fileProcessingTimeouts.clear();
+		
+		// 清理 Auth0 相關定時器
+		if (this.tokenRefreshTimer) {
+			clearInterval(this.tokenRefreshTimer);
+			this.tokenRefreshTimer = null;
+		}
+		
+		if (this.auth0Service) {
+			this.auth0Service.stopPolling();
+		}
 	}
 
 	async loadSettings() {
@@ -1626,6 +2148,55 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 	getPendingCreateNoteConfirmation(): PendingCreateNoteConfirmation | null {
 		return this.pendingCreateNoteConfirmation;
 	}
+
+	// Auth0 相關公共方法
+	getAuth0Service(): Auth0Service | null {
+		return this.auth0Service;
+	}
+
+	async startLogin(): Promise<void> {
+		if (!this.auth0Service) {
+			new Notice('Auth0 服務未初始化');
+			return;
+		}
+
+		try {
+			const loginModal = new LoginModal(this.app, this);
+			const success = await loginModal.showLogin();
+			
+			if (success) {
+				console.log('用戶登入成功');
+				this.updateStatusBar();
+			} else {
+				console.log('用戶取消登入');
+			}
+		} catch (error: any) {
+			console.error('登入失敗:', error);
+			new Notice(`登入失敗: ${error.message}`);
+		}
+	}
+
+	async logout(): Promise<void> {
+		if (!this.auth0Service) {
+			return;
+		}
+
+		try {
+			await this.auth0Service.logout();
+			// 這裡後續會添加 UI 更新邏輯
+		} catch (error: any) {
+			console.error('登出失敗:', error);
+			new Notice(`登出失敗: ${error.message}`);
+		}
+	}
+
+	isLoggedIn(): boolean {
+		return this.settings.isLoggedIn && !!this.settings.accessToken;
+	}
+
+	getUserInfo(): { email?: string; name?: string; sub?: string } | null {
+		return this.settings.userInfo || null;
+	}
 }
 
 // class SampleModal extends Modal {
@@ -1658,6 +2229,60 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		// Auth0 登入狀態區塊
+		containerEl.createEl('h3', { text: '登入狀態' });
+		
+		const authContainer = containerEl.createDiv('auth-settings-container');
+		
+		if (this.plugin.isLoggedIn()) {
+			// 顯示已登入狀態
+			const userInfo = this.plugin.getUserInfo();
+			const userName = userInfo?.name || userInfo?.email || '用戶';
+			const userEmail = userInfo?.email || '';
+			
+			const statusDiv = authContainer.createDiv('auth-status-info');
+			statusDiv.createEl('div', { text: '✅ 已登入', cls: 'auth-status-logged-in' });
+			statusDiv.createEl('div', { text: `用戶：${userName}`, cls: 'auth-user-info' });
+			if (userEmail && userEmail !== userName) {
+				statusDiv.createEl('div', { text: `Email：${userEmail}`, cls: 'auth-user-info' });
+			}
+			
+			// 登出按鈕
+			new Setting(authContainer)
+				.setName('登出')
+				.setDesc('登出當前帳號')
+				.addButton(button => button
+					.setButtonText('登出')
+					.setCta()
+					.onClick(async () => {
+						await this.plugin.logout();
+						this.display(); // 重新渲染設定頁面
+					}));
+		} else {
+			// 顯示未登入狀態
+			const statusDiv = authContainer.createDiv('auth-status-info');
+			statusDiv.createEl('div', { text: '⚫ 未登入', cls: 'auth-status-logged-out' });
+			statusDiv.createEl('div', { text: '需要登入才能使用 AI 功能', cls: 'auth-status-desc' });
+			
+			// 登入按鈕
+			new Setting(authContainer)
+				.setName('登入')
+				.setDesc('登入您的 NameCard AI 帳號')
+				.addButton(button => button
+					.setButtonText('開始登入')
+					.setCta()
+					.onClick(async () => {
+						await this.plugin.startLogin();
+						this.display(); // 重新渲染設定頁面
+					}));
+		}
+		
+		// 分隔線
+		containerEl.createEl('hr', { cls: 'auth-settings-separator' });
+		
+		// OpenAI API Key 設定
+		containerEl.createEl('h3', { text: 'OpenAI 設定' });
+
 		new Setting(containerEl)
 			.setName('OpenAI API Key')
 			.setDesc('The agent leverage OpenAI API to provide AI features, you can get your API key from OpenAI Platform (https://platform.openai.com/api-keys)')
@@ -1668,7 +2293,5 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.settings.openaiApiKey = value;
 					await this.plugin.saveSettings();
 				}));
-
-
 	}
 }
