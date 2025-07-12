@@ -1022,13 +1022,13 @@ export default class AgentPlugin extends Plugin {
 		let finalAssistantContent = '';
 		while (true) {
 			// Start streaming chat completion
-			var reqOptions: RequestOptions | undefined = undefined;
-			if (this.settings.openaiApiKey) {
-				reqOptions = {
-					headers: {
-						'X-BYOK': this.settings.openaiApiKey,
-					}
+			var reqOptions: RequestOptions = {
+				headers: {
+					'Authorization': `Bearer ${this.settings.accessToken}`
 				}
+			}
+			if (this.settings.openaiApiKey) {
+				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
 			}
 
 			const stream = await this.openaiClient.chat.completions.create({
