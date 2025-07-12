@@ -784,6 +784,18 @@ export default class AgentPlugin extends Plugin {
 			});
 		}
 		
+		// 加上設定選項
+		menu.addSeparator();
+		
+		menu.addItem((item: any) => {
+			item.setTitle('Settings')
+				.setIcon('settings')
+				.onClick(() => {
+					(this.app as any).setting.open();
+					(this.app as any).setting.openTabById(this.manifest.id);
+				});
+		});
+		
 		// 顯示選單
 		menu.showAtMouseEvent(event as MouseEvent);
 	}
