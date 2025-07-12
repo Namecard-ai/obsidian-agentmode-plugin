@@ -724,7 +724,7 @@ export default class AgentPlugin extends Plugin {
 			
 			// 添加用戶名稱
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
-			text.textContent = userName;
+			text.textContent = 'Agent Mode';
 			
 			this.statusBarElement.title = `已登入: ${userName}\n點擊查看選項`;
 		} else {
@@ -733,9 +733,9 @@ export default class AgentPlugin extends Plugin {
 			icon.innerHTML = '⚫';
 			
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
-			text.textContent = '未登入';
+			text.textContent = 'Agent Mode';
 			
-			this.statusBarElement.title = '未登入\n點擊登入';
+			this.statusBarElement.title = '未登入(點擊登入)';
 		}
 	}
 
