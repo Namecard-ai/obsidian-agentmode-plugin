@@ -232,7 +232,7 @@ export class Auth0Service {
 						clearInterval(this.pollingTimer);
 						this.pollingTimer = null;
 					}
-					wrappedReject(new Error('授權超時，請重新嘗試'));
+					wrappedReject(new Error('Authorization timeout, please try again'));
 					return;
 				}
 
@@ -292,7 +292,7 @@ export class Auth0Service {
 							clearInterval(this.pollingTimer);
 							this.pollingTimer = null;
 						}
-						wrappedReject(new Error(data.error_description || data.error || '授權失敗'));
+						wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
 					}
 				} catch (error: any) {
 					console.error('Polling error:', error);
@@ -324,7 +324,7 @@ export class Auth0Service {
 	// 刷新 Token
 	async refreshToken(): Promise<TokenResponse> {
 		if (!this.plugin.settings.refreshToken) {
-			throw new Error('沒有 refresh token');
+			throw new Error('No refresh token available');
 		}
 		console.log('refreshToken', this.plugin.settings.refreshToken);
 		const url = `https://${this.config.domain}/oauth/token`;
@@ -354,7 +354,7 @@ export class Auth0Service {
 	// 獲取用戶資訊
 	async getUserInfo(): Promise<Auth0UserInfo> {
 		if (!this.plugin.settings.accessToken) {
-			throw new Error('沒有 access token');
+			throw new Error('No access token available');
 		}
 
 		const url = `https://${this.config.domain}/userinfo`;
@@ -398,7 +398,7 @@ export class Auth0Service {
 					await this.autoRefreshToken();
 				} catch (error: any) {
 					console.error('自動刷新Token失敗:', error);
-					new Notice('登入狀態已過期，請重新登入');
+					new Notice('Login session expired, please log in again');
 					await this.logout();
 				}
 			}
@@ -446,7 +446,7 @@ export class Auth0Service {
 		await this.plugin.saveSettings();
 		
 		// 通知用戶
-		new Notice('已登出');
+		new Notice('Logged out');
 		console.log('用戶已登出');
 
 		// 更新狀態欄
@@ -471,7 +471,7 @@ export class LoginModal extends Modal {
 		contentEl.addClass('login-modal');
 
 		// 設置 Modal 標題
-		this.titleEl.setText('登入 NameCard AI');
+		this.titleEl.setText('Log in to NameCard AI');
 
 		// 創建 React 根節點
 		this.root = createRoot(contentEl);
@@ -483,7 +483,7 @@ export class LoginModal extends Modal {
 					auth0Service: this.plugin.getAuth0Service()!,
 					onLoginSuccess: (userInfo: Auth0UserInfo) => {
 						console.log('登入成功:', userInfo);
-						new Notice(`歡迎，${userInfo.name || userInfo.email}！`);
+						new Notice(`Welcome, ${userInfo.name || userInfo.email}!`);
 						this.resolveLogin(true);
 						this.close();
 					},
@@ -679,7 +679,7 @@ export default class AgentPlugin extends Plugin {
 		// 驗證配置是否完整
 		if (!this.auth0Config.domain || !this.auth0Config.clientId || !this.auth0Config.audience) {
 			console.warn('Auth0 configuration incomplete. Some Auth0 features may not work.');
-			new Notice('Auth0 設定不完整，請檢查環境變數設定');
+			new Notice('Auth0 configuration incomplete, please check environment variables');
 		}
 	}
 
@@ -716,7 +716,7 @@ export default class AgentPlugin extends Plugin {
 		if (this.isLoggedIn()) {
 			// 已登入狀態
 			const userInfo = this.getUserInfo();
-			const userName = userInfo?.name || userInfo?.email || '用戶';
+			const userName = userInfo?.name || userInfo?.email || 'User';
 			
 			// 添加圖示
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-in' });
@@ -726,7 +726,7 @@ export default class AgentPlugin extends Plugin {
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
 			text.textContent = 'Agent Mode';
 			
-			this.statusBarElement.title = `已登入: ${userName}\n點擊查看選項`;
+			this.statusBarElement.title = `Logged in: ${userName}\nClick to view options`;
 		} else {
 			// 未登入狀態
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-out' });
@@ -735,7 +735,7 @@ export default class AgentPlugin extends Plugin {
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
 			text.textContent = 'Agent Mode';
 			
-			this.statusBarElement.title = '未登入(點擊登入)';
+			this.statusBarElement.title = 'Not logged in (Click to log in)';
 		}
 	}
 
@@ -745,11 +745,11 @@ export default class AgentPlugin extends Plugin {
 		if (this.isLoggedIn()) {
 			// 已登入，顯示用戶資訊和登出選項
 			const userInfo = this.getUserInfo();
-			const userName = userInfo?.name || userInfo?.email || '用戶';
+			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
 			
 			menu.addItem((item: any) => {
-				item.setTitle(`用戶: ${userName}`)
+				item.setTitle(`User: ${userName}`)
 					.setIcon('user')
 					.setDisabled(true);
 			});
@@ -765,7 +765,7 @@ export default class AgentPlugin extends Plugin {
 			menu.addSeparator();
 			
 			menu.addItem((item: any) => {
-				item.setTitle('登出')
+				item.setTitle('Log out')
 					.setIcon('log-out')
 					.onClick(async () => {
 						await this.logout();
@@ -775,7 +775,7 @@ export default class AgentPlugin extends Plugin {
 		} else {
 			// 未登入，顯示登入選項
 			menu.addItem((item: any) => {
-				item.setTitle('登入')
+				item.setTitle('Log in')
 					.setIcon('log-in')
 					.onClick(async () => {
 						await this.startLogin();
@@ -2218,7 +2218,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			}
 		} catch (error: any) {
 			console.error('登入失敗:', error);
-			new Notice(`登入失敗: ${error.message}`);
+			new Notice(`Login failed: ${error.message}`);
 		}
 	}
 
@@ -2232,7 +2232,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			// 這裡後續會添加 UI 更新邏輯
 		} catch (error: any) {
 			console.error('登出失敗:', error);
-			new Notice(`登出失敗: ${error.message}`);
+			new Notice(`Logout failed: ${error.message}`);
 		}
 	}
 
@@ -2276,29 +2276,29 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Auth0 登入狀態區塊
-		containerEl.createEl('h3', { text: '登入狀態' });
+		containerEl.createEl('h3', { text: 'Login Status' });
 		
 		const authContainer = containerEl.createDiv('auth-settings-container');
 		
 		if (this.plugin.isLoggedIn()) {
 			// 顯示已登入狀態
 			const userInfo = this.plugin.getUserInfo();
-			const userName = userInfo?.name || userInfo?.email || '用戶';
+			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
 			
 			const statusDiv = authContainer.createDiv('auth-status-info');
-			statusDiv.createEl('div', { text: '✅ 已登入', cls: 'auth-status-logged-in' });
-			statusDiv.createEl('div', { text: `用戶：${userName}`, cls: 'auth-user-info' });
+			statusDiv.createEl('div', { text: '✅ Logged in', cls: 'auth-status-logged-in' });
+			statusDiv.createEl('div', { text: `User: ${userName}`, cls: 'auth-user-info' });
 			if (userEmail && userEmail !== userName) {
-				statusDiv.createEl('div', { text: `Email：${userEmail}`, cls: 'auth-user-info' });
+				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'auth-user-info' });
 			}
 			
 			// 登出按鈕
 			new Setting(authContainer)
-				.setName('登出')
-				.setDesc('登出當前帳號')
+				.setName('Log out')
+				.setDesc('Log out of current account')
 				.addButton(button => button
-					.setButtonText('登出')
+					.setButtonText('Log out')
 					.setCta()
 					.onClick(async () => {
 						await this.plugin.logout();
@@ -2307,15 +2307,15 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		} else {
 			// 顯示未登入狀態
 			const statusDiv = authContainer.createDiv('auth-status-info');
-			statusDiv.createEl('div', { text: '⚫ 未登入', cls: 'auth-status-logged-out' });
-			statusDiv.createEl('div', { text: '需要登入才能使用 AI 功能', cls: 'auth-status-desc' });
+			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'auth-status-logged-out' });
+			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'auth-status-desc' });
 			
 			// 登入按鈕
 			new Setting(authContainer)
-				.setName('登入')
-				.setDesc('登入您的 NameCard AI 帳號')
+				.setName('Log in')
+				.setDesc('Log in to your NameCard AI account')
 				.addButton(button => button
-					.setButtonText('開始登入')
+					.setButtonText('Start Login')
 					.setCta()
 					.onClick(async () => {
 						await this.plugin.startLogin();
@@ -2327,7 +2327,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.createEl('hr', { cls: 'auth-settings-separator' });
 		
 		// OpenAI API Key 設定
-		containerEl.createEl('h3', { text: 'OpenAI 設定' });
+		containerEl.createEl('h3', { text: 'OpenAI Settings' });
 
 		new Setting(containerEl)
 			.setName('OpenAI API Key')

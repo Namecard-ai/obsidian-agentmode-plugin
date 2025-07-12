@@ -59,9 +59,9 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			console.error('Device auth failed:', error);
 			setState({ 
 				step: 'error', 
-				errorMessage: error.message || '啟動登入流程失敗' 
+				errorMessage: error.message || 'Failed to start login process' 
 			});
-			onLoginError(error.message || '啟動登入流程失敗');
+			onLoginError(error.message || 'Failed to start login process');
 		}
 	};
 
@@ -105,14 +105,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// 確保停止 polling 操作
 			auth0Service.stopPolling();
 			
-			if (error.message.includes('超時')) {
+			if (error.message.includes('timeout')) {
 				setState({ step: 'timeout' });
 			} else {
 				setState({ 
 					step: 'error', 
-					errorMessage: error.message || '授權失敗' 
+					errorMessage: error.message || 'Authorization failed' 
 				});
-				onLoginError(error.message || '授權失敗');
+				onLoginError(error.message || 'Authorization failed');
 			}
 		}
 	};
@@ -161,9 +161,9 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			
 			setState({ 
 				step: 'error', 
-				errorMessage: '保存登入狀態失敗: ' + error.message 
+				errorMessage: 'Failed to save login state: ' + error.message 
 			});
-			onLoginError('保存登入狀態失敗: ' + error.message);
+			onLoginError('Failed to save login state: ' + error.message);
 		}
 	};
 
@@ -197,66 +197,66 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	return (
 		<div className="login-component">
 			<div className="login-header">
-				<h2>登入 NameCard AI</h2>
+				<h2>Log in to NameCard AI</h2>
 			</div>
 
 			<div className="login-content">
 				{state.step === 'loading' && (
 					<div className="loading-state">
 						<div className="spinner"></div>
-						<p>正在初始化登入流程...</p>
+						<p>Initializing login process...</p>
 					</div>
 				)}
 
 				{state.step === 'device-code' && state.deviceAuth && (
 					<div className="device-code-state">
 						<div className="instruction">
-							<p>請使用您的瀏覽器訪問以下網址，並輸入設備代碼來完成登入：</p>
+							<p>Please visit the following URL in your browser and enter the device code to complete login:</p>
 						</div>
 
 						<div className="verification-info">
 							<div className="url-section">
-								<label>驗證網址：</label>
+								<label>Verification URL:</label>
 								<div className="copy-field">
 									<code>{state.deviceAuth.verification_uri}</code>
 									<button 
 										className="copy-btn"
 										onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
 									>
-										複製
+										Copy
 									</button>
 								</div>
 							</div>
 
 							<div className="code-section">
-								<label>設備代碼：</label>
+								<label>Device Code:</label>
 								<div className="copy-field">
 									<code className="device-code">{state.deviceAuth.user_code}</code>
 									<button 
 										className="copy-btn"
 										onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
 									>
-										複製
+										Copy
 									</button>
 								</div>
 							</div>
 						</div>
 
 						<div className="direct-link">
-							<p>或者直接點擊以下連結（會自動填入設備代碼）：</p>
+							<p>Or click the following link (device code will be filled automatically):</p>
 							<a 
 								href={state.deviceAuth.verification_uri_complete}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="verification-link"
 							>
-								在瀏覽器中打開登入頁面
+								Open login page in browser
 							</a>
 						</div>
 
 						{state.timeRemaining && (
 							<div className="countdown">
-								<p>剩餘時間：{formatTime(state.timeRemaining)}</p>
+								<p>Time remaining: {formatTime(state.timeRemaining)}</p>
 							</div>
 						)}
 					</div>
@@ -267,11 +267,11 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				{state.step === 'polling' && (
 					<div className="polling-state">
 						<div className="spinner"></div>
-						<p>等待授權完成...</p>
-						<p>請在瀏覽器中完成登入操作</p>
+						<p>Waiting for authorization...</p>
+						<p>Please complete login in your browser</p>
 						{state.timeRemaining && (
 							<div className="countdown">
-								<p>剩餘時間：{formatTime(state.timeRemaining)}</p>
+								<p>Time remaining: {formatTime(state.timeRemaining)}</p>
 							</div>
 						)}
 					</div>
@@ -280,14 +280,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				{state.step === 'timeout' && (
 					<div className="timeout-state">
 						<div className="error-icon">⏰</div>
-						<h3>登入超時</h3>
-						<p>登入流程已超時，請重新開始。</p>
+						<h3>Login Timeout</h3>
+						<p>Login process has timed out, please try again.</p>
 						<div className="timeout-actions">
 							<button className="retry-btn" onClick={handleRetry}>
-								重新登入
+								Retry Login
 							</button>
 							<button className="cancel-btn" onClick={onCancel}>
-								取消
+								Cancel
 							</button>
 						</div>
 					</div>
@@ -296,14 +296,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				{state.step === 'error' && (
 					<div className="error-state">
 						<div className="error-icon">❌</div>
-						<h3>登入失敗</h3>
+						<h3>Login Failed</h3>
 						<p>{state.errorMessage}</p>
 						<div className="error-actions">
 							<button className="retry-btn" onClick={handleRetry}>
-								重試
+								Retry
 							</button>
 							<button className="cancel-btn" onClick={onCancel}>
-								取消
+								Cancel
 							</button>
 						</div>
 					</div>
@@ -312,8 +312,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				{state.step === 'success' && (
 					<div className="success-state">
 						<div className="success-icon">✅</div>
-						<h3>登入成功</h3>
-						<p>正在完成設定...</p>
+						<h3>Login Successful</h3>
+						<p>Completing setup...</p>
 					</div>
 				)}
 			</div>
