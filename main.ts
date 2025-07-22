@@ -2379,13 +2379,11 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
 					
+					// 創建帶有刷新按鈕的標題
+					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					
 					if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
 						// 顯示有效訂閱信息
-						const subscriptionHeader = subscriptionDiv.createEl('div', { 
-							text: 'Current Subscription', 
-							cls: 'subscription-header' 
-						});
-						
 						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
 						subscriptionDetails.createEl('div', { 
 							text: `Plan: ${subscription.product_name}`, 
@@ -2415,11 +2413,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						}
 					} else {
 						// 顯示 Free 計劃
-						const freeHeader = subscriptionDiv.createEl('div', { 
-							text: 'Current Subscription', 
-							cls: 'subscription-header' 
-						});
-						
 						const freeDetails = subscriptionDiv.createDiv('subscription-details');
 						freeDetails.createEl('div', { 
 							text: 'Plan: Free', 
@@ -2435,6 +2428,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.addBillingPortalButton(subscriptionDiv);
 				} else {
 					// 顯示錯誤信息
+					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
 						cls: 'subscription-error' 
@@ -2446,6 +2440,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			}).catch(error => {
 				// 顯示錯誤信息
 				subscriptionDiv.empty();
+				const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 				subscriptionDiv.createEl('div', { 
 					text: 'Unable to load subscription info', 
 					cls: 'subscription-error' 
@@ -2564,5 +2559,150 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				billingButton.style.opacity = '1';
 			}
 		});
+	}
+
+	// 創建帶有刷新按鈕的訂閱標題
+	private createSubscriptionHeaderWithRefresh(containerDiv: HTMLElement, subscriptionDiv: HTMLElement): HTMLElement {
+		const headerContainer = containerDiv.createEl('div');
+		headerContainer.style.display = 'flex';
+		headerContainer.style.alignItems = 'center';
+		headerContainer.style.justifyContent = 'space-between';
+		headerContainer.style.marginBottom = '0.5rem';
+
+		// 標題文字
+		const titleEl = headerContainer.createEl('div', { 
+			text: 'Current Subscription', 
+			cls: 'subscription-header' 
+		});
+
+		// 刷新按鈕
+		const refreshButton = headerContainer.createEl('button', {
+			text: '🔄',
+			cls: 'subscription-refresh-button'
+		});
+
+		// 刷新按鈕樣式
+		refreshButton.style.backgroundColor = 'transparent';
+		refreshButton.style.border = 'none';
+		refreshButton.style.cursor = 'pointer';
+		refreshButton.style.fontSize = '16px';
+		refreshButton.style.padding = '2px 4px';
+		refreshButton.style.borderRadius = '3px';
+		refreshButton.style.opacity = '0.7';
+		refreshButton.style.transition = 'opacity 0.2s, background-color 0.2s';
+
+		// 懸停效果
+		refreshButton.addEventListener('mouseenter', () => {
+			refreshButton.style.opacity = '1';
+			refreshButton.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+		});
+
+		refreshButton.addEventListener('mouseleave', () => {
+			refreshButton.style.opacity = '0.7';
+			refreshButton.style.backgroundColor = 'transparent';
+		});
+
+		// 點擊事件 - 刷新訂閱信息
+		refreshButton.addEventListener('click', async () => {
+			// 顯示載入狀態
+			const originalText = refreshButton.textContent;
+			refreshButton.textContent = '⏳';
+			refreshButton.disabled = true;
+			refreshButton.style.opacity = '0.5';
+
+			try {
+				// 顯示載入中
+				subscriptionDiv.empty();
+				subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'subscription-loading' });
+
+				// 重新獲取用戶 profile
+				const profileData = await this.plugin.getUserProfile();
+				
+				// 清空並重新顯示
+				subscriptionDiv.empty();
+				
+				// 重新創建標題（遞歸調用）
+				const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				
+				if (profileData.success && profileData.data) {
+					const { subscription } = profileData.data;
+					
+					if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+						// 顯示有效訂閱信息
+						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
+						subscriptionDetails.createEl('div', { 
+							text: `Plan: ${subscription.product_name}`, 
+							cls: 'subscription-plan' 
+						});
+						subscriptionDetails.createEl('div', { 
+							text: `Status: ${subscription.status.toUpperCase()}`,
+							cls: 'subscription-status-active' 
+						});
+						
+						// 顯示訂閱期限
+						const periodEnd = new Date(subscription.current_period_end);
+						subscriptionDetails.createEl('div', { 
+							text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
+							cls: 'subscription-period' 
+						});
+						
+						// 如果有試用期，顯示試用信息
+						if (subscription.trial_end) {
+							const trialEnd = new Date(subscription.trial_end);
+							if (trialEnd > new Date()) {
+								subscriptionDetails.createEl('div', { 
+									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
+									cls: 'subscription-trial' 
+								});
+							}
+						}
+					} else {
+						// 顯示 Free 計劃
+						const freeDetails = subscriptionDiv.createDiv('subscription-details');
+						freeDetails.createEl('div', { 
+							text: 'Plan: Free', 
+							cls: 'subscription-plan-free' 
+						});
+						freeDetails.createEl('div', { 
+							text: 'Status: Active', 
+							cls: 'subscription-status-free' 
+						});
+					}
+
+					// 添加 Billing Portal 按鈕
+					this.addBillingPortalButton(subscriptionDiv);
+				} else {
+					// 顯示錯誤信息
+					subscriptionDiv.createEl('div', { 
+						text: 'Unable to load subscription info', 
+						cls: 'subscription-error' 
+					});
+					
+					// 即使加載失敗也顯示 Billing Portal 按鈕
+					this.addBillingPortalButton(subscriptionDiv);
+				}
+
+			} catch (error: any) {
+				console.error('Failed to refresh subscription:', error);
+				
+				// 顯示錯誤
+				subscriptionDiv.empty();
+				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				subscriptionDiv.createEl('div', { 
+					text: 'Failed to refresh subscription info', 
+					cls: 'subscription-error' 
+				});
+				this.addBillingPortalButton(subscriptionDiv);
+			} finally {
+				// 恢復按鈕狀態（如果按鈕還存在的話）
+				if (refreshButton.isConnected) {
+					refreshButton.textContent = originalText;
+					refreshButton.disabled = false;
+					refreshButton.style.opacity = '0.7';
+				}
+			}
+		});
+
+		return headerContainer;
 	}
 }
