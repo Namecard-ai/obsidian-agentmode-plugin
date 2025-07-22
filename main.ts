@@ -2284,6 +2284,39 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			throw error;
 		}
 	}
+
+	// 獲取 Stripe Billing Portal Session URL
+	async getBillingSession(): Promise<string> {
+		if (!this.isLoggedIn() || !this.settings.accessToken) {
+			throw new Error('Not logged in');
+		}
+
+		try {
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const response = await fetch(`${backendUrl}/user/billing-session`, {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${this.settings.accessToken}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Get billing session failed: ${response.status} ${errorText}`);
+			}
+
+			const data = await response.json();
+			if (data.success && data.data && data.data.url) {
+				return data.data.url;
+			} else {
+				throw new Error('Invalid response format');
+			}
+		} catch (error: any) {
+			console.error('Get billing session failed:', error);
+			throw error;
+		}
+	}
 }
 
 // class SampleModal extends Modal {
@@ -2346,7 +2379,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
 					
-					if (subscription && subscription.status === 'active') {
+					if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
 						// 顯示有效訂閱信息
 						const subscriptionHeader = subscriptionDiv.createEl('div', { 
 							text: 'Current Subscription', 
@@ -2397,12 +2430,18 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							cls: 'subscription-status-free' 
 						});
 					}
+
+					// 添加 Billing Portal 按鈕（對所有登入用戶顯示）
+					this.addBillingPortalButton(subscriptionDiv);
 				} else {
 					// 顯示錯誤信息
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
 						cls: 'subscription-error' 
 					});
+					
+					// 即使加載失敗也顯示 Billing Portal 按鈕
+					this.addBillingPortalButton(subscriptionDiv);
 				}
 			}).catch(error => {
 				// 顯示錯誤信息
@@ -2412,6 +2451,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					cls: 'subscription-error' 
 				});
 				console.error('Failed to load user profile:', error);
+				
+				// 即使出錯也顯示 Billing Portal 按鈕
+				this.addBillingPortalButton(subscriptionDiv);
 			});
 			
 			// 登出按鈕
@@ -2460,5 +2502,91 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.settings.openaiApiKey = value;
 					await this.plugin.saveSettings();
 				}));
+	}
+
+	// 添加 Billing Portal 按鈕的輔助方法
+	private addBillingPortalButton(containerDiv: HTMLElement) {
+		const billingContainer = containerDiv.createDiv('billing-portal-container');
+		billingContainer.style.marginTop = '1rem';
+		billingContainer.style.padding = '1rem';
+		billingContainer.style.backgroundColor = '#f8f9fa';
+		billingContainer.style.borderRadius = '8px';
+		billingContainer.style.borderLeft = '4px solid #667eea';
+
+		// 標題
+		billingContainer.createEl('div', { 
+			text: 'Manage Billing & Subscription', 
+			cls: 'billing-portal-header' 
+		});
+
+		// 按鈕容器
+		const buttonContainer = billingContainer.createDiv('billing-button-container');
+		buttonContainer.style.marginTop = '0.5rem';
+
+		// 創建按鈕
+		const billingButton = buttonContainer.createEl('button', {
+			text: 'Open Billing Portal',
+			cls: 'billing-portal-button'
+		});
+
+		// 按鈕樣式
+		billingButton.style.backgroundColor = '#667eea';
+		billingButton.style.color = 'white';
+		billingButton.style.border = 'none';
+		billingButton.style.padding = '8px 16px';
+		billingButton.style.borderRadius = '4px';
+		billingButton.style.cursor = 'pointer';
+		billingButton.style.fontSize = '14px';
+		billingButton.style.fontWeight = '500';
+
+		// 懸停效果
+		billingButton.addEventListener('mouseenter', () => {
+			billingButton.style.backgroundColor = '#5a6fd8';
+		});
+
+		billingButton.addEventListener('mouseleave', () => {
+			billingButton.style.backgroundColor = '#667eea';
+		});
+
+		// 點擊事件
+		billingButton.addEventListener('click', async () => {
+			// 顯示載入狀態
+			const originalText = billingButton.textContent;
+			billingButton.textContent = '⏳ Opening...';
+			billingButton.disabled = true;
+			billingButton.style.opacity = '0.7';
+
+			try {
+				// 獲取 billing session URL
+				const billingUrl = await this.plugin.getBillingSession();
+				
+				// 打開外部瀏覽器 - 使用類似 LoginComponent 的方式
+				window.open(billingUrl, '_blank', 'noopener,noreferrer');
+				
+			} catch (error: any) {
+				console.error('Failed to open billing portal:', error);
+				
+				// 顯示錯誤通知
+				if (error.message.includes('Not logged in')) {
+					new Notice('Please log in first to manage billing');
+				} else {
+					new Notice('Failed to open billing portal. Please try again.');
+				}
+			} finally {
+				// 恢復按鈕狀態
+				billingButton.textContent = originalText;
+				billingButton.disabled = false;
+				billingButton.style.opacity = '1';
+			}
+		});
+
+		// 說明文字
+		const descriptionEl = billingContainer.createEl('div', { 
+			text: 'Manage your subscription, payment methods, and billing history.',
+			cls: 'billing-portal-description'
+		});
+		descriptionEl.style.fontSize = '12px';
+		descriptionEl.style.color = '#666';
+		descriptionEl.style.marginTop = '0.5rem';
 	}
 }
