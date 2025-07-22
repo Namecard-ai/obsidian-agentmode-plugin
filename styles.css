@@ -565,3 +565,76 @@ If your plugin does not need CSS, delete this file.
   border: none;
   border-top: 1px solid var(--background-modifier-border);
 }
+
+/* Subscription Info 樣式 */
+.subscription-info {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.subscription-header {
+  font-weight: 600;
+  color: var(--text-normal);
+  margin-bottom: 8px;
+  font-size: var(--font-ui-medium);
+}
+
+.subscription-details {
+  margin-left: 8px;
+}
+
+.subscription-plan {
+  color: var(--text-accent);
+  font-weight: 600;
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.subscription-plan-free {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.subscription-status-active {
+  color: var(--text-success);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.subscription-status-free {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.subscription-period {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}
+
+.subscription-trial {
+  color: var(--text-warning);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+  background-color: var(--background-modifier-form-field);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.subscription-loading {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.subscription-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-small);
+  margin-bottom: 4px;
+}

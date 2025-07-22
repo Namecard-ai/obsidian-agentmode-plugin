@@ -2255,6 +2255,35 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 	getUserInfo(): { email?: string; name?: string; sub?: string } | null {
 		return this.settings.userInfo || null;
 	}
+
+	// 獲取用戶 profile（包含 subscription 信息）
+	async getUserProfile(): Promise<any> {
+		if (!this.isLoggedIn() || !this.settings.accessToken) {
+			throw new Error('Not logged in');
+		}
+
+		try {
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const response = await fetch(`${backendUrl}/user/profile`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${this.settings.accessToken}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Get profile failed: ${response.status} ${errorText}`);
+			}
+
+			const data = await response.json();
+			return data;
+		} catch (error: any) {
+			console.error('Get user profile failed:', error);
+			throw error;
+		}
+	}
 }
 
 // class SampleModal extends Modal {
@@ -2304,6 +2333,86 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			if (userEmail && userEmail !== userName) {
 				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'auth-user-info' });
 			}
+			
+			// 添加 subscription 信息
+			const subscriptionDiv = statusDiv.createDiv('subscription-info');
+			subscriptionDiv.createEl('div', { text: 'Loading subscription...', cls: 'subscription-loading' });
+			
+			// 異步獲取用戶 profile
+			this.plugin.getUserProfile().then(profileData => {
+				// 清空 loading 信息
+				subscriptionDiv.empty();
+				
+				if (profileData.success && profileData.data) {
+					const { subscription } = profileData.data;
+					
+					if (subscription && subscription.status === 'active') {
+						// 顯示有效訂閱信息
+						const subscriptionHeader = subscriptionDiv.createEl('div', { 
+							text: 'Current Subscription', 
+							cls: 'subscription-header' 
+						});
+						
+						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
+						subscriptionDetails.createEl('div', { 
+							text: `Plan: ${subscription.product_name}`, 
+							cls: 'subscription-plan' 
+						});
+						subscriptionDetails.createEl('div', { 
+							text: `Status: ${subscription.status}`, 
+							cls: 'subscription-status-active' 
+						});
+						
+						// 顯示訂閱期限
+						const periodEnd = new Date(subscription.current_period_end);
+						subscriptionDetails.createEl('div', { 
+							text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
+							cls: 'subscription-period' 
+						});
+						
+						// 如果有試用期，顯示試用信息
+						if (subscription.trial_end) {
+							const trialEnd = new Date(subscription.trial_end);
+							if (trialEnd > new Date()) {
+								subscriptionDetails.createEl('div', { 
+									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
+									cls: 'subscription-trial' 
+								});
+							}
+						}
+					} else {
+						// 顯示 Free 計劃
+						const freeHeader = subscriptionDiv.createEl('div', { 
+							text: 'Current Subscription', 
+							cls: 'subscription-header' 
+						});
+						
+						const freeDetails = subscriptionDiv.createDiv('subscription-details');
+						freeDetails.createEl('div', { 
+							text: 'Plan: Free', 
+							cls: 'subscription-plan-free' 
+						});
+						freeDetails.createEl('div', { 
+							text: 'Status: Active', 
+							cls: 'subscription-status-free' 
+						});
+					}
+				} else {
+					// 顯示錯誤信息
+					subscriptionDiv.createEl('div', { 
+						text: 'Unable to load subscription info', 
+						cls: 'subscription-error' 
+					});
+				}
+			}).catch(error => {
+				// 顯示錯誤信息
+				subscriptionDiv.empty();
+				subscriptionDiv.createEl('div', { 
+					text: 'Unable to load subscription info', 
+					cls: 'subscription-error' 
+				});
+				console.error('Failed to load user profile:', error);
+			});
 			
 			// 登出按鈕
 			new Setting(authContainer)
