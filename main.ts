@@ -2392,7 +2392,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							cls: 'subscription-plan' 
 						});
 						subscriptionDetails.createEl('div', { 
-							text: `Status: ${subscription.status}`, 
+							text: `Status: ${subscription.status.toUpperCase()}`,
 							cls: 'subscription-status-active' 
 						});
 						
@@ -2506,38 +2506,23 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 	// 添加 Billing Portal 按鈕的輔助方法
 	private addBillingPortalButton(containerDiv: HTMLElement) {
-		const billingContainer = containerDiv.createDiv('billing-portal-container');
-		billingContainer.style.marginTop = '1rem';
-		billingContainer.style.padding = '1rem';
-		billingContainer.style.backgroundColor = '#f8f9fa';
-		billingContainer.style.borderRadius = '8px';
-		billingContainer.style.borderLeft = '4px solid #667eea';
-
-		// 標題
-		billingContainer.createEl('div', { 
-			text: 'Manage Billing & Subscription', 
-			cls: 'billing-portal-header' 
-		});
-
-		// 按鈕容器
-		const buttonContainer = billingContainer.createDiv('billing-button-container');
-		buttonContainer.style.marginTop = '0.5rem';
-
-		// 創建按鈕
-		const billingButton = buttonContainer.createEl('button', {
+		// 直接創建按鈕，不需要獨立的亮色容器
+		const billingButton = containerDiv.createEl('button', {
 			text: 'Open Billing Portal',
 			cls: 'billing-portal-button'
 		});
 
-		// 按鈕樣式
+		// 按鈕樣式 - 更簡潔的設計
 		billingButton.style.backgroundColor = '#667eea';
 		billingButton.style.color = 'white';
 		billingButton.style.border = 'none';
-		billingButton.style.padding = '8px 16px';
+		billingButton.style.padding = '6px 12px';
 		billingButton.style.borderRadius = '4px';
 		billingButton.style.cursor = 'pointer';
-		billingButton.style.fontSize = '14px';
+		billingButton.style.fontSize = '13px';
 		billingButton.style.fontWeight = '500';
+		billingButton.style.marginTop = '0.75rem';
+		billingButton.style.display = 'block';
 
 		// 懸停效果
 		billingButton.addEventListener('mouseenter', () => {
@@ -2579,14 +2564,5 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				billingButton.style.opacity = '1';
 			}
 		});
-
-		// 說明文字
-		const descriptionEl = billingContainer.createEl('div', { 
-			text: 'Manage your subscription, payment methods, and billing history.',
-			cls: 'billing-portal-description'
-		});
-		descriptionEl.style.fontSize = '12px';
-		descriptionEl.style.color = '#666';
-		descriptionEl.style.marginTop = '0.5rem';
 	}
 }
