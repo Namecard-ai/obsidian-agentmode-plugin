@@ -279,7 +279,123 @@ If your plugin does not need CSS, delete this file.
 /* Device Code State */
 .device-code-state {
   width: 100%;
-  max-width: 450px;
+  max-width: 400px;
+}
+
+/* Login Options */
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-options h3 {
+  text-align: center;
+  margin: 0 0 16px 0;
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+/* Primary Login Option */
+.primary-login-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.primary-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 280px;
+  height: 48px;
+  padding: 0 24px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.primary-login-btn:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.primary-login-btn:active {
+  background-color: var(--interactive-accent-hover);
+}
+
+.primary-login-desc {
+  margin: 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.3;
+  max-width: 320px;
+}
+
+/* Manual Login Section */
+.manual-login-section {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+}
+
+.manual-login-toggle {
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.manual-login-toggle:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.toggle-arrow {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.toggle-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.manual-login-content {
+  padding: 0 16px 16px 16px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.manual-instruction {
+  margin: 16px 0 12px 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  text-align: center;
+}
+
+/* Override verification-info styles when inside manual login */
+.manual-login-content .verification-info {
+  background-color: var(--background-primary);
+  margin-bottom: 0;
+  padding: 16px;
+  border-radius: 6px;
 }
 
 .instruction {
@@ -291,13 +407,13 @@ If your plugin does not need CSS, delete this file.
 .verification-info {
   background-color: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
 .url-section, .code-section {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .url-section:last-child, .code-section:last-child {
@@ -306,19 +422,20 @@ If your plugin does not need CSS, delete this file.
 
 .verification-info label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 600;
   color: var(--text-normal);
+  font-size: var(--font-ui-small);
 }
 
 .copy-field {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
 }
 
 .copy-field code {
-  flex-grow: 1;
+  flex: 1;
   padding: 8px 12px;
   background-color: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
@@ -327,18 +444,20 @@ If your plugin does not need CSS, delete this file.
   font-size: var(--font-ui-small);
   color: var(--text-normal);
   word-break: break-all;
+  display: flex;
+  align-items: center;
 }
 
 .copy-field code.device-code {
   font-size: var(--font-ui-medium);
   font-weight: 600;
   letter-spacing: 0.1em;
-  text-align: center;
+  justify-content: center;
   color: var(--text-accent);
 }
 
 .copy-btn {
-  padding: 6px 12px;
+  padding: 8px 12px;
   background-color: var(--interactive-normal);
   color: var(--text-on-accent);
   border: none;
@@ -346,8 +465,7 @@ If your plugin does not need CSS, delete this file.
   cursor: pointer;
   font-size: var(--font-ui-smaller);
   font-weight: 500;
-  transition: background-color 0.2s ease;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .copy-btn:hover {
@@ -389,16 +507,18 @@ If your plugin does not need CSS, delete this file.
 
 .countdown {
   text-align: center;
-  padding: 12px;
+  padding: 12px 16px;
   background-color: var(--background-secondary);
   border-radius: 6px;
   border: 1px solid var(--background-modifier-border);
+  margin-top: 16px;
 }
 
 .countdown p {
   margin: 0;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-accent);
+  font-size: var(--font-ui-small);
 }
 
 /* Error and Timeout States */

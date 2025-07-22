@@ -23,6 +23,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 }) => {
 	const [state, setState] = useState<LoginState>({ step: 'loading' });
 	const [countdownTimer, setCountdownTimer] = useState<NodeJS.Timeout | null>(null);
+	const [showManualLogin, setShowManualLogin] = useState<boolean>(false);
 
 	useEffect(() => {
 		startDeviceAuth();
@@ -210,48 +211,66 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 				{state.step === 'device-code' && state.deviceAuth && (
 					<div className="device-code-state">
-						<div className="instruction">
-							<p>Please visit the following URL in your browser and enter the device code to complete login:</p>
-						</div>
-
-						<div className="verification-info">
-							<div className="url-section">
-								<label>Verification URL:</label>
-								<div className="copy-field">
-									<code>{state.deviceAuth.verification_uri}</code>
-									<button 
-										className="copy-btn"
-										onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
-									>
-										Copy
-									</button>
-								</div>
+						<div className="login-options">
+							<h3>Choose Login Method</h3>
+							
+							{/* 主要選項：一鍵登入 */}
+							<div className="primary-login-option">
+								<button 
+									className="primary-login-btn"
+									onClick={() => window.open(state.deviceAuth?.verification_uri_complete, '_blank')}
+								>
+									Open Login Page in Browser
+								</button>
+								<p className="primary-login-desc">Click to automatically open browser and complete login</p>
 							</div>
 
-							<div className="code-section">
-								<label>Device Code:</label>
-								<div className="copy-field">
-									<code className="device-code">{state.deviceAuth.user_code}</code>
-									<button 
-										className="copy-btn"
-										onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
-									>
-										Copy
-									</button>
-								</div>
-							</div>
-						</div>
+							{/* 手動登入選項 (可摺疊) */}
+							<div className="manual-login-section">
+								<button 
+									className="manual-login-toggle"
+									onClick={() => setShowManualLogin(!showManualLogin)}
+								>
+									{showManualLogin ? 'Hide' : "Can't auto-open? Manual login"}
+									<span className={`toggle-arrow ${showManualLogin ? 'expanded' : ''}`}>▼</span>
+								</button>
+								
+								{showManualLogin && (
+									<div className="manual-login-content">
+										<p className="manual-instruction">
+											Please visit the following URL in your browser and enter the device code:
+										</p>
+										
+										<div className="verification-info">
+											<div className="url-section">
+												<label>Verification URL:</label>
+												<div className="copy-field">
+													<code>{state.deviceAuth.verification_uri}</code>
+													<button 
+														className="copy-btn"
+														onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
+													>
+														Copy
+													</button>
+												</div>
+											</div>
 
-						<div className="direct-link">
-							<p>Or click the following link (device code will be filled automatically):</p>
-							<a 
-								href={state.deviceAuth.verification_uri_complete}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="verification-link"
-							>
-								Open login page in browser
-							</a>
+											<div className="code-section">
+												<label>Device Code:</label>
+												<div className="copy-field">
+													<code className="device-code">{state.deviceAuth.user_code}</code>
+													<button 
+														className="copy-btn"
+														onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
+													>
+														Copy
+													</button>
+												</div>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
 						</div>
 
 						{state.timeRemaining && (
