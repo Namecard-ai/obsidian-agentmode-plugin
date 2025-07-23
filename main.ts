@@ -1926,10 +1926,6 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 
 	async processFileForEmbedding(file: TFile) {
 		try {
-			if (!this.settings.openaiApiKey) {
-				console.warn('OpenAI API key not configured');
-				return;
-			}
 
 			// Read file content
 			const content = await this.app.vault.read(file);
@@ -2031,24 +2027,28 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 
 	async getOpenAIEmbedding(text: string): Promise<number[] | null> {
 		try {
-			const response = await fetch('https://api.openai.com/v1/embeddings', {
-				method: 'POST',
-				headers: {
-					'Authorization': `Bearer ${this.settings.openaiApiKey}`,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					model: 'text-embedding-3-small',
-					input: text,
-				}),
-			});
-
-			if (!response.ok) {
-				throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+			if (!this.openaiClient) {
+				console.error('OpenAI client not configured');
+				return null;
 			}
 
-			const data = await response.json();
-			return data.data[0].embedding;
+			// 建立請求選項，與其他 OpenAI 呼叫保持一致
+			const reqOptions: RequestOptions = {
+				headers: {
+					'Authorization': `Bearer ${this.settings.accessToken}`
+				},
+			};
+
+			if (this.settings.openaiApiKey) {
+				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
+			}
+
+			const response = await this.openaiClient.embeddings.create({
+				model: 'text-embedding-3-small',
+				input: text,
+			}, reqOptions);
+
+			return response.data[0].embedding;
 		} catch (error) {
 			console.error('Error getting OpenAI embedding:', error);
 			return null;
