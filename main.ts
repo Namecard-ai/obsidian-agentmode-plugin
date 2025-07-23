@@ -2382,7 +2382,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					// 創建帶有刷新按鈕的標題
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					
-					if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+					if (subscription) {
 						// 顯示有效訂閱信息
 						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
 						subscriptionDetails.createEl('div', { 
@@ -2411,17 +2411,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 								});
 							}
 						}
-					} else {
-						// 顯示 Free 計劃
-						const freeDetails = subscriptionDiv.createDiv('subscription-details');
-						freeDetails.createEl('div', { 
-							text: 'Plan: Free', 
-							cls: 'subscription-plan-free' 
-						});
-						freeDetails.createEl('div', { 
-							text: 'Status: Active', 
-							cls: 'subscription-status-free' 
-						});
 					}
 
 					// 添加 Billing Portal 按鈕（對所有登入用戶顯示）
