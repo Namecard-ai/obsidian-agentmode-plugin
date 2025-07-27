@@ -2404,11 +2404,13 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						});
 						
 						// 顯示訂閱期限
-						const periodEnd = new Date(subscription.current_period_end);
-						subscriptionDetails.createEl('div', { 
-							text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-							cls: 'subscription-period' 
-						});
+						if (subscription.plan_id !== 'free') {
+							const periodEnd = new Date(subscription.current_period_end);
+							subscriptionDetails.createEl('div', { 
+								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
+								cls: 'subscription-period' 
+							});
+						}
 						
 						// 如果有試用期，顯示試用信息
 						if (subscription.trial_end) {
@@ -2631,7 +2633,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
 					
-					if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+					if (subscription) {
 						// 顯示有效訂閱信息
 						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
 						subscriptionDetails.createEl('div', { 
@@ -2644,11 +2646,14 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						});
 						
 						// 顯示訂閱期限
-						const periodEnd = new Date(subscription.current_period_end);
-						subscriptionDetails.createEl('div', { 
-							text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-							cls: 'subscription-period' 
-						});
+						if (subscription.plan_id !== 'free') {
+							const periodEnd = new Date(subscription.current_period_end);
+							subscriptionDetails.createEl('div', { 
+								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
+								cls: 'subscription-period' 
+							});
+						}
+						
 						
 						// 如果有試用期，顯示試用信息
 						if (subscription.trial_end) {
@@ -2660,17 +2665,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 								});
 							}
 						}
-					} else {
-						// 顯示 Free 計劃
-						const freeDetails = subscriptionDiv.createDiv('subscription-details');
-						freeDetails.createEl('div', { 
-							text: 'Plan: Free', 
-							cls: 'subscription-plan-free' 
-						});
-						freeDetails.createEl('div', { 
-							text: 'Status: Active', 
-							cls: 'subscription-status-free' 
-						});
 					}
 
 					// 添加 Billing Portal 按鈕
