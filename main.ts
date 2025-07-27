@@ -1460,6 +1460,9 @@ This is the ONLY acceptable format for note citations.
 The USER is working in Obsidian with Markdown files under a single vault directory. 
 The user's OS version is: \`${osInfo}\`
 The absolute path to the vault is: \`${vaultPath}\`
+Current date and time: \`${new Date().toLocaleString()}\`
+Current timezone: \`${Intl.DateTimeFormat().resolvedOptions().timeZone}\`
+Current UTC offset: \`${new Date().getTimezoneOffset() / -60} hours\`
 </user_info>${contextFilesSection}
 
 Answer the USER's request using available context and tools. If a required parameter is missing, ask for it. Otherwise, proceed with the tool call or provide the response directly.
