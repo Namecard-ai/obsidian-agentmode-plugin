@@ -469,7 +469,7 @@ export class PaymentRequiredModal extends Modal {
 		contentEl.addClass('payment-required-modal');
 
 		// Set Modal title
-		this.titleEl.setText('Upgrade Required');
+		this.titleEl.setText('Agentmode Upgrade Required');
 
 		// Main content container
 		const container = contentEl.createDiv('payment-modal-content');
