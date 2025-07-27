@@ -2491,7 +2491,17 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.createEl('hr', { cls: 'auth-settings-separator' });
 		
 		// OpenAI API Key 設定
-		containerEl.createEl('h3', { text: 'OpenAI Settings' });
+		containerEl.createEl('h3', { text: 'Bring Your Own Key' });
+
+		// 添加重要提示
+		const keyInfoEl = containerEl.createEl('p', { cls: 'byok-info' });
+		keyInfoEl.innerHTML = `<strong>How this works:</strong> Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don't need to enter your own key (even if you've entered one, we'll directly ignore your key and use our managed service).`;
+		keyInfoEl.style.padding = '12px';
+		keyInfoEl.style.backgroundColor = 'var(--background-secondary)';
+		keyInfoEl.style.borderRadius = '6px';
+		keyInfoEl.style.marginBottom = '16px';
+		keyInfoEl.style.fontSize = '14px';
+		keyInfoEl.style.lineHeight = '1.4';
 
 		new Setting(containerEl)
 			.setName('OpenAI API Key')
