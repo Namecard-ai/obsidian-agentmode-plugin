@@ -1165,6 +1165,9 @@ export default class AgentPlugin extends Plugin {
 
 		} catch (error: any) {
 			console.error('Error in agent chat:', error);
+			if (error.status === 401) {
+				this.logout();
+			}
 			onError(error.message || 'Unknown error occurred');
 		}
 	}
@@ -2051,6 +2054,9 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			return response.data[0].embedding;
 		} catch (error) {
 			console.error('Error getting OpenAI embedding:', error);
+			if (error.status === 401) {
+				this.logout();
+			}
 			return null;
 		}
 	}
@@ -2274,7 +2280,10 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				throw new Error(`Get profile failed: ${response.status} ${errorText}`);
+				throw {
+					status: response.status,
+					message: errorText
+				};
 			}
 
 			const data = await response.json();
@@ -2427,17 +2436,23 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.addBillingPortalButton(subscriptionDiv);
 				}
 			}).catch(error => {
-				// 顯示錯誤信息
-				subscriptionDiv.empty();
-				const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-				subscriptionDiv.createEl('div', { 
-					text: 'Unable to load subscription info', 
-					cls: 'subscription-error' 
-				});
-				console.error('Failed to load user profile:', error);
+				if (error.status === 401) {
+					this.plugin.logout();
+					this.display();
+				} else {
+					// 顯示錯誤信息
+					subscriptionDiv.empty();
+					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					subscriptionDiv.createEl('div', { 
+						text: 'Unable to load subscription info', 
+						cls: 'subscription-error' 
+					});
+					console.error('Failed to load user profile:', error);
+					
+					// 即使出錯也顯示 Billing Portal 按鈕
+					this.addBillingPortalButton(subscriptionDiv);
+				}
 				
-				// 即使出錯也顯示 Billing Portal 按鈕
-				this.addBillingPortalButton(subscriptionDiv);
 			});
 			
 			// 登出按鈕
@@ -2673,15 +2688,20 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 			} catch (error: any) {
 				console.error('Failed to refresh subscription:', error);
+				if (error.status === 401) {
+					this.plugin.logout();
+					this.display();
+				}else {
+					// 顯示錯誤
+					subscriptionDiv.empty();
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					subscriptionDiv.createEl('div', { 
+						text: 'Failed to refresh subscription info', 
+						cls: 'subscription-error' 
+					});
+					this.addBillingPortalButton(subscriptionDiv);
+				}
 				
-				// 顯示錯誤
-				subscriptionDiv.empty();
-				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-				subscriptionDiv.createEl('div', { 
-					text: 'Failed to refresh subscription info', 
-					cls: 'subscription-error' 
-				});
-				this.addBillingPortalButton(subscriptionDiv);
 			} finally {
 				// 恢復按鈕狀態（如果按鈕還存在的話）
 				if (refreshButton.isConnected) {
@@ -2694,4 +2714,5 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		return headerContainer;
 	}
+
 }
