@@ -125,10 +125,20 @@ interface UploadedImage {
   size: number;
 }
 
+interface UploadedFile {
+  id: string;
+  file: File;
+  name: string;
+  base64Data: string; // for OpenAI API
+  size: number;
+  type: string; // MIME type
+}
+
 interface AIModel {
   id: string;
   name: string;
   supportVision: boolean;
+  supportFiles: boolean;
 }
 
 // File picker modal using Obsidian's native FuzzySuggestModal
@@ -166,13 +176,13 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
 }
 
 const AI_MODELS: AIModel[] = [
-  { id: 'o4-mini', name: 'o4-mini', supportVision: true },
-  { id: 'gpt-4o', name: 'gpt-4o', supportVision: true },
-  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', supportVision: true },
-  { id: 'gpt-4.1', name: 'gpt-4.1', supportVision: true },
-  { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', supportVision: true },
-  { id: 'o3', name: 'o3', supportVision: true },
-  { id: 'o3-mini', name: 'o3-mini', supportVision: false },
+  { id: 'o4-mini', name: 'o4-mini', supportVision: true, supportFiles: true },
+  { id: 'gpt-4o', name: 'gpt-4o', supportVision: true, supportFiles: true },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', supportVision: true, supportFiles: true },
+  { id: 'gpt-4.1', name: 'gpt-4.1', supportVision: true, supportFiles: true },
+  { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', supportVision: true, supportFiles: true },
+  { id: 'o3', name: 'o3', supportVision: true, supportFiles: true },
+  { id: 'o3-mini', name: 'o3-mini', supportVision: false, supportFiles: true },
 ];
 
 interface AgentChatViewProps {
@@ -346,6 +356,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragFileCount, setDragFileCount] = useState(0);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
@@ -368,6 +379,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileUploadInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
@@ -521,6 +533,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       return;
     }
 
+    // Check if there are files but the model doesn't support Files, give warning
+    if (uploadedFiles.length > 0 && !currentModelSupportsFiles) {
+      new Notice(`Current model "${getCurrentModel()?.name}" does not support file analysis. Please select a file-capable model`);
+      return;
+    }
+
     let messageContent = inputText.trim();
     
     // Add context files information if any are selected
@@ -533,6 +551,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     if (uploadedImages.length > 0) {
       const imageInfo = uploadedImages.map(img => `[Image: ${img.name}]`).join(' ');
       messageContent += `\n\nUploaded images: ${imageInfo}`;
+    }
+
+    // Add file information if any are uploaded
+    if (uploadedFiles.length > 0) {
+      const fileInfo = uploadedFiles.map(file => `[File: ${file.name}]`).join(' ');
+      messageContent += `\n\nUploaded files: ${fileInfo}`;
     }
 
     const userMessage: Message = {
@@ -563,10 +587,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         ...(msg.name && { name: msg.name })
       }));
     
-    // Add the current user message with images if any
+    // Add the current user message with images and files if any
     const currentUserMessage: any = {
       role: 'user' as const,
-      content: uploadedImages.length > 0 ? [
+      content: (uploadedImages.length > 0 || uploadedFiles.length > 0) ? [
         {
           type: 'text',
           text: messageContent
@@ -575,6 +599,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           type: 'image_url',
           image_url: {
             url: `data:${img.file.type};base64,${img.base64Data}`
+          }
+        })),
+        ...uploadedFiles.map(file => ({
+          type: 'file',
+          file: {
+            filename: file.name,
+            file_data: `data:${file.type};base64,${file.base64Data}`
           }
         }))
       ] : messageContent
@@ -715,6 +746,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     setMessages([]);
     setContextFiles([]);
     setUploadedImages([]);
+    setUploadedFiles([]);
     setCurrentChatId(generateId());
   };
 
@@ -723,6 +755,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     setCurrentChatId(chat.id);
     setContextFiles([]);
     setUploadedImages([]);
+    setUploadedFiles([]);
     setShowHistory(false);
   };
 
@@ -747,12 +780,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
   };
 
-  // Check if current model supports Vision
+  // Check if current model supports Vision and Files
   const getCurrentModel = () => AI_MODELS.find(model => model.id === selectedModel);
   const currentModelSupportsVision = getCurrentModel()?.supportVision || false;
+  const currentModelSupportsFiles = getCurrentModel()?.supportFiles || false;
 
   const handleImageUpload = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = () => {
+    fileUploadInputRef.current?.click();
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -827,6 +865,63 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
   const removeUploadedImage = (imageId: string) => {
     setUploadedImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
+  const handleFileUploadChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const supportedTypes = ['application/pdf'];
+    const maxSize = 32 * 1024 * 1024; // 32MB
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Check file type
+      if (!supportedTypes.includes(file.type)) {
+        new Notice(`File "${file.name}" is not a supported file format. Supported formats: PDF`);
+        continue;
+      }
+
+      // Check file size
+      if (file.size > maxSize) {
+        new Notice(`File "${file.name}" exceeds 32MB size limit`);
+        continue;
+      }
+
+      // Check if already uploaded
+      if (uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+        new Notice(`File "${file.name}" has already been uploaded`);
+        continue;
+      }
+
+      try {
+        // Convert file to base64
+        const base64Data = await fileToBase64(file);
+        
+        const uploadedFile: UploadedFile = {
+          id: generateId(),
+          file: file,
+          name: file.name,
+          base64Data: base64Data,
+          size: file.size,
+          type: file.type
+        };
+
+        setUploadedFiles(prev => [...prev, uploadedFile]);
+        new Notice(`File "${file.name}" uploaded successfully`);
+      } catch (error) {
+        console.error('Error processing file:', error);
+        new Notice(`Error processing file "${file.name}"`);
+      }
+    }
+
+    // Clear input value to allow selecting the same file again
+    e.target.value = '';
+  };
+
+  const removeUploadedFile = (fileId: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   // Set up drag and drop event listeners for better Obsidian integration
@@ -1494,6 +1589,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             onClick={handleImageUpload}
           />
           <IconButton
+            icon="paperclip"
+            tooltip="Upload File"
+            onClick={handleFileUpload}
+          />
+          <IconButton
             icon="link"
             tooltip="Add Context"
             onClick={handleAddContext}
@@ -1711,6 +1811,86 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.currentTarget.style.color = 'var(--text-muted)';
                   }}
                   title="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Uploaded Files Tags */}
+        {uploadedFiles.length > 0 && (
+          <div style={{
+            marginBottom: '12px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '6px',
+            alignItems: 'center'
+          }}>
+            <span style={{
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              fontWeight: '500',
+              marginRight: '4px'
+            }}>
+              Files:
+            </span>
+            {uploadedFiles.map(file => (
+              <div
+                key={file.id}
+                title={`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--background-modifier-info)',
+                  borderRadius: '12px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  color: 'var(--text-on-accent)',
+                  gap: '4px',
+                  border: '1px solid var(--background-modifier-info-border)',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-info-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-info)';
+                }}
+              >
+                <span>📎 {file.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeUploadedFile(file.id);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    fontSize: '14px',
+                    lineHeight: '1',
+                    marginLeft: '2px',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
+                    e.currentTarget.style.color = 'var(--text-on-accent)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                  }}
+                  title="Remove file"
                 >
                   ×
                 </button>
@@ -1987,6 +2167,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     ⚠️ Please select a model that supports images
                   </div>
                 )}
+                {uploadedFiles.length > 0 && !currentModelSupportsFiles && (
+                  <div style={{
+                    fontSize: '12px',
+                    color: 'var(--text-error)',
+                    fontWeight: '500',
+                    marginLeft: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    ⚠️ Please select a model that supports files
+                  </div>
+                )}
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputText.trim() || isLoading}
@@ -2031,6 +2224,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
         style={{ display: 'none' }}
         onChange={handleFileChange}
+        multiple
+      />
+
+      {/* Hidden file input */}
+      <input
+        ref={fileUploadInputRef}
+        type="file"
+        accept="application/pdf"
+        style={{ display: 'none' }}
+        onChange={handleFileUploadChange}
         multiple
       />
 
