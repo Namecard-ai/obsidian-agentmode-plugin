@@ -28,11 +28,11 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	useEffect(() => {
 		startDeviceAuth();
 		return () => {
-			// 清理定時器
+			// Clean up timer
 			if (countdownTimer) {
 				clearInterval(countdownTimer);
 			}
-			// 停止輪詢
+			// Stop polling
 			auth0Service.stopPolling();
 		};
 	}, []);
@@ -41,7 +41,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		try {
 			setState({ step: 'loading' });
 			
-			// 啟動 Device Authorization Flow
+			// Start Device Authorization Flow
 			const deviceAuth = await auth0Service.startDeviceAuth();
 			
 			setState({ 
@@ -50,10 +50,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				timeRemaining: deviceAuth.expires_in
 			});
 
-			// 開始倒數計時
+			// Start countdown timer
 			startCountdown(deviceAuth.expires_in);
 			
-			// 開始輪詢
+			// Start polling
 			startPolling(deviceAuth);
 			
 		} catch (error: any) {
@@ -90,20 +90,20 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const startPolling = async (deviceAuth: DeviceAuthState) => {
 		try {
-			// 不要立即切換到 polling 狀態，讓用戶先看到 device-code 狀態
-			// 開始輪詢 token
+			// Don't immediately switch to polling state, let user see device-code state first
+			// Start polling for token
 			const tokenResponse = await auth0Service.pollForToken(
 				deviceAuth.device_code, 
 				deviceAuth.interval
 			);
 
-			// 獲取用戶資訊
+			// Get user information
 			await handleLoginSuccess(tokenResponse);
 
 		} catch (error: any) {
 			console.error('Polling failed:', error);
 			
-			// 確保停止 polling 操作
+			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
 			
 			if (error.message.includes('timeout')) {
@@ -120,24 +120,24 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const handleLoginSuccess = async (tokenResponse: TokenResponse) => {
 		try {
-			// 停止倒數計時
+			// Stop countdown timer
 			if (countdownTimer) {
 				clearInterval(countdownTimer);
 			}
 
-			// 停止 polling 操作
+			// Stop polling operation
 			auth0Service.stopPolling();
 
 			setState({ step: 'success' });
 
-			// 保存 token 到 plugin settings（通過 auth0Service）
+			// Save token to plugin settings (through auth0Service)
 			const plugin = (auth0Service as any).plugin;
 			plugin.settings.isLoggedIn = true;
 			plugin.settings.accessToken = tokenResponse.access_token;
 			plugin.settings.refreshToken = tokenResponse.refresh_token;
 			plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 
-			// 獲取用戶資訊
+			// Get user information
 			const userInfo = await auth0Service.getUserInfo();
 			plugin.settings.userInfo = {
 				email: userInfo.email,
@@ -145,19 +145,19 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				sub: userInfo.sub
 			};
 
-			// 保存設定
+			// Save settings
 			await plugin.saveSettings();
 
-			// 設置 token 刷新定時器
+			// Setup token refresh timer
 			auth0Service.setupTokenRefreshTimer();
 
-			console.log('登入成功:', userInfo);
+			console.log('Login successful:', userInfo);
 			onLoginSuccess(userInfo);
 
 		} catch (error: any) {
-			console.error('保存登入狀態失敗:', error);
+			console.error('Failed to save login state:', error);
 			
-			// 確保停止 polling 操作
+			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
 			
 			setState({ 
@@ -169,10 +169,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	};
 
 	const handleRetry = () => {
-		// 確保停止之前的 polling 操作
+		// Ensure previous polling operation is stopped
 		auth0Service.stopPolling();
 		
-		// 清理倒數計時器
+		// Clean up countdown timer
 		if (countdownTimer) {
 			clearInterval(countdownTimer);
 			setCountdownTimer(null);
@@ -191,14 +191,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		try {
 			await navigator.clipboard.writeText(text);
 		} catch (err) {
-			console.error('複製失敗:', err);
+			console.error('Copy failed:', err);
 		}
 	};
 
 	return (
 		<div className="login-component">
 			<div className="login-header">
-				<h2>Log in to NameCard AI</h2>
+				<h2>Log in to Agentmode</h2>
 			</div>
 
 			<div className="login-content">
@@ -214,7 +214,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 						<div className="login-options">
 							<h3>Choose Login Method</h3>
 							
-							{/* 主要選項：一鍵登入 */}
+							{/* Primary option: One-click login */}
 							<div className="primary-login-option">
 								<button 
 									className="primary-login-btn"
@@ -225,7 +225,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 								<p className="primary-login-desc">Click to automatically open browser and complete login</p>
 							</div>
 
-							{/* 手動登入選項 (可摺疊) */}
+							{/* Manual login option (collapsible) */}
 							<div className="manual-login-section">
 								<button 
 									className="manual-login-toggle"

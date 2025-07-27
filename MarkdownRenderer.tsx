@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { Notice } from 'obsidian';
 
-// 懶加載語法高亮組件
+// Lazy load syntax highlighting components
 const LazyMarkdown = lazy(() => import('react-markdown'));
 const LazySyntaxHighlighter = lazy(() => 
   import('react-syntax-highlighter').then(module => ({
@@ -15,7 +15,7 @@ interface CodeBlockProps {
   inline?: boolean;
 }
 
-// 自定義代碼區塊組件，支援行號和複製按鈕
+// Custom code block component with line numbers and copy button support
 const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) => {
   const [copied, setCopied] = useState(false);
   
@@ -31,7 +31,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
     }
   }, [children]);
 
-  // 如果是行內代碼
+  // If it's inline code
   if (inline) {
     return (
       <code 
@@ -49,7 +49,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
     );
   }
 
-  // 提取語言
+  // Extract language
   const match = /language-(\w+)/.exec(className || '');
   const language = match ? match[1] : 'text';
 
@@ -62,7 +62,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
       backgroundColor: 'var(--background-secondary)',
       border: '1px solid var(--background-modifier-border)'
     }}>
-      {/* 代碼區塊頭部 */}
+      {/* Code block header */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -104,7 +104,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
         </button>
       </div>
 
-      {/* 語法高亮代碼區塊 */}
+      {/* Syntax highlighted code block */}
       <Suspense fallback={
         <div style={{
           padding: '16px',
@@ -124,7 +124,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
   );
 };
 
-// 懶加載的語法高亮組件
+// Lazy loaded syntax highlighting component
 const LazyCodeHighlighter: React.FC<{ language: string; code: string }> = ({ language, code }) => {
   const [isLightTheme, setIsLightTheme] = useState(false);
   const [style, setStyle] = useState<any>({});

@@ -14,7 +14,7 @@ import { RequestOptions } from 'openai/internal/request-options';
 interface AgentPluginSettings {
 	openaiApiKey: string;
 	
-	// Auth0 登入狀態
+	// Auth0 login status
 	isLoggedIn: boolean;
 	accessToken?: string;
 	refreshToken?: string;
@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: AgentPluginSettings = {
 	isLoggedIn: false
 }
 
-// Auth0 相關類型定義
+// Auth0 related type definitions
 export interface Auth0Config {
 	domain: string;
 	clientId: string;
@@ -159,7 +159,7 @@ export enum Model {
 	Ask = 'Ask',
   }
 
-// Auth0 服務類別
+// Auth0 service class
 export class Auth0Service {
 	private plugin: AgentPlugin;
 	private config: Auth0Config;
@@ -171,7 +171,7 @@ export class Auth0Service {
 		this.config = config;
 	}
 
-	// 啟動 Device Authorization Flow
+	// Start Device Authorization Flow
 	async startDeviceAuth(): Promise<DeviceAuthState> {
 		const url = `https://${this.config.domain}/oauth/device/code`;
 		const body = new URLSearchParams({
@@ -197,19 +197,19 @@ export class Auth0Service {
 		return data as DeviceAuthState;
 	}
 
-	// 輪詢檢查授權狀態
+	// Poll to check authorization status
 	async pollForToken(deviceCode: string, interval: number = 2): Promise<TokenResponse> {
 		return new Promise((resolve, reject) => {
-			// 確保停止之前的 polling
+			// Ensure previous polling is stopped
 			this.stopPolling();
 			
 			let attempts = 0;
-			const maxAttempts = 150; // 5 分鐘超時 (150 * 2 秒)
+			const maxAttempts = 150; // 5 minute timeout (150 * 2 seconds)
 			
-			// 設置 polling 標誌
+			// Set polling flag
 			this.isPolling = true;
 			
-			// 包裝 resolve 和 reject 以確保清理狀態
+			// Wrap resolve and reject to ensure state cleanup
 			const wrappedResolve = (value: TokenResponse) => {
 				this.isPolling = false;
 				resolve(value);
@@ -221,7 +221,7 @@ export class Auth0Service {
 			};
 
 			const poll = async () => {
-				// 檢查是否已經停止 polling
+				// Check if polling has been stopped
 				if (!this.isPolling) {
 					console.log('Polling stopped, aborting current poll');
 					return;
@@ -239,7 +239,7 @@ export class Auth0Service {
 				attempts++;
 
 				try {
-					// 再次檢查是否已經停止 polling（在發送請求前）
+					// Check again if polling has been stopped (before sending request)
 					if (!this.isPolling) {
 						console.log('Polling stopped, aborting before request');
 						return;
@@ -260,7 +260,7 @@ export class Auth0Service {
 						body: body.toString()
 					});
 
-					// 檢查是否已經停止 polling（在處理響應前）
+					// Check if polling has been stopped (before processing response)
 					if (!this.isPolling) {
 						console.log('Polling stopped, aborting after request');
 						return;
@@ -275,14 +275,14 @@ export class Auth0Service {
 						}
 						wrappedResolve(data as TokenResponse);
 					} else if (data.error === 'authorization_pending') {
-						// 繼續輪詢
+						// Continue polling
 						return;
 					} else if (data.error === 'slow_down') {
-						// Auth0 要求減慢輪詢頻率
+						// Auth0 requests to slow down polling frequency
 						if (this.pollingTimer) {
 							clearInterval(this.pollingTimer);
 						}
-						// 只有在還在 polling 時才設置新的 timer
+						// Only set new timer if still polling
 						if (this.isPolling) {
 							this.pollingTimer = setInterval(poll, (interval + 5) * 1000);
 						}
@@ -296,22 +296,22 @@ export class Auth0Service {
 					}
 				} catch (error: any) {
 					console.error('Polling error:', error);
-					// 檢查是否已經停止 polling（在錯誤發生後）
+					// Check if polling has been stopped (after error occurred)
 					if (!this.isPolling) {
 						console.log('Polling stopped, aborting after error');
 						return;
 					}
-					// 網路錯誤，繼續嘗試
+					// Network error, continue trying
 				}
 			};
 
-			// 開始輪詢
+			// Start polling
 			this.pollingTimer = setInterval(poll, interval * 1000);
-			poll(); // 立即執行第一次
+			poll(); // Execute first time immediately
 		});
 	}
 
-	// 停止輪詢
+	// Stop polling
 	stopPolling() {
 		console.log('stopPolling');
 		this.isPolling = false;
@@ -321,7 +321,7 @@ export class Auth0Service {
 		}
 	}
 
-	// 刷新 Token
+	// Refresh Token
 	async refreshToken(): Promise<TokenResponse> {
 		if (!this.plugin.settings.refreshToken) {
 			throw new Error('No refresh token available');
@@ -351,7 +351,7 @@ export class Auth0Service {
 		return data as TokenResponse;
 	}
 
-	// 獲取用戶資訊
+	// Get user information
 	async getUserInfo(): Promise<Auth0UserInfo> {
 		if (!this.plugin.settings.accessToken) {
 			throw new Error('No access token available');
@@ -373,7 +373,7 @@ export class Auth0Service {
 		return data as Auth0UserInfo;
 	}
 
-	// 檢查 Token 是否即將過期（30分鐘內過期）
+	// Check if Token is about to expire (expires within 30 minutes)
 	isTokenExpiringSoon(): boolean {
 		if (!this.plugin.settings.tokenExpiry) {
 			return true;
@@ -383,34 +383,34 @@ export class Auth0Service {
 		return (this.plugin.settings.tokenExpiry - now) < thirtyMinutes;
 	}
 
-	// 設置自動刷新定時器
+	// Setup automatic token refresh timer
 	setupTokenRefreshTimer() {
-		// 清除現有定時器
+		// Clear existing timer
 		if (this.plugin.tokenRefreshTimer) {
 			clearInterval(this.plugin.tokenRefreshTimer);
 		}
 
-		// 每 5 分鐘檢查一次
+		// Check every 5 minutes
 		this.plugin.tokenRefreshTimer = setInterval(async () => {
 			if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
 				try {
-					console.log('Token即將過期，開始自動刷新...');
+					console.log('Token is about to expire, starting automatic refresh...');
 					await this.autoRefreshToken();
 				} catch (error: any) {
-					console.error('自動刷新Token失敗:', error);
+					console.error('Automatic token refresh failed:', error);
 					new Notice('Login session expired, please log in again');
 					await this.logout();
 				}
 			}
-		}, 5 * 60 * 1000); // 5 分鐘
+		}, 5 * 60 * 1000); // 5 minutes
 	}
 
-	// 自動刷新 Token
+	// Automatically refresh Token
 	private async autoRefreshToken() {
 		try {
 			const tokenResponse = await this.refreshToken();
 			
-			// 更新設定
+			// Update settings
 			this.plugin.settings.accessToken = tokenResponse.access_token;
 			if (tokenResponse.refresh_token) {
 				this.plugin.settings.refreshToken = tokenResponse.refresh_token;
@@ -418,25 +418,25 @@ export class Auth0Service {
 			this.plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 			
 			await this.plugin.saveSettings();
-			console.log('Token 刷新成功');
+			console.log('Token refresh successful');
 		} catch (error: any) {
-			console.error('Token 刷新失敗:', error);
+			console.error('Token refresh failed:', error);
 			throw error;
 		}
 	}
 
-	// 登出
+	// Logout
 	async logout() {
-		// 停止輪詢
+		// Stop polling
 		this.stopPolling();
 		
-		// 清除定時器
+		// Clear timer
 		if (this.plugin.tokenRefreshTimer) {
 			clearInterval(this.plugin.tokenRefreshTimer);
 			this.plugin.tokenRefreshTimer = null;
 		}
 
-		// 清空登入狀態
+		// Clear login status
 		this.plugin.settings.isLoggedIn = false;
 		this.plugin.settings.accessToken = undefined;
 		this.plugin.settings.refreshToken = undefined;
@@ -445,16 +445,16 @@ export class Auth0Service {
 
 		await this.plugin.saveSettings();
 		
-		// 通知用戶
+		// Notify user
 		new Notice('Logged out');
-		console.log('用戶已登出');
+		console.log('User has logged out');
 
-		// 更新狀態欄
+		// Update status bar
 		this.plugin.updateStatusBar();
 	}
 }
 
-// 登入 Modal
+// Login Modal
 export class LoginModal extends Modal {
 	private plugin: AgentPlugin;
 	private root: Root | null = null;
@@ -470,26 +470,26 @@ export class LoginModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('login-modal');
 
-		// 設置 Modal 標題
-		this.titleEl.setText('Log in to NameCard AI');
+		// Set Modal title
+		this.titleEl.setText('Log in to Agentmode');
 
-		// 創建 React 根節點
+		// Create React root node
 		this.root = createRoot(contentEl);
 		
-		// 渲染 LoginComponent
+		// Render LoginComponent
 		this.root.render(
 			React.createElement(StrictMode, null,
 				React.createElement(LoginComponent, {
 					auth0Service: this.plugin.getAuth0Service()!,
 					onLoginSuccess: (userInfo: Auth0UserInfo) => {
-						console.log('登入成功:', userInfo);
+						console.log('Login successful:', userInfo);
 						new Notice(`Welcome, ${userInfo.name || userInfo.email}!`);
 						this.resolveLogin(true);
 						this.close();
 					},
 					onLoginError: (error: string) => {
-						console.error('登入錯誤:', error);
-						// 錯誤已經在 LoginComponent 中處理，這裡不關閉 Modal
+						console.error('Login error:', error);
+						// Error already handled in LoginComponent, don't close Modal here
 					},
 					onCancel: () => {
 						this.resolveLogin(false);
@@ -506,13 +506,13 @@ export class LoginModal extends Modal {
 			this.root = null;
 		}
 		
-		// 確保停止 Auth0Service 的輪詢
+		// Ensure Auth0Service polling is stopped
 		const auth0Service = this.plugin.getAuth0Service();
 		if (auth0Service) {
 			auth0Service.stopPolling();
 		}
 
-		// 如果 Promise 還沒有解決，就以取消處理
+		// If Promise hasn't been resolved yet, handle as cancelled
 		if (this.resolvePromise) {
 			this.resolvePromise(false);
 			this.resolvePromise = null;
@@ -523,7 +523,7 @@ export class LoginModal extends Modal {
 		contentEl.removeClass('login-modal');
 	}
 
-	// 返回 Promise，讓調用者知道登入結果
+	// Return Promise to let caller know login result
 	async showLogin(): Promise<boolean> {
 		return new Promise((resolve) => {
 			this.resolvePromise = resolve;
@@ -547,7 +547,7 @@ export default class AgentPlugin extends Plugin {
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 	private openaiClient: OpenAI | null = null;
 	
-	// Auth0 配置
+	// Auth0 configuration
 	private auth0Config: Auth0Config;
 	public tokenRefreshTimer: NodeJS.Timeout | null = null;
 	private auth0Service: Auth0Service | null = null;
@@ -656,7 +656,7 @@ export default class AgentPlugin extends Plugin {
 	initializeOpenAI() {
 		const backendUrl = process.env.BACKEND_BASE_URL;
 		const config: any = {
-			apiKey: '', // 這裡先不設定，在呼叫時才決定
+			apiKey: '', // Don't set this here, decide when calling
 			dangerouslyAllowBrowser: true,
 			baseURL: backendUrl,
 		};
@@ -676,7 +676,7 @@ export default class AgentPlugin extends Plugin {
 			audience: this.auth0Config.audience ? 'configured' : 'missing'
 		});
 		
-		// 驗證配置是否完整
+		// Validate if configuration is complete
 		if (!this.auth0Config.domain || !this.auth0Config.clientId || !this.auth0Config.audience) {
 			console.warn('Auth0 configuration incomplete. Some Auth0 features may not work.');
 			new Notice('Auth0 configuration incomplete, please check environment variables');
@@ -684,27 +684,27 @@ export default class AgentPlugin extends Plugin {
 	}
 
 	initializeAuth0Service() {
-		// 創建 Auth0Service 實例
+		// Create Auth0Service instance
 		this.auth0Service = new Auth0Service(this, this.auth0Config);
 		
-		// 如果已經登入，設置 token 刷新定時器
+		// If already logged in, set up token refresh timer
 		if (this.settings.isLoggedIn && this.settings.accessToken) {
 			this.auth0Service.setupTokenRefreshTimer();
-			console.log('已登入用戶，已設置 token 刷新定時器');
+			console.log('Logged in user detected, token refresh timer set up');
 		}
 	}
 
 	initializeStatusBar() {
-		// 創建狀態欄元素
+		// Create status bar element
 		this.statusBarElement = this.addStatusBarItem();
 		this.statusBarElement.addClass('auth-status-bar');
 		
-		// 添加點擊事件
+		// Add click event
 		this.statusBarElement.addEventListener('click', () => {
 			this.showStatusBarMenu();
 		});
 		
-		// 更新狀態欄顯示
+		// Update status bar display
 		this.updateStatusBar();
 	}
 
@@ -714,21 +714,21 @@ export default class AgentPlugin extends Plugin {
 		this.statusBarElement.empty();
 		
 		if (this.isLoggedIn()) {
-			// 已登入狀態
+			// Logged in status
 			const userInfo = this.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			
-			// 添加圖示
+			// Add icon
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-in' });
 			icon.innerHTML = '✅';
 			
-			// 添加用戶名稱
+			// Add user name
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
 			text.textContent = 'Agent Mode';
 			
 			this.statusBarElement.title = `Logged in: ${userName}\nClick to view options`;
 		} else {
-			// 未登入狀態
+			// Not logged in status
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-out' });
 			icon.innerHTML = '⚫';
 			
@@ -743,7 +743,7 @@ export default class AgentPlugin extends Plugin {
 		const menu = new Menu();
 		
 		if (this.isLoggedIn()) {
-			// 已登入，顯示用戶資訊和登出選項
+			// Logged in, show user info and logout option
 			const userInfo = this.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
@@ -773,7 +773,7 @@ export default class AgentPlugin extends Plugin {
 					});
 			});
 		} else {
-			// 未登入，顯示登入選項
+			// Not logged in, show login option
 			menu.addItem((item: any) => {
 				item.setTitle('Log in')
 					.setIcon('log-in')
@@ -784,7 +784,7 @@ export default class AgentPlugin extends Plugin {
 			});
 		}
 		
-		// 加上設定選項
+		// Add settings option
 		menu.addSeparator();
 		
 		menu.addItem((item: any) => {
@@ -796,7 +796,7 @@ export default class AgentPlugin extends Plugin {
 				});
 		});
 		
-		// 顯示選單
+		// Show menu
 		menu.showAtMouseEvent(event as MouseEvent);
 	}
 
@@ -1061,7 +1061,7 @@ export default class AgentPlugin extends Plugin {
 				const delta = chunk.choices[0]?.delta;
 				if (delta?.content) {
 					onChunk(delta.content);
-					// 累積最終內容
+					// Accumulate final content
 					finalAssistantContent += delta.content;
 				}
 				
@@ -2035,7 +2035,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				return null;
 			}
 
-			// 建立請求選項，與其他 OpenAI 呼叫保持一致
+			// Build request options, consistent with other OpenAI calls
 			const reqOptions: RequestOptions = {
 				headers: {
 					'Authorization': `Bearer ${this.settings.accessToken}`
@@ -2068,7 +2068,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		});
 		this.fileProcessingTimeouts.clear();
 		
-		// 清理 Auth0 相關定時器
+		// Clear Auth0 related timers
 		if (this.tokenRefreshTimer) {
 			clearInterval(this.tokenRefreshTimer);
 			this.tokenRefreshTimer = null;
@@ -2213,14 +2213,14 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return this.pendingCreateNoteConfirmation;
 	}
 
-	// Auth0 相關公共方法
+	// Auth0 related public methods
 	getAuth0Service(): Auth0Service | null {
 		return this.auth0Service;
 	}
 
 	async startLogin(): Promise<void> {
 		if (!this.auth0Service) {
-			new Notice('Auth0 服務未初始化');
+			new Notice('Auth0 service not initialized');
 			return;
 		}
 
@@ -2229,13 +2229,13 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			const success = await loginModal.showLogin();
 			
 			if (success) {
-				console.log('用戶登入成功');
+				console.log('User login successful');
 				this.updateStatusBar();
 			} else {
-				console.log('用戶取消登入');
+				console.log('User cancelled login');
 			}
 		} catch (error: any) {
-			console.error('登入失敗:', error);
+			console.error('Login failed:', error);
 			new Notice(`Login failed: ${error.message}`);
 		}
 	}
@@ -2247,9 +2247,9 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 
 		try {
 			await this.auth0Service.logout();
-			// 這裡後續會添加 UI 更新邏輯
+			// UI update logic will be added here later
 		} catch (error: any) {
-			console.error('登出失敗:', error);
+			console.error('Logout failed:', error);
 			new Notice(`Logout failed: ${error.message}`);
 		}
 	}
@@ -2262,7 +2262,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return this.settings.userInfo || null;
 	}
 
-	// 獲取用戶 profile（包含 subscription 信息）
+	// Get user profile (including subscription information)
 	async getUserProfile(): Promise<any> {
 		if (!this.isLoggedIn() || !this.settings.accessToken) {
 			throw new Error('Not logged in');
@@ -2294,7 +2294,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		}
 	}
 
-	// 獲取 Stripe Billing Portal Session URL
+	// Get Stripe Billing Portal Session URL
 	async getBillingSession(): Promise<string> {
 		if (!this.isLoggedIn() || !this.settings.accessToken) {
 			throw new Error('Not logged in');
@@ -2358,13 +2358,13 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		// Auth0 登入狀態區塊
+		// Auth0 login status section
 		containerEl.createEl('h3', { text: 'Login Status' });
 		
 		const authContainer = containerEl.createDiv('auth-settings-container');
 		
 		if (this.plugin.isLoggedIn()) {
-			// 顯示已登入狀態
+			// Show logged in status
 			const userInfo = this.plugin.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
@@ -2376,23 +2376,23 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'auth-user-info' });
 			}
 			
-			// 添加 subscription 信息
+			// Add subscription information
 			const subscriptionDiv = statusDiv.createDiv('subscription-info');
 			subscriptionDiv.createEl('div', { text: 'Loading subscription...', cls: 'subscription-loading' });
 			
-			// 異步獲取用戶 profile
-			this.plugin.getUserProfile().then(profileData => {
-				// 清空 loading 信息
+							// Asynchronously get user profile
+				this.plugin.getUserProfile().then(profileData => {
+				// Clear loading information
 				subscriptionDiv.empty();
 				
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
 					
-					// 創建帶有刷新按鈕的標題
+					// Create header with refresh button
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					
 					if (subscription) {
-						// 顯示有效訂閱信息
+						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
 						subscriptionDetails.createEl('div', { 
 							text: `Plan: ${subscription.product_name}`, 
@@ -2403,7 +2403,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							cls: 'subscription-status-active' 
 						});
 						
-						// 顯示訂閱期限
+						// Show subscription period
 						if (subscription.plan_id !== 'free') {
 							const periodEnd = new Date(subscription.current_period_end);
 							subscriptionDetails.createEl('div', { 
@@ -2412,7 +2412,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							});
 						}
 						
-						// 如果有試用期，顯示試用信息
+						// If there is a trial period, show trial information
 						if (subscription.trial_end) {
 							const trialEnd = new Date(subscription.trial_end);
 							if (trialEnd > new Date()) {
@@ -2424,17 +2424,17 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						}
 					}
 
-					// 添加 Billing Portal 按鈕（對所有登入用戶顯示）
+					// Add Billing Portal button (shown to all logged in users)
 					this.addBillingPortalButton(subscriptionDiv);
 				} else {
-					// 顯示錯誤信息
+					// Show error information
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
 						cls: 'subscription-error' 
 					});
 					
-					// 即使加載失敗也顯示 Billing Portal 按鈕
+					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
 				}
 			}).catch(error => {
@@ -2442,7 +2442,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.logout();
 					this.display();
 				} else {
-					// 顯示錯誤信息
+					// Show error information
 					subscriptionDiv.empty();
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
@@ -2451,13 +2451,13 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					});
 					console.error('Failed to load user profile:', error);
 					
-					// 即使出錯也顯示 Billing Portal 按鈕
+					// Show Billing Portal button even if there's an error
 					this.addBillingPortalButton(subscriptionDiv);
 				}
 				
 			});
 			
-			// 登出按鈕
+			// Logout button
 			new Setting(authContainer)
 				.setName('Log out')
 				.setDesc('Log out of current account')
@@ -2466,34 +2466,34 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					.setCta()
 					.onClick(async () => {
 						await this.plugin.logout();
-						this.display(); // 重新渲染設定頁面
+						this.display(); // Re-render settings page
 					}));
 		} else {
-			// 顯示未登入狀態
+			// Show not logged in status
 			const statusDiv = authContainer.createDiv('auth-status-info');
 			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'auth-status-logged-out' });
 			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'auth-status-desc' });
 			
-			// 登入按鈕
+			// Login button
 			new Setting(authContainer)
 				.setName('Log in')
-				.setDesc('Log in to your NameCard AI account')
+				.setDesc('Log in to your Agentmode account')
 				.addButton(button => button
 					.setButtonText('Start Login')
 					.setCta()
 					.onClick(async () => {
 						await this.plugin.startLogin();
-						this.display(); // 重新渲染設定頁面
+						this.display(); // Re-render settings page
 					}));
 		}
 		
-		// 分隔線
+		// Separator line
 		containerEl.createEl('hr', { cls: 'auth-settings-separator' });
 		
-		// OpenAI API Key 設定
+		// OpenAI API Key settings
 		containerEl.createEl('h3', { text: 'Bring Your Own Key' });
 
-		// 添加重要提示
+		// Add important notice
 		const keyInfoEl = containerEl.createEl('p', { cls: 'byok-info' });
 		keyInfoEl.innerHTML = `<strong>How this works:</strong> Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don't need to enter your own key (even if you've entered one, we'll directly ignore your key and use our managed service).`;
 		keyInfoEl.style.padding = '12px';
@@ -2515,15 +2515,15 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				}));
 	}
 
-	// 添加 Billing Portal 按鈕的輔助方法
+	// Helper method to add Billing Portal button
 	private addBillingPortalButton(containerDiv: HTMLElement) {
-		// 直接創建按鈕，不需要獨立的亮色容器
+		// Create button directly, no need for separate bright container
 		const billingButton = containerDiv.createEl('button', {
 			text: 'Open Billing Portal',
 			cls: 'billing-portal-button'
 		});
 
-		// 按鈕樣式 - 更簡潔的設計
+		// Button style - more concise design
 		billingButton.style.backgroundColor = '#667eea';
 		billingButton.style.color = 'white';
 		billingButton.style.border = 'none';
@@ -2535,7 +2535,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		billingButton.style.marginTop = '0.75rem';
 		billingButton.style.display = 'block';
 
-		// 懸停效果
+		// Hover effect
 		billingButton.addEventListener('mouseenter', () => {
 			billingButton.style.backgroundColor = '#5a6fd8';
 		});
@@ -2544,32 +2544,32 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			billingButton.style.backgroundColor = '#667eea';
 		});
 
-		// 點擊事件
+		// Click event
 		billingButton.addEventListener('click', async () => {
-			// 顯示載入狀態
+			// Show loading state
 			const originalText = billingButton.textContent;
 			billingButton.textContent = '⏳ Opening...';
 			billingButton.disabled = true;
 			billingButton.style.opacity = '0.7';
 
 			try {
-				// 獲取 billing session URL
+				// Get billing session URL
 				const billingUrl = await this.plugin.getBillingSession();
 				
-				// 打開外部瀏覽器 - 使用類似 LoginComponent 的方式
+				// Open external browser - similar to LoginComponent approach
 				window.open(billingUrl, '_blank', 'noopener,noreferrer');
 				
 			} catch (error: any) {
 				console.error('Failed to open billing portal:', error);
 				
-				// 顯示錯誤通知
+				// Show error notification
 				if (error.message.includes('Not logged in')) {
 					new Notice('Please log in first to manage billing');
 				} else {
 					new Notice('Failed to open billing portal. Please try again.');
 				}
 			} finally {
-				// 恢復按鈕狀態
+				// Restore button state
 				billingButton.textContent = originalText;
 				billingButton.disabled = false;
 				billingButton.style.opacity = '1';
@@ -2577,7 +2577,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		});
 	}
 
-	// 創建帶有刷新按鈕的訂閱標題
+	// Create subscription header with refresh button
 	private createSubscriptionHeaderWithRefresh(containerDiv: HTMLElement, subscriptionDiv: HTMLElement): HTMLElement {
 		const headerContainer = containerDiv.createEl('div');
 		headerContainer.style.display = 'flex';
@@ -2585,19 +2585,19 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		headerContainer.style.justifyContent = 'space-between';
 		headerContainer.style.marginBottom = '0.5rem';
 
-		// 標題文字
+		// Title text
 		const titleEl = headerContainer.createEl('div', { 
 			text: 'Current Subscription', 
 			cls: 'subscription-header' 
 		});
 
-		// 刷新按鈕
+		// Refresh button
 		const refreshButton = headerContainer.createEl('button', {
 			text: '🔄',
 			cls: 'subscription-refresh-button'
 		});
 
-		// 刷新按鈕樣式
+		// Refresh button style
 		refreshButton.style.backgroundColor = 'transparent';
 		refreshButton.style.border = 'none';
 		refreshButton.style.cursor = 'pointer';
@@ -2607,7 +2607,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		refreshButton.style.opacity = '0.7';
 		refreshButton.style.transition = 'opacity 0.2s, background-color 0.2s';
 
-		// 懸停效果
+		// Hover effect
 		refreshButton.addEventListener('mouseenter', () => {
 			refreshButton.style.opacity = '1';
 			refreshButton.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
@@ -2618,33 +2618,33 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			refreshButton.style.backgroundColor = 'transparent';
 		});
 
-		// 點擊事件 - 刷新訂閱信息
+		// Click event - refresh subscription information
 		refreshButton.addEventListener('click', async () => {
-			// 顯示載入狀態
+			// Show loading state
 			const originalText = refreshButton.textContent;
 			refreshButton.textContent = '⏳';
 			refreshButton.disabled = true;
 			refreshButton.style.opacity = '0.5';
 
 			try {
-				// 顯示載入中
+				// Show loading
 				subscriptionDiv.empty();
 				subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'subscription-loading' });
 
-				// 重新獲取用戶 profile
+				// Re-fetch user profile
 				const profileData = await this.plugin.getUserProfile();
 				
-				// 清空並重新顯示
+				// Clear and re-display
 				subscriptionDiv.empty();
 				
-				// 重新創建標題（遞歸調用）
+				// Re-create header (recursive call)
 				const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 				
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
 					
 					if (subscription) {
-						// 顯示有效訂閱信息
+						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
 						subscriptionDetails.createEl('div', { 
 							text: `Plan: ${subscription.product_name}`, 
@@ -2655,7 +2655,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							cls: 'subscription-status-active' 
 						});
 						
-						// 顯示訂閱期限
+						// Show subscription period
 						if (subscription.plan_id !== 'free') {
 							const periodEnd = new Date(subscription.current_period_end);
 							subscriptionDetails.createEl('div', { 
@@ -2665,7 +2665,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						}
 						
 						
-						// 如果有試用期，顯示試用信息
+						// If there is a trial period, show trial information
 						if (subscription.trial_end) {
 							const trialEnd = new Date(subscription.trial_end);
 							if (trialEnd > new Date()) {
@@ -2677,16 +2677,16 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						}
 					}
 
-					// 添加 Billing Portal 按鈕
+					// Add Billing Portal button
 					this.addBillingPortalButton(subscriptionDiv);
 				} else {
-					// 顯示錯誤信息
+					// Show error information
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
 						cls: 'subscription-error' 
 					});
 					
-					// 即使加載失敗也顯示 Billing Portal 按鈕
+					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
 				}
 
@@ -2696,7 +2696,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.logout();
 					this.display();
 				}else {
-					// 顯示錯誤
+					// Show error
 					subscriptionDiv.empty();
 					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
@@ -2707,7 +2707,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				}
 				
 			} finally {
-				// 恢復按鈕狀態（如果按鈕還存在的話）
+				// Restore button state (if button still exists)
 				if (refreshButton.isConnected) {
 					refreshButton.textContent = originalText;
 					refreshButton.disabled = false;

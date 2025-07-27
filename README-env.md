@@ -1,69 +1,69 @@
-# 環境變數配置說明
+# Environment Variables Configuration
 
-## 概述
+## Overview
 
-前端 plugin 現在支援透過環境變數來配置後端 URL，而不需要使用者手動設定。這樣可以在開發和生產環境中使用不同的配置。
+The frontend plugin now supports configuring the backend URL through environment variables instead of requiring manual user configuration. This allows for different configurations in development and production environments.
 
-## 環境變數文件
+## Environment Variable Files
 
-### `.env.development` - 開發環境
+### `.env.development` - Development Environment
 ```bash
 # Development environment configuration
 # Backend URL for local development
 BACKEND_BASE_URL=http://localhost:8080/v1
 ```
 
-### `.env.production` - 生產環境  
+### `.env.production` - Production Environment  
 ```bash
 # Production environment configuration
 # Backend URL for production (can be empty to use OpenAI directly)
 BACKEND_BASE_URL=
 ```
 
-### `.env.example` - 範例文件
-這是一個範例文件，可以複製並修改為 `.env.development` 或 `.env.production`。
+### `.env.example` - Example File
+This is an example file that can be copied and modified as `.env.development` or `.env.production`.
 
-## 構建命令
+## Build Commands
 
-### 開發模式
+### Development Mode
 ```bash
 npm run dev
 ```
-使用 `.env.development` 配置，啟動開發伺服器
+Uses `.env.development` configuration and starts the development server
 
-### 生產構建  
+### Production Build  
 ```bash
 npm run build
-# 或明確指定
+# or explicitly specify
 npm run build:prod
 ```
-使用 `.env.production` 配置進行生產構建
+Uses `.env.production` configuration for production build
 
-### 開發構建
+### Development Build
 ```bash
 npm run build:dev  
 ```
-使用 `.env.development` 配置進行構建（用於測試開發配置的構建結果）
+Uses `.env.development` configuration for building (for testing the build result of development configuration)
 
-## 使用方式
+## Usage
 
-1. **複製範例文件**
+1. **Copy Example Files**
    ```bash
    cp .env.example .env.development
    cp .env.example .env.production
    ```
 
-2. **修改配置**
-   - 在 `.env.development` 中設定本地後端 URL: `http://localhost:8080/v1`
-   - 在 `.env.production` 中可以留空（直接使用 OpenAI API）或設定生產後端 URL
+2. **Modify Configuration**
+   - Set local backend URL in `.env.development`: `http://localhost:8080/v1`
+   - In `.env.production`, can be left empty (use OpenAI API directly) or set production backend URL
 
-3. **構建**
-   - 開發: `npm run dev` 或 `npm run build:dev`
-   - 生產: `npm run build` 或 `npm run build:prod`
+3. **Build**
+   - Development: `npm run dev` or `npm run build:dev`
+   - Production: `npm run build` or `npm run build:prod`
 
-## 注意事項
+## Notes
 
-- `.env.development` 和 `.env.production` 已添加到 `.gitignore`，不會被提交到版本控制
-- 只有 `.env.example` 會被提交，作為配置範例
-- 如果 `BACKEND_BASE_URL` 為空，plugin 會直接使用 OpenAI API
-- 如果設定了 `BACKEND_BASE_URL`，plugin 會使用指定的後端服務 
+- `.env.development` and `.env.production` are added to `.gitignore` and will not be committed to version control
+- Only `.env.example` will be committed as a configuration example
+- If `BACKEND_BASE_URL` is empty, the plugin will use OpenAI API directly
+- If `BACKEND_BASE_URL` is set, the plugin will use the specified backend service 

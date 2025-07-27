@@ -52,19 +52,65 @@ The plugin now includes a modern chat interface with the following features:
    npm install
    ```
 
-2. **Development Mode**
+2. **Environment Configuration**
+   
+   The plugin supports configuring the backend URL through environment variables for different environments.
+
+   **Copy Example Files**
+   ```bash
+   cp .env.example .env.development
+   cp .env.example .env.production
+   ```
+
+   **Environment Variable Files:**
+   
+   - **`.env.development`** - Development Environment
+     ```bash
+     # Development environment configuration
+     # Backend URL for local development
+     BACKEND_BASE_URL=http://localhost:8080/v1
+     ```
+
+   - **`.env.production`** - Production Environment  
+     ```bash
+     # Production environment configuration
+     # Backend URL for production (can be empty to use OpenAI directly)
+     BACKEND_BASE_URL=
+     ```
+
+   **Configuration Notes:**
+   - `.env.development` and `.env.production` are added to `.gitignore` and will not be committed to version control
+   - Only `.env.example` will be committed as a configuration example
+
+3. **Development & Build Commands**
+
+   **Development Mode**
    ```bash
    npm run dev
    ```
-   This starts compilation in watch mode and automatically rebuilds when you make changes.
+   Uses `.env.development` configuration and starts compilation in watch mode with automatic rebuilds.
 
-3. **Plugin Installation**
+   **Production Build**
+   ```bash
+   npm run build
+   # or explicitly specify
+   npm run build:prod
+   ```
+   Uses `.env.production` configuration for production build.
+
+   **Development Build**
+   ```bash
+   npm run build:dev  
+   ```
+   Uses `.env.development` configuration for building (for testing the build result of development configuration).
+
+4. **Plugin Installation**
    - Copy the built files (`main.js`, `styles.css`, `manifest.json`) to your vault's plugin folder:
      `VaultFolder/.obsidian/plugins/obsidian-agent-plugin/`
    - Or for development, place the entire project folder in your vault's plugins directory
    - Enable the plugin in Obsidian's settings
 
-4. **Testing Changes**
+5. **Testing Changes**
    - After making changes, reload Obsidian (Ctrl/Cmd + R)
    - The plugin will use the newly compiled code
 

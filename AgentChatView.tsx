@@ -121,7 +121,7 @@ interface UploadedImage {
   id: string;
   file: File;
   name: string;
-  base64Data: string; // 用於 OpenAI API
+  base64Data: string; // for OpenAI API
   size: number;
 }
 
@@ -233,7 +233,7 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, tooltip, onClick }) => {
   );
 };
 
-// 登入提示組件
+// Login prompt component
 interface LoginPromptProps {
   plugin: AgentPlugin;
   onLoginClick: () => void;
@@ -269,7 +269,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
           fontSize: 'var(--font-ui-large)',
           fontWeight: '600'
         }}>
-          需要登入才能使用
+          Login Required
         </h2>
         
         <p style={{
@@ -278,8 +278,8 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
           lineHeight: '1.5',
           fontSize: 'var(--font-ui-medium)'
         }}>
-          您需要登入 NameCard AI 帳號才能開始與 AI 助理對話。
-          登入後您將可以使用所有 AI 功能，包括筆記編輯、搜尋等。
+          You need to log in to your Agentmode account to start chatting with the AI assistant.
+          After logging in, you'll have access to all AI features including note editing and search.
         </p>
         
         <button
@@ -302,7 +302,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
             e.currentTarget.style.backgroundColor = 'var(--interactive-accent)';
           }}
         >
-          開始登入
+          Start Login
         </button>
         
         <div style={{
@@ -318,7 +318,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
             fontWeight: '600',
             color: 'var(--text-normal)'
           }}>
-            登入方式
+            Login Method
           </h4>
           <p style={{
             margin: '0',
@@ -326,8 +326,8 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
             color: 'var(--text-muted)',
             lineHeight: '1.4'
           }}>
-            我們使用安全的 Device Authorization Flow，
-            您需要在瀏覽器中完成授權後即可開始使用。
+            We use secure Device Authorization Flow.
+            You'll need to complete authorization in your browser to start using the features.
           </p>
         </div>
       </div>
@@ -339,7 +339,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
-  const [chatMode, setChatMode] = useState<'Ask' | 'Agent'>('Ask');
+  const [chatMode, setChatMode] = useState<'Ask' | 'Agent'>('Agent');
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -362,7 +362,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
   
-  // 添加登入狀態監聽
+  // Add login state monitoring
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(plugin.isLoggedIn());
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -465,16 +465,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     scrollToBottom();
   }, [messages]);
 
-  // 監聽登入狀態變化
+  // Monitor login state changes
   useEffect(() => {
     const checkLoginStatus = () => {
       setIsLoggedIn(plugin.isLoggedIn());
     };
 
-    // 初始檢查
+    // Initial check
     checkLoginStatus();
 
-    // 每 5 秒檢查一次登入狀態（以防狀態變化沒有及時更新）
+    // Check login status every 5 seconds (in case state changes aren't updated promptly)
     const interval = setInterval(checkLoginStatus, 5000);
 
     return () => clearInterval(interval);
@@ -515,7 +515,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
 
-    // 檢查如果有圖片但模型不支援 Vision，給出警告
+    // Check if there are images but the model doesn't support Vision, give warning
     if (uploadedImages.length > 0 && !currentModelSupportsVision) {
       new Notice(`Current model "${getCurrentModel()?.name}" does not support image analysis. Please select a Vision-capable model (like GPT-4o)`);
       return;
@@ -747,7 +747,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
   };
 
-  // 檢查當前模型是否支援 Vision
+  // Check if current model supports Vision
   const getCurrentModel = () => AI_MODELS.find(model => model.id === selectedModel);
   const currentModelSupportsVision = getCurrentModel()?.supportVision || false;
 
@@ -765,26 +765,26 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // 檢查檔案類型
+      // Check file type
       if (!supportedTypes.includes(file.type)) {
         new Notice(`File "${file.name}" is not a supported image format. Supported formats: JPG, PNG, GIF, WebP, BMP`);
         continue;
       }
 
-      // 檢查檔案大小
+      // Check file size
       if (file.size > maxSize) {
         new Notice(`File "${file.name}" exceeds 50MB size limit`);
         continue;
       }
 
-      // 檢查是否已經上傳過
+      // Check if already uploaded
       if (uploadedImages.some(img => img.name === file.name && img.size === file.size)) {
         new Notice(`Image "${file.name}" has already been uploaded`);
         continue;
       }
 
       try {
-        // 將圖片轉換為 base64
+        // Convert image to base64
         const base64Data = await fileToBase64(file);
         
         const uploadedImage: UploadedImage = {
@@ -803,17 +803,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       }
     }
 
-    // 清除 input value 以允許重複選擇同一檔案
+    // Clear input value to allow selecting the same file again
     e.target.value = '';
   };
 
-  // 將檔案轉換為 base64
+  // Convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
-          // 移除 data:image/...;base64, 前綴，只保留 base64 內容
+          // Remove data:image/...;base64, prefix, keep only base64 content
           const base64 = reader.result.split(',')[1];
           resolve(base64);
         } else {
@@ -1135,14 +1135,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     setRejectReason('');
   };
 
-  // 處理登入按鈕點擊
+  // Handle login button click
   const handleLoginClick = async () => {
     try {
       await plugin.startLogin();
-      // 登入狀態會透過 useEffect 自動更新
+      // Login state will be automatically updated through useEffect
     } catch (error: any) {
-      console.error('登入失敗:', error);
-      new Notice(`登入失敗: ${error.message}`);
+      console.error('Login failed:', error);
+      new Notice(`Login failed: ${error.message}`);
     }
   };
 
@@ -1284,7 +1284,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           {/* Main message content */}
           {isToolResult ? (
             <div>
-              {/* 工具結果摘要（總是顯示）*/}
+              {/* Tool result summary (always visible) */}
               <div style={{
                 fontSize: '13px',
                 color: '#888',
@@ -1294,7 +1294,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 Click to expand detailed results ({message.content.length} characters)
               </div>
               
-              {/* 可收折的內容 */}
+              {/* Collapsible content */}
               {isToolResultExpanded && (
                 <div style={{
                   backgroundColor: '#1a1a1a',
@@ -1324,7 +1324,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               MozUserSelect: 'text',
               msUserSelect: 'text',
             }}>
-              {/* 根據消息類型選擇渲染方式 */}
+              {/* Choose rendering method based on message type */}
               {message.role === 'assistant' ? (
                 <MarkdownRenderer 
                   content={message.content}
@@ -1443,7 +1443,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     };
   }, []);
 
-  // 如果未登入，顯示登入提示
+  // If not logged in, show login prompt
   if (!isLoggedIn) {
     return (
       <LoginPrompt 
@@ -1573,7 +1573,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             <div style={{
               width: '100%',
               padding: '8px 12px',
-              backgroundColor: 'var(--background-primary-alt)', // 助理訊息的背景色
+              backgroundColor: 'var(--background-primary-alt)', // background color for assistant messages
               color: 'var(--text-normal)',
               position: 'relative',
             }}>
@@ -1941,8 +1941,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     minWidth: '80px'
                   }}
                 >
-                  <option value="Ask">Ask</option>
                   <option value="Agent">Agent</option>
+                  <option value="Ask">Ask</option>
                 </select>
                 <span style={{ 
                   fontSize: '12px', 
