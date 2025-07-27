@@ -1,0 +1,45 @@
+---
+globs: *.ts,*.tsx,*.js,*.jsx,*.css,*.md
+description: Frontend project English language requirements
+---
+
+# Frontend English Language Requirements
+
+This is an Obsidian plugin written in TypeScript/React. All UI text, code comments, and documentation must be in English.
+
+## Language Requirements
+
+### UI Text and Messages
+- All user-facing text must be in English
+- Error messages should be in English
+- Button labels, tooltips, and notifications must be in English
+- Console logs and debug messages should be in English
+
+### Code Comments
+- All code comments must be written in English
+- Function and class documentation should be in English
+- TODO comments and inline explanations must be in English
+
+### File and Variable Naming
+- Use descriptive English names for variables, functions, and classes
+- Follow camelCase convention for TypeScript/JavaScript
+- Use clear, self-documenting names
+
+## Code Style Guidelines
+
+### TypeScript/React Best Practices
+- Use TypeScript interfaces for type definitions
+- Prefer functional components with hooks
+- Use proper error handling with try-catch blocks
+- Keep components small and focused on single responsibility
+
+### Documentation
+- Add JSDoc comments for complex functions
+- Document component props and their types
+- Include usage examples in comments when helpful
+
+## Project Structure
+- Main plugin entry: [main.ts](mdc:main.ts)
+- React components: [AgentChatView.tsx](mdc:AgentChatView.tsx), [LoginComponent.tsx](mdc:LoginComponent.tsx)
+- Styles: [styles.css](mdc:styles.css)
+- Configuration: [manifest.json](mdc:manifest.json)
