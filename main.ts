@@ -454,6 +454,83 @@ export class Auth0Service {
 	}
 }
 
+// Payment Required Modal
+export class PaymentRequiredModal extends Modal {
+	private plugin: AgentPlugin;
+
+	constructor(app: App, plugin: AgentPlugin) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('payment-required-modal');
+
+		// Set Modal title
+		this.titleEl.setText('Upgrade Required');
+
+		// Main content container
+		const container = contentEl.createDiv('payment-modal-content');
+
+		// Error explanation
+		const explanationEl = container.createEl('p', { cls: 'payment-modal-explanation' });
+		explanationEl.setText('You are currently on the Free plan and no OpenAI API key is configured. To continue using AI features, please choose one of the following options:');
+
+		// Options container
+		const optionsContainer = container.createDiv('payment-modal-options');
+
+		// Option 1: Upgrade to Pro
+		const proOption = optionsContainer.createDiv('payment-modal-option');
+		proOption.createEl('h4', { text: '1. Upgrade to Agentmode PRO' });
+		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
+		
+		const proButton = proOption.createEl('button', { 
+			text: 'Open Billing Portal',
+			cls: 'payment-modal-button primary' 
+		});
+		proButton.onclick = async () => {
+			await this.plugin.openBillingPortal();
+			this.close();
+		};
+
+		// Option 2: Set up BYOK
+		const byokOption = optionsContainer.createDiv('payment-modal-option');
+		byokOption.createEl('h4', { text: '2. Bring Your Own OpenAI Key' });
+		byokOption.createEl('p', { text: 'Configure your own OpenAI API key to use AI features.' });
+		
+		const byokButton = byokOption.createEl('button', { 
+			text: 'Open Settings',
+			cls: 'payment-modal-button secondary' 
+		});
+		byokButton.onclick = () => {
+			this.plugin.openPluginSettings();
+			this.close();
+		};
+
+		// Cancel button
+		const buttonContainer = container.createDiv('payment-modal-buttons');
+		const cancelButton = buttonContainer.createEl('button', { 
+			text: 'Cancel',
+			cls: 'payment-modal-button cancel' 
+		});
+		cancelButton.onclick = () => {
+			this.close();
+		};
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.removeClass('payment-required-modal');
+	}
+
+	show() {
+		this.open();
+	}
+}
+
 // Login Modal
 export class LoginModal extends Modal {
 	private plugin: AgentPlugin;
@@ -791,8 +868,7 @@ export default class AgentPlugin extends Plugin {
 			item.setTitle('Settings')
 				.setIcon('settings')
 				.onClick(() => {
-					(this.app as any).setting.open();
-					(this.app as any).setting.openTabById(this.manifest.id);
+					this.openPluginSettings();
 				});
 		});
 		
@@ -1167,6 +1243,11 @@ export default class AgentPlugin extends Plugin {
 			console.error('Error in agent chat:', error);
 			if (error.status === 401) {
 				this.logout();
+			}
+			if (error.status === 402) {
+				// Show payment required modal
+				const paymentModal = new PaymentRequiredModal(this.app, this);
+				paymentModal.show();
 			}
 			onError(error.message || 'Unknown error occurred');
 		}
@@ -2326,6 +2407,33 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			throw error;
 		}
 	}
+
+	// Open Billing Portal (extracted from AgentPluginSettingTab)
+	async openBillingPortal(): Promise<void> {
+		try {
+			// Get billing session URL
+			const billingUrl = await this.getBillingSession();
+			
+			// Open external browser
+			window.open(billingUrl, '_blank', 'noopener,noreferrer');
+			
+		} catch (error: any) {
+			console.error('Failed to open billing portal:', error);
+			
+			// Show error notification
+			if (error.message.includes('Not logged in')) {
+				new Notice('Please log in first to manage billing');
+			} else {
+				new Notice('Failed to open billing portal. Please try again.');
+			}
+		}
+	}
+
+	// Open Plugin Settings (extracted from showStatusBarMenu)
+	openPluginSettings(): void {
+		(this.app as any).setting.open();
+		(this.app as any).setting.openTabById(this.manifest.id);
+	}
 }
 
 // class SampleModal extends Modal {
@@ -2553,21 +2661,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			billingButton.style.opacity = '0.7';
 
 			try {
-				// Get billing session URL
-				const billingUrl = await this.plugin.getBillingSession();
-				
-				// Open external browser - similar to LoginComponent approach
-				window.open(billingUrl, '_blank', 'noopener,noreferrer');
+				// Use the extracted public method
+				await this.plugin.openBillingPortal();
 				
 			} catch (error: any) {
+				// Error handling is already done in openBillingPortal method
 				console.error('Failed to open billing portal:', error);
-				
-				// Show error notification
-				if (error.message.includes('Not logged in')) {
-					new Notice('Please log in first to manage billing');
-				} else {
-					new Notice('Failed to open billing portal. Please try again.');
-				}
 			} finally {
 				// Restore button state
 				billingButton.textContent = originalText;
