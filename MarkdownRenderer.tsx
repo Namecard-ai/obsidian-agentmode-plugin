@@ -196,13 +196,27 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   style?: React.CSSProperties;
+  plugin?: any; // ObsidianCopilot plugin instance
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
   content, 
   className = '', 
-  style = {} 
+  style = {},
+  plugin
 }) => {
+  // Process content to make file paths clickable
+  const processedContent = React.useMemo(() => {
+    if (!plugin) return content;
+    
+    // Pattern to match file paths like Personal/daily_journals/2025-07-27.md
+    const filePathPattern = /(?:^|\s)((?:[A-Za-z0-9_\-]+\/)*[A-Za-z0-9_\-]+\.md)(?=\s|$)/g;
+    
+    // Convert file paths to markdown links
+    return content.replace(filePathPattern, (match, path) => {
+      return match.replace(path, `[${path}](${path})`);
+    });
+  }, [content, plugin]);
   return (
     <div className={className} style={style}>
       <Suspense fallback={
@@ -211,7 +225,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           lineHeight: '1.5',
           color: '#ffffff'
         }}>
-          {content}
+          {processedContent}
         </div>
       }>
         <LazyMarkdown
@@ -295,17 +309,41 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 {children}
               </li>
             ),
-            a: ({ children, ...props }) => (
-              <a style={{ color: 'var(--text-accent)' }} {...props}>
-                {children}
-              </a>
-            ),
+            a: ({ children, href, ...props }) => {
+              // Check if this is a file path or wiki link
+              const isFilePath = href && (href.endsWith('.md') || href.includes('/'));
+              const isWikiLink = href && href.startsWith('[[') && href.endsWith(']]');
+              
+              const handleClick = (e: React.MouseEvent) => {
+                if ((isFilePath || isWikiLink) && plugin) {
+                  e.preventDefault();
+                  const path = isWikiLink ? href.slice(2, -2) : href;
+                  // Use Obsidian's API to open the file
+                  plugin.app.workspace.openLinkText(path, '', false);
+                }
+              };
+              
+              return (
+                <a 
+                  style={{ 
+                    color: 'var(--text-accent)',
+                    cursor: (isFilePath || isWikiLink) ? 'pointer' : 'default',
+                    textDecoration: 'underline'
+                  }} 
+                  onClick={handleClick}
+                  href={href}
+                  {...props}
+                >
+                  {children}
+                </a>
+              );
+            },
             table: ({ children, ...props }) => (
               <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
                 <table style={{
                   width: '100%',
                   borderCollapse: 'collapse',
-                  backgroundColor: '#2a2a2a',
+                  backgroundColor: 'var(--background-secondary)',
                   borderRadius: '6px',
                   overflow: 'hidden'
                 }} {...props}>
@@ -315,11 +353,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             ),
             th: ({ children, ...props }) => (
               <th style={{
-                backgroundColor: '#3a3a3a',
-                color: '#ffffff',
+                backgroundColor: 'var(--background-secondary-alt)',
+                color: 'var(--text-normal)',
                 padding: '12px',
                 textAlign: 'left',
-                borderBottom: '2px solid #555',
+                borderBottom: '2px solid var(--background-modifier-border)',
                 fontWeight: '600'
               }} {...props}>
                 {children}
@@ -327,9 +365,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             ),
             td: ({ children, ...props }) => (
               <td style={{
-                color: '#ffffff',
+                color: 'var(--text-normal)',
                 padding: '12px',
-                borderBottom: '1px solid #444'
+                borderBottom: '1px solid var(--background-modifier-border)'
               }} {...props}>
                 {children}
               </td>
@@ -339,7 +377,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             )
           }}
         >
-          {content}
+          {processedContent}
         </LazyMarkdown>
       </Suspense>
     </div>

@@ -372,6 +372,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [wikiLinks, setWikiLinks] = useState<WikiLink[]>([]);
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
+  const [isLightTheme, setIsLightTheme] = useState(document.body.classList.contains('theme-light'));
   
   // Add login state monitoring
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(plugin.isLoggedIn());
@@ -391,7 +392,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
   useEffect(() => {
     // Set background color based on theme
-    if (document.body.classList.contains('theme-light')) {
+    const isLight = document.body.classList.contains('theme-light');
+    setIsLightTheme(isLight);
+    if (isLight) {
       setViewBackgroundColor('#FFFFFF');
     } else {
       setViewBackgroundColor('var(--background-primary)');
@@ -401,7 +404,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach(mutation => {
         if (mutation.attributeName === 'class') {
-          if (document.body.classList.contains('theme-light')) {
+          const isLight = document.body.classList.contains('theme-light');
+          setIsLightTheme(isLight);
+          if (isLight) {
             setViewBackgroundColor('#FFFFFF');
           } else {
             setViewBackgroundColor('var(--background-primary)');
@@ -1354,8 +1359,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             {isToolResult && message.content.includes("I'm currently in Ask Mode") && (
               <span style={{
                 fontSize: '11px',
-                backgroundColor: '#ff6b6b',
-                color: '#fff',
+                backgroundColor: 'var(--interactive-error)',
+                color: 'var(--text-on-accent)',
                 padding: '2px 6px',
                 borderRadius: '10px',
                 fontWeight: '500',
@@ -1382,7 +1387,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               {/* Tool result summary (always visible) */}
               <div style={{
                 fontSize: '13px',
-                color: '#888',
+                color: 'var(--text-muted)',
                 marginBottom: '8px',
                 fontStyle: 'italic'
               }}>
@@ -1392,8 +1397,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               {/* Collapsible content */}
               {isToolResultExpanded && (
                 <div style={{
-                  backgroundColor: '#1a1a1a',
-                  border: '1px solid #444',
+                  backgroundColor: 'var(--background-secondary)',
+                  border: '1px solid var(--background-modifier-border)',
                   borderRadius: '6px',
                   padding: '12px',
                   marginTop: '8px',
@@ -1407,6 +1412,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   WebkitUserSelect: 'text',
                   MozUserSelect: 'text',
                   msUserSelect: 'text',
+                  color: 'var(--text-normal)',
                 }}>
                   {message.content}
                 </div>
@@ -1426,6 +1432,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   style={{
                     lineHeight: '1.5'
                   }}
+                  plugin={plugin}
                 />
               ) : (
                 <div style={{
@@ -1440,7 +1447,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   display: 'inline-block',
                   width: '2px',
                   height: '20px',
-                  backgroundColor: '#007acc',
+                  backgroundColor: 'var(--interactive-accent)',
                   marginLeft: '2px',
                   animation: 'blink 1s infinite',
                 }} />
@@ -1688,6 +1695,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   style={{
                     lineHeight: '1.5'
                   }}
+                  plugin={plugin}
                 />
                 <span className="streaming-cursor" style={{
                   display: 'inline-block',
@@ -2438,7 +2446,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       borderRadius: '6px',
                       border: 'none',
                       backgroundColor: 'var(--interactive-success)',
-                      color: 'var(--text-on-accent)',
+                      color: isLightTheme ? 'var(--text-normal)' : 'var(--text-on-accent)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
@@ -2725,7 +2733,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       borderRadius: '6px',
                       border: 'none',
                       backgroundColor: 'var(--interactive-success)',
-                      color: 'var(--text-on-accent)',
+                      color: isLightTheme ? 'var(--text-normal)' : 'var(--text-on-accent)',
                       cursor: 'pointer',
                       fontSize: '14px',
                       fontWeight: '500'
