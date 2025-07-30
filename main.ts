@@ -131,7 +131,7 @@ interface EditConfirmationCallbacks {
 	onReject: (reason?: string) => void;
 }
 
-// Interface for pending create note confirmation
+// Interface for pending create file confirmation
 interface PendingCreateNoteConfirmation {
 	id: string;
 	note_path: string;
@@ -141,7 +141,7 @@ interface PendingCreateNoteConfirmation {
 	timestamp: Date;
 }
 
-// Interface for create note confirmation callback
+// Interface for create file confirmation callback
 interface CreateNoteConfirmationCallbacks {
 	onAccept: () => void;
 	onReject: (reason?: string) => void;
@@ -949,7 +949,7 @@ export default class AgentPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'vault_search',
-						description: 'Perform a semantic search across the vault to find notes or blocks most relevant to the user\'s query.',
+						description: 'Perform a semantic search across the vault to find vault files or blocks most relevant to the user\'s query.',
 						parameters: {
 							type: 'object',
 							properties: {
@@ -974,14 +974,14 @@ export default class AgentPlugin extends Plugin {
 				{
 					type: 'function' as const,
 					function: {
-						name: 'read_note',
-						description: 'Read the contents of a note or a range of lines within a note.',
+						name: 'read_file',
+						description: 'Read the contents of a vault file or a range of lines within a vault file.',
 						parameters: {
 							type: 'object',
 							properties: {
-								note_path: {
+								file_path: {
 									type: 'string',
-									description: 'The relative path to the note within the vault.'
+									description: 'The relative path to the vault file within the vault.'
 								},
 								start_line: {
 									type: 'integer',
@@ -997,24 +997,24 @@ export default class AgentPlugin extends Plugin {
 								},
 								explanation: {
 									type: 'string',
-									description: 'Why this note or section needs to be read for the task.'
+									description: 'Why this vault file or section needs to be read for the task.'
 								}
 							},
-							required: ['note_path', 'explanation']
+							required: ['file_path', 'explanation']
 						}
 					}
 				},
 				{
 					type: 'function' as const,
 					function: {
-						name: 'edit_note',
-						description: 'Edit an existing note with precise line-by-line operations. Multiple non-overlapping edit operations can be performed in a single call. Edit operations are applied in reverse order (highest line numbers first) to maintain line number accuracy.',
+						name: 'edit_file',
+						description: 'Edit an existing vault file with precise line-by-line operations. Multiple non-overlapping edit operations can be performed in a single call. Edit operations are applied in reverse order (highest line numbers first) to maintain line number accuracy.',
 						parameters: {
 							type: 'object',
 							properties: {
-								note_path: {
+								file_path: {
 									type: 'string',
-									description: 'The path of the note to modify.'
+									description: 'The path of the vault file to modify.'
 								},
 								instructions: {
 									type: 'string',
@@ -1054,32 +1054,32 @@ export default class AgentPlugin extends Plugin {
 									}
 								}
 							},
-							required: ['note_path', 'instructions', 'edits']
+							required: ['file_path', 'instructions', 'edits']
 						}
 					}
 				},
 				{
 					type: 'function' as const,
 					function: {
-						name: 'create_note',
-						description: 'Create a new note in the vault.',
+						name: 'create_file',
+						description: 'Create a new vault file in the vault.',
 						parameters: {
 							type: 'object',
 							properties: {
-								note_path: {
+								file_path: {
 									type: 'string',
-									description: 'Path for the new note (e.g., \'zettel/20240608-mycognition.md\').'
+									description: 'Path for the new vault file (e.g., \'zettel/20240608-mycognition.md\', \'diagrams/flowchart.canvas\').'
 								},
 								content: {
 									type: 'string',
-									description: 'Initial Markdown content of the note.'
+									description: 'Initial content of the vault file.'
 								},
 								explanation: {
 									type: 'string',
-									description: 'Why this new note is needed for the task.'
+									description: 'Why this new vault file is needed for the task.'
 								}
 							},
-							required: ['note_path', 'content', 'explanation']
+							required: ['file_path', 'content', 'explanation']
 						}
 					}
 				},
@@ -1178,14 +1178,14 @@ export default class AgentPlugin extends Plugin {
 							case 'vault_search':
 								result = await this.toolVaultSearch(args);
 								break;
-							case 'read_note':
-								result = await this.toolReadNote(args);
+							case 'read_file':
+								result = await this.toolReadFile(args);
 								break;
-							case 'edit_note':
-								result = await this.toolEditNote(args, chatMode);
+							case 'edit_file':
+								result = await this.toolEditFile(args, chatMode);
 								break;
-							case 'create_note':
-								result = await this.toolCreateNote(args, chatMode);
+							case 'create_file':
+								result = await this.toolCreateFile(args, chatMode);
 								break;
 							case 'list_vault':
 								result = await this.toolListVault(args);
@@ -1355,9 +1355,9 @@ These files represent the user's current focus and are most relevant to their im
 		
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
 
-You are collaborating with a USER to help them organize, write, and enhance their notes.
-The task may involve summarizing content, refactoring or restructuring notes, linking concepts together, formatting with Markdown, performing semantic searches across notes, or answering specific questions based on the content.
-Each time the USER sends a message, we may automatically attach information about their current context, such as the active note, cursor position, open backlinks, linked/unlinked mentions, and edit history within the vault.
+You are collaborating with a USER to help them organize, write, and enhance their vault files.
+The task may involve summarizing content, refactoring or restructuring vault files, linking concepts together, formatting content appropriately, performing semantic searches across the vault, or answering specific questions based on the content.
+Each time the USER sends a message, we may automatically attach information about their current context, such as the active file, cursor position, open backlinks, linked/unlinked mentions, and edit history within the vault.
 This context may or may not be relevant — you must decide how it impacts the task.
 Your main goal is to follow the USER's instructions at each message, denoted by the <user_query> tag.
 
@@ -1365,35 +1365,36 @@ Your main goal is to follow the USER's instructions at each message, denoted by 
 You have tools at your disposal to help manage and reason over the user's vault. Follow these rules:
 1. ALWAYS follow the tool schema exactly, and provide all required parameters.
 2. Do not call tools that are not explicitly available to you.
-3. **NEVER mention tool names in your conversation with the USER.** For example, instead of saying "I'll use the link_note tool to add a link", just say "I'll add a link between your notes".
+3. **NEVER mention tool names in your conversation with the USER.** For example, instead of saying "I'll use the edit_file tool to modify the content", just say "I'll modify the content in your file".
 4. Only use tools when needed. If the task can be handled directly, just respond without tools.
 5. When using a tool, explain to the USER why it's needed and how it supports the task.
 </tool_calling>
 
-<editing_notes>
-When making changes to a note, DO NOT output the entire Markdown content unless explicitly requested. Instead, use the note editing tools.
-Only make one note edit per turn unless the USER gives you a batch instruction.
+<editing_files>
+When making changes to a vault file, DO NOT output the entire file content unless explicitly requested. Instead, use the file editing tools.
+Only make one file edit per turn unless the USER gives you a batch instruction.
 
-CRITICAL: Before editing any note, you MUST first read the note's content using the read_note tool to understand:
-- The current structure and content of the note
-- Existing sections, headers, and formatting
-- YAML frontmatter, metadata, and tags
+CRITICAL: Before editing any vault file, you MUST first read the file's content using the read_file tool to understand:
+- The current structure and content of the file
+- Existing sections, headers, and formatting (for structured files like Markdown)
+- YAML frontmatter, metadata, and tags (if applicable)
 - Any content that might be overwritten or affected by your edits
 - The appropriate location for new content insertion
 
-DO NOT attempt to edit a note without first reading its content. This prevents accidental overwrites and ensures contextually appropriate edits.
+DO NOT attempt to edit a vault file without first reading its content. This prevents accidental overwrites and ensures contextually appropriate edits.
 
 Ensure your edits respect the following:
 1. Do not overwrite user content unless clearly requested or safe to do so.
 2. Preserve YAML frontmatter, metadata, and tags unless explicitly directed to change them.
-3. Use clear section headers, semantic structure, and proper Markdown formatting.
-4. When inserting content (e.g. summaries, backlinks, tables), place it in the correct context based on the note's existing structure — don't guess.
+3. Use appropriate formatting based on the file type (Markdown, JSON, Canvas, etc.).
+4. When inserting content (e.g. summaries, backlinks, tables), place it in the correct context based on the file's existing structure — don't guess.
 5. When refactoring or reorganizing content, preserve original meaning and ordering unless improved otherwise.
 6. Fix formatting or syntax issues if they are obvious, but do not make stylistic assumptions without instruction.
 
-IMPORTANT: Both edit_note and create_note tools require user confirmation before applying changes.
 
-For edit_note:
+IMPORTANT: Both edit_file and create_file tools require user confirmation before applying changes.
+
+For edit_file:
 - The system will show the user a detailed preview of the proposed changes
 - The user can either accept or reject the edit
 - If rejected, the user may provide a reason for the rejection
@@ -1401,24 +1402,24 @@ For edit_note:
 - Instead, ask the user what they would prefer or how you should modify the approach
 - Use the rejection feedback to better understand the user's preferences for future edits
 
-For create_note:
-- The system will show the user a preview of the note content and path before creation
-- The user can either accept or reject the note creation
+For create_file:
+- The system will show the user a preview of the file content and path before creation
+- The user can either accept or reject the file creation
 - If rejected, the user may provide a reason for the rejection
-- If a note creation is rejected, DO NOT automatically try to create the same note again
-- Instead, ask the user what they would prefer for the note path, content, or approach
-- Use the rejection feedback to better understand the user's preferences for future note creations
-</editing_notes>
+- If a file creation is rejected, DO NOT automatically try to create the same file again
+- Instead, ask the user what they would prefer for the file path, content, or approach
+- Use the rejection feedback to better understand the user's preferences for future file creations
+</editing_files>
 
 <searching_and_reading>
-You can search across the vault or read from specific notes. Follow these principles:
+You can search across the vault or read from specific vault files. Follow these principles:
 1. Prefer semantic search over raw grep/text search when possible.
-2. When reading notes, retrieve the full content only if needed. Use sections or block references when appropriate.
+2. When reading vault files, retrieve the full content only if needed. Use sections or block references when appropriate.
 3. Avoid redundant reads — once you have enough context to answer or make a change, proceed without further searching.
 </searching_and_reading>
 
 <handling_rejections>
-When a user rejects an edit or note creation, respond appropriately:
+When a user rejects an edit or file creation, respond appropriately:
 
 For EDIT rejections:
 1. **Acknowledge the rejection gracefully** - Thank the user for their feedback
@@ -1430,18 +1431,18 @@ For EDIT rejections:
 4. **Learn from the rejection** - Use the feedback to improve future suggestions
 5. **Never repeat the same rejected edit** without significant modifications
 
-For CREATE NOTE rejections:
+For CREATE FILE rejections:
 1. **Acknowledge the rejection gracefully** - Thank the user for their feedback
 2. **Ask clarifying questions** to understand their concerns:
-   - "What didn't work about the proposed note path or content?"
-   - "Would you prefer a different location or structure for this note?"
+   - "What didn't work about the proposed file path or content?"
+   - "Would you prefer a different location or structure for this file?"
    - "Should I adjust the content, format, or focus differently?"
 3. **Offer alternatives** based on their feedback:
    - Different file paths or naming conventions
    - Alternative content structures or formats
    - Different approaches to organizing the information
-4. **Learn from the rejection** - Use the feedback to improve future note creation suggestions
-5. **Never repeat the same rejected note creation** without significant modifications
+4. **Learn from the rejection** - Use the feedback to improve future file creation suggestions
+5. **Never repeat the same rejected file creation** without significant modifications
 
 Example responses:
 - "I understand that approach didn't work for you. Could you help me understand what you'd prefer instead?"
@@ -1449,15 +1450,15 @@ Example responses:
 - "I see that wasn't quite right. What would be the most helpful way to create or organize this information?"
 </handling_rejections>
 
-You MUST use the following format when citing note sections:
+You MUST use the following format when citing vault file sections:
 \`\`\`
-startLine:endLine:note_path
+startLine:endLine:file_path
 // ... existing content ...
 \`\`\`
-This is the ONLY acceptable format for note citations.
+This is the ONLY acceptable format for vault file citations.
 
 <user_info>
-The USER is working in Obsidian with Markdown files under a single vault directory. 
+The USER is working in Obsidian with various file types under a single vault directory. 
 The user's OS version is: \`${osInfo}\`
 The absolute path to the vault is: \`${vaultPath}\`
 Current date and time: \`${new Date().toLocaleString()}\`
@@ -1466,7 +1467,48 @@ Current UTC offset: \`${new Date().getTimezoneOffset() / -60} hours\`
 </user_info>${contextFilesSection}
 
 Answer the USER's request using available context and tools. If a required parameter is missing, ask for it. Otherwise, proceed with the tool call or provide the response directly.
-If citing notes or inserting content, ensure Markdown compatibility and coherence with existing structure.`;
+If citing vault files or inserting content, ensure appropriate formatting and coherence with existing structure.
+
+<drawing_canvas>
+When users request to create or edit "canvas" files, or ask for drawings/diagrams without specifying a particular format, default to Obsidian's native JSON Canvas Spec format (.canvas files).
+
+JSON Canvas Spec (Version 1.0):
+
+**Structure:**
+Canvas files contain two main arrays:
+- \`nodes\` (array of visual elements: text, files, links, or groups)
+- \`edges\` (array of connections between nodes)
+
+**Node Types:**
+1. **Text nodes** - contain Markdown text
+   - Required: \`id\`, \`type: "text"\`, \`x\`, \`y\`, \`width\`, \`height\`, \`text\`
+   - Optional: \`color\`
+
+2. **File nodes** - reference vault files or attachments
+   - Required: \`id\`, \`type: "file"\`, \`x\`, \`y\`, \`width\`, \`height\`, \`file\` (path)
+   - Optional: \`color\`, \`subpath\` (for headings/blocks, starts with #)
+
+3. **Link nodes** - reference external URLs
+   - Required: \`id\`, \`type: "link"\`, \`x\`, \`y\`, \`width\`, \`height\`, \`url\`
+   - Optional: \`color\`
+
+4. **Group nodes** - visual containers for organizing other nodes
+   - Required: \`id\`, \`type: "group"\`, \`x\`, \`y\`, \`width\`, \`height\`
+   - Optional: \`color\`, \`label\`, \`background\`, \`backgroundStyle\` ("cover"/"ratio"/"repeat")
+
+**Edges (Connections):**
+- Required: \`id\`, \`fromNode\`, \`toNode\`
+- Optional: \`fromSide\`/\`toSide\` ("top"/"right"/"bottom"/"left"), \`fromEnd\`/\`toEnd\` ("none"/"arrow"), \`color\`, \`label\`
+
+**Colors:**
+Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "4"=green, "5"=cyan, "6"=purple
+
+**Layout Guidelines:**
+- Position nodes logically with adequate spacing (typically 20-50px gaps)
+- Use groups to organize related content
+- Connect related concepts with labeled edges
+- Consider visual hierarchy and flow direction
+</drawing_canvas>`;
 	}
 
 	// Tool implementations
@@ -1487,8 +1529,8 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			console.log('🔍 [TOOL] vault_search: Found similar files:', similarFiles.length);
 			
 			if (similarFiles.length === 0) {
-				console.log('🔍 [TOOL] vault_search: No relevant notes found');
-				return 'No relevant notes found for your query.';
+				console.log('🔍 [TOOL] vault_search: No relevant files found');
+				return 'No relevant files found for your query.';
 			}
 
 			const results = similarFiles.map(file => ({
@@ -1497,7 +1539,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				relevance: 'High' // You could calculate actual similarity scores here
 			}));
 
-			const resultText = `Found ${results.length} relevant notes:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+			const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
 			console.log('🔍 [TOOL] vault_search: Returning result:', resultText);
 			
 			return resultText;
@@ -1507,21 +1549,21 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		}
 	}
 
-	private async toolReadNote(args: { note_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
-		console.log('📖 [TOOL] read_note starting with args:', args);
+	private async toolReadFile(args: { file_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
+		console.log('📖 [TOOL] read_file starting with args:', args);
 		
 		try {
-			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
+			const file = this.app.vault.getAbstractFileByPath(args.file_path) as TFile;
 			if (!file) {
-				console.log('📖 [TOOL] read_note: Note not found:', args.note_path);
-				return `Note not found: ${args.note_path}`;
+				console.log('📖 [TOOL] read_file: File not found:', args.file_path);
+				return `File not found: ${args.file_path}`;
 			}
 
-			console.log('📖 [TOOL] read_note: Found file, reading content...');
+			console.log('📖 [TOOL] read_file: Found file, reading content...');
 			const content = await this.app.vault.read(file);
 			
 			if (args.read_entire_note || (!args.start_line && !args.end_line)) {
-				console.log('📖 [TOOL] read_note: Returning entire note, length:', content.length);
+				console.log('📖 [TOOL] read_file: Returning entire file, length:', content.length);
 				return content;
 			}
 
@@ -1529,28 +1571,28 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			const startIdx = (args.start_line || 1) - 1;
 			const endIdx = (args.end_line || lines.length) - 1;
 			
-			console.log(`📖 [TOOL] read_note: Returning lines ${startIdx + 1} to ${endIdx + 1} of ${lines.length} total lines`);
+			console.log(`📖 [TOOL] read_file: Returning lines ${startIdx + 1} to ${endIdx + 1} of ${lines.length} total lines`);
 			
 			const result = lines.slice(startIdx, endIdx + 1).join('\n');
-			console.log('📖 [TOOL] read_note: Result length:', result.length);
+			console.log('📖 [TOOL] read_file: Result length:', result.length);
 			
 			return result;
 		} catch (error: any) {
-			console.error('📖 [TOOL] read_note error:', error);
-			return `Error reading note: ${error.message}`;
+			console.error('📖 [TOOL] read_file error:', error);
+			return `Error reading file: ${error.message}`;
 		}
 	}
 
-	private async toolEditNote(args: { note_path: string; instructions: string; edits: EditOperation[] }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
+	private async toolEditFile(args: { file_path: string; instructions: string; edits: EditOperation[] }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
 			// Check if we're in Ask Mode - if so, auto-reject
 			if (chatMode === 'Ask') {
-				return "❌ I'm currently in Ask Mode, which prohibits note editing operations. If you need to create or edit notes, please ask the user to switch to Agent Mode and try again.";
+				return "❌ I'm currently in Ask Mode, which prohibits file editing operations. If you need to create or edit files, please ask the user to switch to Agent Mode and try again.";
 			}
 
-			const file = this.app.vault.getAbstractFileByPath(args.note_path) as TFile;
+			const file = this.app.vault.getAbstractFileByPath(args.file_path) as TFile;
 			if (!file) {
-				return `Note not found: ${args.note_path}`;
+				return `Note not found: ${args.file_path}`;
 			}
 
 			// Read the current file content
@@ -1582,7 +1624,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				const confirmationId = Math.random().toString(36).substr(2, 9);
 				const pendingConfirmation: PendingEditConfirmation = {
 					id: confirmationId,
-					note_path: args.note_path,
+					note_path: args.file_path,
 					instructions: args.instructions,
 					edits: args.edits,
 					originalContent: originalContent,
@@ -1599,7 +1641,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 							// Apply the changes
 							await this.app.vault.modify(file, modifiedContent);
 							const diffPreview = this.formatDiffForDisplay(diff);
-							resolve(`✅ Edit confirmed and applied to: ${args.note_path}\n\nChanges:\n${diffPreview}`);
+							resolve(`✅ Edit confirmed and applied to: ${args.file_path}\n\nChanges:\n${diffPreview}`);
 						} catch (error: any) {
 							reject(new Error(`Failed to apply changes: ${error.message}`));
 						}
@@ -1607,7 +1649,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 					onReject: (reason?: string) => {
 						const message = reason 
 							? `❌ Edit rejected by user: ${reason}`
-							: `❌ Edit rejected by user. No changes were made to: ${args.note_path}`;
+							: `❌ Edit rejected by user. No changes were made to: ${args.file_path}`;
 						resolve(message);
 					}
 				};
@@ -1817,22 +1859,17 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 		return lines.join('\n');
 	}
 
-	private async toolCreateNote(args: { note_path: string; content: string; explanation: string }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
+	private async toolCreateFile(args: { file_path: string; content: string; explanation: string }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
 			// Check if we're in Ask Mode - if so, auto-reject
 			if (chatMode === 'Ask') {
-				return "❌ I'm currently in Ask Mode, which prohibits note editing operations. If you need to create or edit notes, please ask the user to switch to Agent Mode and try again.";
+				return "❌ I'm currently in Ask Mode, which prohibits file creation operations. If you need to create or edit files, please ask the user to switch to Agent Mode and try again.";
 			}
 
 			// Check if the file already exists
-			const existingFile = this.app.vault.getAbstractFileByPath(args.note_path);
+			const existingFile = this.app.vault.getAbstractFileByPath(args.file_path);
 			if (existingFile) {
-				return `Error: A file already exists at path: ${args.note_path}`;
-			}
-
-			// Validate the file path
-			if (!args.note_path.endsWith('.md')) {
-				return `Error: Note path must end with .md extension: ${args.note_path}`;
+				return `Error: A file already exists at path: ${args.file_path}`;
 			}
 
 			// Return a Promise that will be resolved when user confirms or rejects
@@ -1841,7 +1878,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				const confirmationId = Math.random().toString(36).substr(2, 9);
 				const pendingConfirmation: PendingCreateNoteConfirmation = {
 					id: confirmationId,
-					note_path: args.note_path,
+					note_path: args.file_path,
 					content: args.content,
 					explanation: args.explanation,
 					toolCallId: confirmationId, // This would be set by caller
@@ -1852,8 +1889,8 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 				this.createNoteConfirmationCallbacks = {
 					onAccept: async () => {
 						try {
-							// Extract directory path from note_path
-							const pathParts = args.note_path.split('/');
+							// Extract directory path from file_path
+							const pathParts = args.file_path.split('/');
 							if (pathParts.length > 1) {
 								// Remove the filename to get the directory path
 								const directoryPath = pathParts.slice(0, -1).join('/');
@@ -1871,17 +1908,17 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 								}
 							}
 							
-							// Create the note
-							await this.app.vault.create(args.note_path, args.content);
-							resolve(`✅ Note creation confirmed and completed: ${args.note_path}`);
+							// Create the file
+							await this.app.vault.create(args.file_path, args.content);
+							resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
 						} catch (error: any) {
-							reject(new Error(`Failed to create note: ${error.message}`));
+							reject(new Error(`Failed to create file: ${error.message}`));
 						}
 					},
 					onReject: (reason?: string) => {
 						const message = reason 
-							? `❌ Note creation rejected by user: ${reason}`
-							: `❌ Note creation rejected by user. No note was created at: ${args.note_path}`;
+							? `❌ File creation rejected by user: ${reason}`
+							: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
 						resolve(message);
 					}
 				};
@@ -1892,7 +1929,7 @@ If citing notes or inserting content, ensure Markdown compatibility and coherenc
 			});
 
 		} catch (error: any) {
-			return `Error preparing note creation: ${error.message}`;
+			return `Error preparing file creation: ${error.message}`;
 		}
 	}
 
@@ -2820,5 +2857,4 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		return headerContainer;
 	}
-
 }
