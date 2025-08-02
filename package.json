@@ -4,10 +4,12 @@
 	"description": "An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.",
 	"main": "main.js",
 	"scripts": {
-		"dev": "NODE_ENV=development node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && NODE_ENV=production node esbuild.config.mjs production",
-		"build:dev": "tsc -noEmit -skipLibCheck && NODE_ENV=development node esbuild.config.mjs production",
-		"build:prod": "tsc -noEmit -skipLibCheck && NODE_ENV=production node esbuild.config.mjs production",
+		"dev": "ENV_MODE=development node esbuild.config.mjs",
+		"dev:local": "ENV_MODE=local node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && ENV_MODE=production node esbuild.config.mjs production",
+		"build:local": "tsc -noEmit -skipLibCheck && ENV_MODE=local node esbuild.config.mjs production",
+		"build:dev": "tsc -noEmit -skipLibCheck && ENV_MODE=development node esbuild.config.mjs production",
+		"build:prod": "tsc -noEmit -skipLibCheck && ENV_MODE=production node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],

@@ -18,19 +18,19 @@ if you want to view the source, please visit the github repository of this plugi
 const prod = (process.argv[2] === "production");
 
 // Determine environment and load appropriate .env file
-const environment = process.env.NODE_ENV || (prod ? "production" : "development");
-const envFile = resolve(__dirname, `.env.${environment}`);
+const envMode = process.env.ENV_MODE || (prod ? "production" : "development");
+const envFile = resolve(__dirname, `.env.${envMode}`);
 
 // Load environment variables
 config({ path: envFile });
 
 // Define environment variables to inject into the build
 const define = {
+	'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || ''),
 	'process.env.BACKEND_BASE_URL': JSON.stringify(process.env.BACKEND_BASE_URL || ''),
 	'process.env.AUTH0_DOMAIN': JSON.stringify(process.env.AUTH0_DOMAIN || ''),
 	'process.env.AUTH0_CLIENT_ID': JSON.stringify(process.env.AUTH0_CLIENT_ID || ''),
 	'process.env.AUTH0_AUDIENCE': JSON.stringify(process.env.AUTH0_AUDIENCE || ''),
-	'process.env.NODE_ENV': JSON.stringify(environment),
 };
 
 const context = await esbuild.context({
