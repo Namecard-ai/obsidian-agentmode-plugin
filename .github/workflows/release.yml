@@ -1,5 +1,8 @@
 name: Release Obsidian plugin
 
+permissions:
+  actions: write
+
 on:
   push:
     tags:

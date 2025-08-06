@@ -1,11 +1,11 @@
 {
-	"id": "agent",
-	"name": "Agent Plugin",
+	"id": "agentmode",
+	"name": "Agentmode Plugin",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.",
 	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",	
-	"isDesktopOnly": false
+	"authorUrl": "https://github.com/Namecard-ai",
+	"fundingUrl": "https://agentmode.io/",
+	"isDesktopOnly": true
 }
