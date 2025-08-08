@@ -2,7 +2,6 @@
 
 An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.
 
-This project uses TypeScript and React to provide a modern, responsive chat interface that integrates seamlessly with your Obsidian vault. The plugin leverages the latest Obsidian API and includes comprehensive AI agent capabilities.
 
 ## Key Features
 - **Context-Aware Conversations**: Seamlessly integrate vault files into your chat context
