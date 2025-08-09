@@ -1156,6 +1156,14 @@ export default class AgentPlugin extends Plugin {
 
 			// If there are no tool calls, we're done
 			if (!currentMessage.tool_calls) {
+				// Debug: Check if we should have used tools
+				const lastUserMessage = messages[messages.length - 1];
+				if (lastUserMessage && lastUserMessage.role === 'user') {
+					const shouldUseTools = /what.*should.*do|important|priority|impactful|today|next|focus.*on|work.*on/i.test(lastUserMessage.content as string);
+					if (shouldUseTools) {
+						console.warn('⚠️ [AGENTMODE] Query seems to need context but no tools were called:', lastUserMessage.content);
+					}
+				}
 				break;
 			}
 
@@ -1360,6 +1368,27 @@ The task may involve summarizing content, refactoring or restructuring vault fil
 Each time the USER sends a message, we may automatically attach information about their current context, such as the active file, cursor position, open backlinks, linked/unlinked mentions, and edit history within the vault.
 This context may or may not be relevant — you must decide how it impacts the task.
 Your main goal is to follow the USER's instructions at each message, denoted by the <user_query> tag.
+
+<proactive_context_discovery>
+IMPORTANT: When users ask about priorities, tasks, what to do, or any questions that would benefit from knowing their actual project status:
+1. IMMEDIATELY use vault_search to find relevant files like:
+   - Backlog.md, TODO.md, Tasks.md, Daily Notes
+   - README.md, CRM_Master.md, Current Sprint.md
+   - Planning.md, Roadmap.md, Project Status.md
+   - Any files that might contain task lists, priorities, or project information
+2. THEN use read_file to read the most relevant files you found
+3. ONLY THEN provide specific, actionable advice based on the actual content in their vault
+
+Examples of queries that should trigger proactive context discovery:
+- "What's the most impactful thing I could do today?"
+- "What should I work on?"
+- "What are my priorities?"
+- "What's the status of my projects?"
+- "What's next on my list?"
+- "What should I focus on?"
+
+DO NOT give generic advice like "To determine what's most impactful, I'd need to see your task list." Instead, proactively search for and read their task lists, then give specific recommendations based on what you find.
+</proactive_context_discovery>
 
 <tool_calling>
 You have tools at your disposal to help manage and reason over the user's vault. Follow these rules:
