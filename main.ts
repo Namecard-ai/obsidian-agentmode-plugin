@@ -147,6 +147,19 @@ interface CreateNoteConfirmationCallbacks {
 	onReject: (reason?: string) => void;
 }
 
+// Search confidence scoring interface
+interface SearchConfidence {
+	score: number; // 0.0 - 1.0
+	factors: {
+		possessiveLanguage: number;
+		temporalReference: number;
+		projectSpecific: number;
+		contextClues: number;
+	};
+	decision: 'search' | 'ask' | 'skip';
+	explanation?: string;
+}
+
 export enum Model {
 	Gemini1_5Pro = 'gemini-1.5-pro-latest',
 	GPT4o_mini = 'gpt-4o-mini',
@@ -901,6 +914,7 @@ export default class AgentPlugin extends Plugin {
 		}
 	}
 
+
 	// Agent chat completion with streaming and tool use
 	async streamAgentChat(
 		messages: ChatMessage[], 
@@ -1156,31 +1170,21 @@ export default class AgentPlugin extends Plugin {
 
 			// If there are no tool calls, we're done
 			if (!currentMessage.tool_calls) {
-				// Debug: Analyze why tools were or weren't used
+				// Debug: Analyze search confidence
 				const lastUserMessage = messages[messages.length - 1];
 				if (lastUserMessage && lastUserMessage.role === 'user') {
 					const query = lastUserMessage.content as string;
+					const confidence = this.calculateSearchConfidence(query);
 					
-					// Check for different types of queries
-					const alwaysSearchPatterns = /\b(my|our|this)\s+(notes?|project|codebase|vault)|what\s+(did\s+I|have\s+I)\s+write|show\s+me\s+my|status\s+of|where\s+are\s+we|yesterday|last\s+week|relate.*in\s+my/i;
-					const likelySearchPatterns = /what\s+should\s+I\s+(focus|work)\s+on|what\s+do\s+I\s+know|priorities|summary\s+of/i;
-					const dontSearchPatterns = /how\s+(do|to)\s+(I|you)|what\s+is\s+[a-z]+(?!\s+(in|on)\s+my)|only\s+look|just\s+based\s+on|general|documentation\s+say/i;
+					console.log('🧠 [AGENTMODE] Search Confidence Analysis:', {
+						query: query.substring(0, 100) + '...',
+						confidence: confidence.score.toFixed(2),
+						decision: confidence.decision,
+						factors: confidence.factors
+					});
 					
-					const shouldAlwaysSearch = alwaysSearchPatterns.test(query);
-					const shouldLikelySearch = likelySearchPatterns.test(query);
-					const shouldNotSearch = dontSearchPatterns.test(query);
-					
-					if ((shouldAlwaysSearch || shouldLikelySearch) && !shouldNotSearch) {
-						console.warn('⚠️ [AGENTMODE] Query likely needs vault context but no tools were called:', {
-							query: query.substring(0, 100) + '...',
-							patterns: {
-								alwaysSearch: shouldAlwaysSearch,
-								likelySearch: shouldLikelySearch,
-								dontSearch: shouldNotSearch
-							}
-						});
-					} else if (!shouldAlwaysSearch && !shouldLikelySearch && !shouldNotSearch) {
-						console.log('📊 [AGENTMODE] Query analysis - no clear search signals detected:', query.substring(0, 100) + '...');
+					if (confidence.decision === 'search' && !currentMessage.tool_calls) {
+						console.warn('⚠️ [AGENTMODE] High confidence but no search performed');
 					}
 				}
 				break;
@@ -1434,6 +1438,18 @@ Examples:
 - "Based on this file, what should I improve?" → Focus on provided file unless they ask for related code
 - "What are my priorities?" → Search for task lists, backlogs, TODO files
 </intelligent_context_discovery>
+<confidence_based_behavior>
+When deciding whether to search the vault:
+- If my confidence is HIGH (>0.8): I'll search automatically and seamlessly integrate results
+- If my confidence is MEDIUM (0.4-0.8): I'll briefly mention I'm checking your notes
+- If my confidence is LOW (<0.4): I'll ask if you'd like me to search your vault
+
+I make these decisions based on:
+- Possessive language ("my notes", "our project")
+- Temporal references ("yesterday", "last week")
+- Project-specific terms I recognize
+- Context clues in your question
+</confidence_based_behavior>
 
 <tool_calling>
 You have tools at your disposal to help manage and reason over the user's vault. Follow these rules:
@@ -1583,6 +1599,52 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 - Connect related concepts with labeled edges
 - Consider visual hierarchy and flow direction
 </drawing_canvas>`;
+	}
+
+	// Calculate search confidence based on query analysis
+	private calculateSearchConfidence(query: string): SearchConfidence {
+		const factors = {
+			possessiveLanguage: 0,
+			temporalReference: 0,
+			projectSpecific: 0,
+			contextClues: 0
+		};
+		
+		// Possessive language patterns
+		if (/\b(my|our|this)\s+(notes?|project|vault|code)/i.test(query)) {
+			factors.possessiveLanguage = 0.9;
+		}
+		
+		// Temporal references
+		if (/\b(yesterday|today|last\s+week|recently)\b/i.test(query)) {
+			factors.temporalReference = 0.8;
+		}
+		
+		// Project-specific indicators
+		if (/\b(backlog|todo|task|priority|status)\b/i.test(query)) {
+			factors.projectSpecific = 0.7;
+		}
+		
+		// Context clues
+		if (/\b(show|find|search|what's|where)\s+(in|from|my)/i.test(query)) {
+			factors.contextClues = 0.6;
+		}
+		
+		// Calculate weighted score
+		const score = (
+			factors.possessiveLanguage * 0.4 +
+			factors.temporalReference * 0.2 +
+			factors.projectSpecific * 0.2 +
+			factors.contextClues * 0.2
+		);
+		
+		// Determine decision
+		let decision: 'search' | 'ask' | 'skip';
+		if (score > 0.8) decision = 'search';
+		else if (score > 0.4) decision = 'ask';
+		else decision = 'skip';
+		
+		return { score, factors, decision };
 	}
 
 	// Tool implementations
