@@ -1156,12 +1156,31 @@ export default class AgentPlugin extends Plugin {
 
 			// If there are no tool calls, we're done
 			if (!currentMessage.tool_calls) {
-				// Debug: Check if we should have used tools
+				// Debug: Analyze why tools were or weren't used
 				const lastUserMessage = messages[messages.length - 1];
 				if (lastUserMessage && lastUserMessage.role === 'user') {
-					const shouldUseTools = /what.*should.*do|important|priority|impactful|today|next|focus.*on|work.*on/i.test(lastUserMessage.content as string);
-					if (shouldUseTools) {
-						console.warn('⚠️ [AGENTMODE] Query seems to need context but no tools were called:', lastUserMessage.content);
+					const query = lastUserMessage.content as string;
+					
+					// Check for different types of queries
+					const alwaysSearchPatterns = /\b(my|our|this)\s+(notes?|project|codebase|vault)|what\s+(did\s+I|have\s+I)\s+write|show\s+me\s+my|status\s+of|where\s+are\s+we|yesterday|last\s+week|relate.*in\s+my/i;
+					const likelySearchPatterns = /what\s+should\s+I\s+(focus|work)\s+on|what\s+do\s+I\s+know|priorities|summary\s+of/i;
+					const dontSearchPatterns = /how\s+(do|to)\s+(I|you)|what\s+is\s+[a-z]+(?!\s+(in|on)\s+my)|only\s+look|just\s+based\s+on|general|documentation\s+say/i;
+					
+					const shouldAlwaysSearch = alwaysSearchPatterns.test(query);
+					const shouldLikelySearch = likelySearchPatterns.test(query);
+					const shouldNotSearch = dontSearchPatterns.test(query);
+					
+					if ((shouldAlwaysSearch || shouldLikelySearch) && !shouldNotSearch) {
+						console.warn('⚠️ [AGENTMODE] Query likely needs vault context but no tools were called:', {
+							query: query.substring(0, 100) + '...',
+							patterns: {
+								alwaysSearch: shouldAlwaysSearch,
+								likelySearch: shouldLikelySearch,
+								dontSearch: shouldNotSearch
+							}
+						});
+					} else if (!shouldAlwaysSearch && !shouldLikelySearch && !shouldNotSearch) {
+						console.log('📊 [AGENTMODE] Query analysis - no clear search signals detected:', query.substring(0, 100) + '...');
 					}
 				}
 				break;
@@ -1369,26 +1388,52 @@ Each time the USER sends a message, we may automatically attach information abou
 This context may or may not be relevant — you must decide how it impacts the task.
 Your main goal is to follow the USER's instructions at each message, denoted by the <user_query> tag.
 
-<proactive_context_discovery>
-IMPORTANT: When users ask about priorities, tasks, what to do, or any questions that would benefit from knowing their actual project status:
-1. IMMEDIATELY use vault_search to find relevant files like:
-   - Backlog.md, TODO.md, Tasks.md, Daily Notes
-   - README.md, CRM_Master.md, Current Sprint.md
-   - Planning.md, Roadmap.md, Project Status.md
-   - Any files that might contain task lists, priorities, or project information
-2. THEN use read_file to read the most relevant files you found
-3. ONLY THEN provide specific, actionable advice based on the actual content in their vault
+<intelligent_context_discovery>
+IMPORTANT: Make intelligent decisions about when to search the vault for additional context.
 
-Examples of queries that should trigger proactive context discovery:
-- "What's the most impactful thing I could do today?"
-- "What should I work on?"
-- "What are my priorities?"
-- "What's the status of my projects?"
-- "What's next on my list?"
-- "What should I focus on?"
+SEARCH DECISION FRAMEWORK:
 
-DO NOT give generic advice like "To determine what's most impactful, I'd need to see your task list." Instead, proactively search for and read their task lists, then give specific recommendations based on what you find.
-</proactive_context_discovery>
+1. ALWAYS search the vault when users:
+   - Use possessive language: "my notes", "our project", "this codebase"
+   - Ask about their own content: "What did I write about...", "Show me my..."
+   - Request status/progress: "What's the status of...", "Where are we with..."
+   - Make temporal references: "What did I work on yesterday/last week"
+   - Ask for connections: "How does X relate to Y in my notes"
+
+2. LIKELY search the vault when users:
+   - Ask open-ended planning questions: "What should I focus on?"
+   - Request summaries of their knowledge: "What do I know about..."
+   - Use project-specific terminology you recognize from their vault
+   - Ask "why" or "how" questions that might have vault-specific context
+
+3. DON'T search the vault when users:
+   - Ask general knowledge questions: "How do I install...", "What is..."
+   - Explicitly limit scope: "only look at this file", "just based on what I shared"
+   - Request external information: "What does the documentation say about..."
+   - Ask for creative generation without vault references
+
+4. RESPECT context boundaries:
+   - When users provide specific files as context, prioritize those first
+   - Look for expansion cues: "related", "similar", "other relevant", "anything else"
+   - If no expansion cues, focus on the provided context unless the question clearly needs more
+
+5. SEARCH INTELLIGENTLY:
+   - Start with narrow, specific searches based on key terms from the query
+   - If initial search yields nothing, broaden to related concepts
+   - Consider file patterns: Daily notes for temporal queries, project files for status queries
+   - Limit initial search to 3-5 most relevant files to avoid information overload
+
+6. BE TRANSPARENT:
+   - Briefly explain why you're searching: "Let me search for your notes on X..."
+   - If search yields nothing useful, say so and proceed with available knowledge
+   - Show which files you're reading to maintain trust
+
+Examples:
+- "What's the architecture of my app?" → Search for architecture docs, README files
+- "How do I implement authentication?" → General question, no search unless they add "in my project"
+- "Based on this file, what should I improve?" → Focus on provided file unless they ask for related code
+- "What are my priorities?" → Search for task lists, backlogs, TODO files
+</intelligent_context_discovery>
 
 <tool_calling>
 You have tools at your disposal to help manage and reason over the user's vault. Follow these rules:
