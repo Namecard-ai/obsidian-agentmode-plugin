@@ -2613,12 +2613,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		const strongEl = keyInfoEl.createEl('strong');
 		strongEl.textContent = 'How this works:';
 		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
-		keyInfoEl.style.padding = '12px';
-		keyInfoEl.style.backgroundColor = 'var(--background-secondary)';
-		keyInfoEl.style.borderRadius = '6px';
-		keyInfoEl.style.marginBottom = '16px';
-		keyInfoEl.style.fontSize = '14px';
-		keyInfoEl.style.lineHeight = '1.4';
 
 		new Setting(containerEl)
 			.setName('OpenAI API Key')
@@ -2640,34 +2634,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			cls: 'billing-portal-button'
 		});
 
-		// Button style - more concise design
-		billingButton.style.backgroundColor = '#667eea';
-		billingButton.style.color = 'white';
-		billingButton.style.border = 'none';
-		billingButton.style.padding = '6px 12px';
-		billingButton.style.borderRadius = '4px';
-		billingButton.style.cursor = 'pointer';
-		billingButton.style.fontSize = '13px';
-		billingButton.style.fontWeight = '500';
-		billingButton.style.marginTop = '0.75rem';
-		billingButton.style.display = 'block';
-
-		// Hover effect
-		billingButton.addEventListener('mouseenter', () => {
-			billingButton.style.backgroundColor = '#5a6fd8';
-		});
-
-		billingButton.addEventListener('mouseleave', () => {
-			billingButton.style.backgroundColor = '#667eea';
-		});
-
 		// Click event
 		billingButton.addEventListener('click', async () => {
 			// Show loading state
 			const originalText = billingButton.textContent;
 			billingButton.textContent = '⏳ Opening...';
 			billingButton.disabled = true;
-			billingButton.style.opacity = '0.7';
 
 			try {
 				// Use the extracted public method
@@ -2680,18 +2652,13 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				// Restore button state
 				billingButton.textContent = originalText;
 				billingButton.disabled = false;
-				billingButton.style.opacity = '1';
 			}
 		});
 	}
 
 	// Create subscription header with refresh button
 	private createSubscriptionHeaderWithRefresh(containerDiv: HTMLElement, subscriptionDiv: HTMLElement): HTMLElement {
-		const headerContainer = containerDiv.createEl('div');
-		headerContainer.style.display = 'flex';
-		headerContainer.style.alignItems = 'center';
-		headerContainer.style.justifyContent = 'space-between';
-		headerContainer.style.marginBottom = '0.5rem';
+		const headerContainer = containerDiv.createEl('div', { cls: 'subscription-header-container' });
 
 		// Title text
 		const titleEl = headerContainer.createEl('div', { 
@@ -2705,34 +2672,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			cls: 'subscription-refresh-button'
 		});
 
-		// Refresh button style
-		refreshButton.style.backgroundColor = 'transparent';
-		refreshButton.style.border = 'none';
-		refreshButton.style.cursor = 'pointer';
-		refreshButton.style.fontSize = '16px';
-		refreshButton.style.padding = '2px 4px';
-		refreshButton.style.borderRadius = '3px';
-		refreshButton.style.opacity = '0.7';
-		refreshButton.style.transition = 'opacity 0.2s, background-color 0.2s';
-
-		// Hover effect
-		refreshButton.addEventListener('mouseenter', () => {
-			refreshButton.style.opacity = '1';
-			refreshButton.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
-		});
-
-		refreshButton.addEventListener('mouseleave', () => {
-			refreshButton.style.opacity = '0.7';
-			refreshButton.style.backgroundColor = 'transparent';
-		});
-
 		// Click event - refresh subscription information
 		refreshButton.addEventListener('click', async () => {
 			// Show loading state
 			const originalText = refreshButton.textContent;
 			refreshButton.textContent = '⏳';
 			refreshButton.disabled = true;
-			refreshButton.style.opacity = '0.5';
 
 			try {
 				// Show loading
@@ -2819,7 +2764,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				if (refreshButton.isConnected) {
 					refreshButton.textContent = originalText;
 					refreshButton.disabled = false;
-					refreshButton.style.opacity = '0.7';
 				}
 			}
 		});

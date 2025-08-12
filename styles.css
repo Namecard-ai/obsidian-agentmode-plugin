@@ -849,3 +849,237 @@ If your plugin does not need CSS, delete this file.
 .payment-modal-button.cancel:hover {
   background-color: var(--background-modifier-hover);
 }
+
+/* BYOK (Bring Your Own Key) Info Styles */
+.byok-info {
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Billing Portal Button Styles */
+.billing-portal-button {
+  background-color: #667eea;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 0.75rem;
+  display: block;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.billing-portal-button:hover {
+  background-color: #5a6fd8;
+}
+
+.billing-portal-button:disabled {
+  opacity: 0.7;
+}
+
+/* Subscription Header Container Styles */
+.subscription-header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+/* Subscription Refresh Button Styles */
+.subscription-refresh-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.subscription-refresh-button:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.subscription-refresh-button:disabled {
+  opacity: 0.5;
+}
+
+/* Interactive Button Styles */
+.interactive-button {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.interactive-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+/* Close Button Styles */
+.close-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  color: var(--text-muted);
+}
+
+.close-button:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* Auto-resizing Textarea */
+.auto-resize-textarea {
+  resize: none;
+  overflow: hidden;
+}
+
+/* Action Button Base Styles */
+.action-button {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Success Action Button */
+.action-button-success {
+  background-color: var(--background-modifier-success);
+  color: var(--text-normal);
+}
+
+.action-button-success:hover {
+  background-color: var(--background-modifier-success-hover);
+}
+
+/* Error Action Button */
+.action-button-error {
+  background-color: transparent;
+  color: var(--text-muted);
+}
+
+.action-button-error:hover {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}
+
+/* Info Action Button */
+.action-button-info {
+  background-color: var(--background-modifier-info);
+  color: var(--text-normal);
+}
+
+.action-button-info:hover {
+  background-color: var(--background-modifier-info-hover);
+}
+
+/* Secondary Action Button */
+.action-button-secondary {
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.action-button-secondary:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* Copy Button Styles */
+.copy-button-styled {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  background-color: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-ui-smaller);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.copy-button-styled:hover {
+  border-color: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+}
+
+/* File/Image Tag Styles */
+.file-tag {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 12px;
+  gap: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.file-tag-success {
+  background-color: var(--background-modifier-success);
+  color: var(--text-on-accent);
+  border: 1px solid var(--background-modifier-success-border);
+}
+
+.file-tag-success:hover {
+  background-color: var(--background-modifier-success-hover);
+}
+
+.file-tag-info {
+  background-color: var(--background-modifier-info);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.file-tag-info:hover {
+  background-color: var(--background-modifier-info-hover);
+}
+
+.file-tag-secondary {
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.file-tag-secondary:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* Remove Button (X) Styles */
+.remove-button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-left: 2px;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-button:hover {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}

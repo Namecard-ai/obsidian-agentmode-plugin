@@ -76,28 +76,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
         <span style={{ fontWeight: '500' }}>{language}</span>
         <button
           onClick={handleCopy}
+          className="copy-button-styled"
           style={{
-            background: 'none',
-            border: '1px solid var(--background-modifier-border)',
-            borderRadius: '4px',
-            color: copied ? 'var(--text-success)' : 'var(--text-muted)',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            fontSize: '12px',
-            transition: 'all 0.2s ease',
+            color: copied ? 'var(--text-success)' : undefined,
             fontFamily: 'inherit'
-          }}
-          onMouseEnter={(e) => {
-            if (!copied) {
-              e.currentTarget.style.borderColor = 'var(--background-modifier-border-hover)';
-              e.currentTarget.style.color = 'var(--text-normal)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!copied) {
-              e.currentTarget.style.borderColor = 'var(--background-modifier-border)';
-              e.currentTarget.style.color = 'var(--text-muted)';
-            }
           }}
         >
           {copied ? '✓ Copied' : '📋 Copy'}

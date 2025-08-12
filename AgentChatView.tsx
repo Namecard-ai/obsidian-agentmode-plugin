@@ -220,24 +220,9 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, tooltip, onClick }) => {
       ref={buttonRef}
       title={tooltip}
       onClick={onClick}
+      className="close-button"
       style={{
-        background: 'transparent',
-        border: 'none',
-        color: 'var(--text-muted)',
-        cursor: 'pointer',
-        padding: '6px',
-        borderRadius: '6px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
-        e.currentTarget.style.color = 'var(--text-normal)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'transparent';
-        e.currentTarget.style.color = 'var(--text-muted)';
+        padding: '6px'
       }}
     />
   );
@@ -294,22 +279,9 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
         
         <button
           onClick={onLoginClick}
+          className="interactive-button"
           style={{
-            padding: '12px 24px',
-            backgroundColor: 'var(--interactive-accent)',
-            color: 'var(--text-on-accent)',
-            border: 'none',
-            borderRadius: '6px',
-            fontSize: 'var(--font-ui-medium)',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--interactive-accent-hover)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--interactive-accent)';
+            padding: '12px 24px'
           }}
         >
           Start Login
@@ -420,11 +392,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     return () => observer.disconnect();
   }, []);
 
+  // Auto-resize textarea utility function
+  const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto'; // Reset height to recalculate
+    textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+  };
+
   useEffect(() => {
     if (textareaRef.current) {
-      const textarea = textareaRef.current;
-      textarea.style.height = 'auto'; // Reset height to recalculate
-      textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+      autoResizeTextarea(textareaRef.current);
     }
   }, [inputText]);
 
@@ -1768,24 +1744,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={image.id}
                 title={`${image.name} (${(image.size / 1024 / 1024).toFixed(1)}MB)`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--background-modifier-success)',
-                  borderRadius: '12px',
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  color: 'var(--text-on-accent)',
-                  gap: '4px',
-                  border: '1px solid var(--background-modifier-success-border)',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-success-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-success)';
-                }}
+                className="file-tag file-tag-success"
               >
                 <span>🖼️ {image.name}</span>
                 <button
@@ -1793,30 +1752,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeUploadedImage(image.id);
                   }}
+                  className="remove-button"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
                     padding: '2px',
                     fontSize: '14px',
-                    lineHeight: '1',
-                    marginLeft: '2px',
-                    borderRadius: '50%',
-                    width: '16px',
-                    height: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
-                    e.currentTarget.style.color = 'var(--text-on-accent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-muted)';
+                    lineHeight: '1'
                   }}
                   title="Remove image"
                 >
@@ -1848,24 +1788,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={file.id}
                 title={`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--background-modifier-info)',
-                  borderRadius: '12px',
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  color: 'var(--text-on-accent)',
-                  gap: '4px',
-                  border: '1px solid var(--background-modifier-info-border)',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-info-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-info)';
-                }}
+                className="file-tag file-tag-info"
               >
                 <span>📎 {file.name}</span>
                 <button
@@ -1873,30 +1796,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeUploadedFile(file.id);
                   }}
+                  className="remove-button"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
                     padding: '2px',
                     fontSize: '14px',
-                    lineHeight: '1',
-                    marginLeft: '2px',
-                    borderRadius: '50%',
-                    width: '16px',
-                    height: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
-                    e.currentTarget.style.color = 'var(--text-on-accent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-muted)';
+                    lineHeight: '1'
                   }}
                   title="Remove file"
                 >
@@ -1928,24 +1832,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={contextFile.id}
                 title={contextFile.file.path}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--background-secondary)',
-                  borderRadius: '12px',
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  color: 'var(--text-normal)',
-                  gap: '4px',
-                  border: '1px solid var(--background-modifier-border)',
-                  transition: 'background-color 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--background-secondary)';
-                }}
+                className="file-tag file-tag-secondary"
               >
                 <span>📄 {contextFile.displayName}</span>
                 <button
@@ -1953,30 +1840,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeContextFile(contextFile.id);
                   }}
+                  className="remove-button"
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
                     padding: '2px',
                     fontSize: '14px',
-                    lineHeight: '1',
-                    marginLeft: '2px',
-                    borderRadius: '50%',
-                    width: '16px',
-                    height: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-error)';
-                    e.currentTarget.style.color = 'var(--text-on-accent)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-muted)';
+                    lineHeight: '1'
                   }}
                   title="Remove file"
                 >
