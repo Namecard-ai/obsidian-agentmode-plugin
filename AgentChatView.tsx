@@ -1214,6 +1214,99 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // This prevents duplicate handling
   };
 
+  const handleTextareaDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    console.log('Textarea drop event triggered');
+
+    // Get the files being dragged
+    const dataTransfer = e.dataTransfer;
+    if (!dataTransfer) return;
+
+    // Try to get Obsidian internal drag data
+    const obsidianData = dataTransfer.getData('obsidian/file');
+    if (obsidianData) {
+      try {
+        const files = JSON.parse(obsidianData);
+        if (Array.isArray(files) && files.length > 0) {
+          // Insert links at cursor position
+          const cursorPos = textareaRef.current?.selectionStart || inputText.length;
+          const beforeCursor = inputText.slice(0, cursorPos);
+          const afterCursor = inputText.slice(cursorPos);
+          
+          // Create wikilinks for each file
+          const links = files.map(filePath => `[[${filePath}]]`).join(' ');
+          const newText = beforeCursor + links + afterCursor;
+          
+          setInputText(newText);
+          
+          // Set cursor position after inserted links
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newCursorPos = cursorPos + links.length;
+              textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+              textareaRef.current.focus();
+            }
+          }, 0);
+          
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing Obsidian drag data:', error);
+      }
+    }
+
+    // Fallback: Try other data types
+    const types = Array.from(dataTransfer.types);
+    console.log('Available data types:', types);
+    
+    for (const type of types) {
+      const data = dataTransfer.getData(type);
+      console.log(`Data for type ${type}:`, data);
+      
+      // Try to extract file paths from various formats
+      if (type === 'text/plain' || type === 'text/uri-list') {
+        // Check if it looks like a file path
+        if (data.includes('.md') || data.includes('/')) {
+          const cursorPos = textareaRef.current?.selectionStart || inputText.length;
+          const beforeCursor = inputText.slice(0, cursorPos);
+          const afterCursor = inputText.slice(cursorPos);
+          
+          // Extract just the filename or path
+          let linkText = data;
+          if (data.startsWith('file://')) {
+            linkText = data.replace('file://', '');
+          }
+          
+          // Create wikilink
+          const link = `[[${linkText}]]`;
+          const newText = beforeCursor + link + afterCursor;
+          
+          setInputText(newText);
+          
+          // Set cursor position after inserted link
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newCursorPos = cursorPos + link.length;
+              textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+              textareaRef.current.focus();
+            }
+          }, 0);
+          
+          return;
+        }
+      }
+    }
+  };
+
+  const handleTextareaDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Allow drop
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
   const renderMessage = (message: Message) => {
     const isUser = message.role === 'user';
     const isStreaming = streamingMessageId === message.id;
@@ -1889,6 +1982,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
+                onDrop={handleTextareaDrop}
+                onDragOver={handleTextareaDragOver}
                 placeholder={chatMode === 'Ask' 
                   ? "Ask something... Use [[]] to link notes" 
                   : "Give instructions to the agent... Use [[]] to link notes"
