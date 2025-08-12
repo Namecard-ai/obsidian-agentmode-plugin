@@ -835,7 +835,6 @@ export default class AgentPlugin extends Plugin {
 			await this.app.vault.adapter.mkdir(dirPath);
 		} catch (error) {
 			// Directory might already exist, which is fine
-			console.log('Directory already exists:', dirPath);
 		}
 	}
 

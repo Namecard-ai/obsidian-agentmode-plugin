@@ -475,10 +475,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
   const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Debug: Monitor messages changes
+  // Monitor messages changes
   useEffect(() => {
-    console.log('🎯 [DEBUG] Messages changed, current count:', messages.length);
-    console.log('🎯 [DEBUG] Messages:', messages.map(m => ({ id: m.id, role: m.role, content: m.content.slice(0, 50) })));
+    // Messages state updated
   }, [messages]);
 
   const toggleToolSession = (messageId: string) => {
@@ -605,7 +604,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         chatMode,
         (chunk: string) => {
           // Handle streaming for assistant response content
-          console.log('🎯 [DEBUG] Streaming chunk:', chunk);
           setCurrentStreamingContent(prev => prev + chunk);
         },
         (toolCall: any) => {
@@ -626,11 +624,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         },
         (finalContent: string) => {
           // Handle completion - create final message with complete content from main.ts
-          console.log('🎯 [DEBUG] Completion callback triggered');
-          console.log('🎯 [DEBUG] finalContent from main.ts:', finalContent);
-          console.log('🎯 [DEBUG] finalContent length:', finalContent.length);
-          console.log('🎯 [DEBUG] current messages count:', messages.length);
-          
           if (finalContent) {
             const finalMessage: Message = {
               id: generateId(),
@@ -639,25 +632,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               timestamp: new Date()
             };
             
-            console.log('🎯 [DEBUG] Creating final message:', finalMessage);
-            
             setMessages(prev => {
               const newMessages = [...prev, finalMessage];
-              console.log('🎯 [DEBUG] New messages array length:', newMessages.length);
-              console.log('🎯 [DEBUG] Last message:', newMessages[newMessages.length - 1]);
               return newMessages;
             });
           }
           
           // Use setTimeout to ensure the message is rendered before clearing states
           setTimeout(() => {
-            console.log('🎯 [DEBUG] Clearing loading states');
             setIsLoading(false);
             setStreamingMessageId(null);
             setCurrentStreamingContent('');
           }, 50); // Small delay to ensure rendering
-          
-          console.log(`${chatMode} conversation completed`);
         },
         (error: string) => {
           // Handle error
@@ -690,7 +676,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Add UI notification for Ask Mode auto-rejection
           if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
             // Show a subtle notification that editing was blocked
-            console.log('🚫 [Ask Mode] Edit operation was automatically blocked');
           }
         }
       );
@@ -932,30 +917,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       setIsDragOver(false);
       setDragFileCount(0);
 
-      console.log('Drop event triggered');
-      console.log('DataTransfer types:', e.dataTransfer?.types);
-
-      // Log all available data types for debugging
-      if (e.dataTransfer?.types) {
-        e.dataTransfer.types.forEach(type => {
-          const data = e.dataTransfer?.getData(type);
-          console.log(`Data type "${type}":`, data);
-        });
-      }
-
       // Handle Obsidian's native file drag data
       const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
-        console.log('Found files in dataTransfer:', files);
         Array.from(files).forEach(file => {
-          console.log('Processing file:', file.name);
           if (file.name.endsWith('.md')) {
             const abstractFile = app.vault.getAbstractFileByPath(file.name);
             if (abstractFile && abstractFile instanceof TFile) {
-              console.log('Adding file via files array:', abstractFile.path);
               addContextFile(abstractFile);
-            } else {
-              console.log('Could not find TFile for:', file.name);
             }
           }
         });
@@ -969,8 +938,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       for (const type of dataTypes) {
         const data = e.dataTransfer?.getData(type);
         if (data) {
-          console.log(`Trying to process data from type "${type}":`, data);
-          
           // Parse multiple files from the data
           let filePaths: string[] = [];
           
@@ -991,8 +958,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             filePaths = data.split(/[\n\r,;]+/).filter(path => path.trim().length > 0);
           }
           
-          console.log(`Extracted ${filePaths.length} file paths:`, filePaths);
-          
           // Process each file path
           for (const filePath of filePaths) {
             const cleanPath = filePath.trim();
@@ -1001,7 +966,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             // Try to find file by exact path
             let abstractFile = app.vault.getAbstractFileByPath(cleanPath);
             if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
-              console.log('Found file by exact path:', abstractFile.path);
               addContextFile(abstractFile);
               filesAdded++;
               continue;
@@ -1019,7 +983,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             for (const path of pathVariations) {
               abstractFile = app.vault.getAbstractFileByPath(path);
               if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
-                console.log('Found file by path variation:', abstractFile.path);
                 addContextFile(abstractFile);
                 filesAdded++;
                 break;
@@ -1039,7 +1002,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             );
             
             if (foundFile) {
-              console.log('Found file by basename search:', foundFile.path);
               addContextFile(foundFile);
               filesAdded++;
             }
@@ -1047,14 +1009,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           
           // If we found files in this data type, we can stop trying other types
           if (filesAdded > 0) {
-            console.log(`Successfully added ${filesAdded} files from data type "${type}"`);
             break;
           }
         }
       }
 
       if (filesAdded === 0) {
-        console.log('No files could be resolved from drop data');
         // Try to access Obsidian's internal drag state
         try {
           const workspace = app.workspace as any;
@@ -1076,17 +1036,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }
             
             if (obj) {
-              console.log(`Found data at ${path}:`, obj);
               if (Array.isArray(obj)) {
                 obj.forEach((file: any) => {
                   if (file && file.extension === 'md') {
-                    console.log('Adding file from', path, ':', file.path);
                     addContextFile(file);
                     filesAdded++;
                   }
                 });
               } else if (obj.extension === 'md') {
-                console.log('Adding single file from', path, ':', obj.path);
                 addContextFile(obj);
                 filesAdded++;
               }
@@ -1097,14 +1054,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
           if (fileExplorer && fileExplorer.view && filesAdded === 0) {
             const view = fileExplorer.view as any;
-            console.log('File explorer view:', view);
             
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
-              console.log('Found selectedDoms:', view.tree.selectedDoms);
               view.tree.selectedDoms.forEach((dom: any) => {
                 if (dom.file && dom.file.extension === 'md') {
-                  console.log('Adding file from selectedDoms:', dom.file.path);
                   addContextFile(dom.file);
                   filesAdded++;
                 }
@@ -1117,18 +1071,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       }
 
       if (filesAdded === 0) {
-        console.log('No markdown files could be added from drop operation');
-        
         // Final fallback: try to parse any text data as a file path
         const allDataTypes = Array.from(e.dataTransfer?.types || []);
-        console.log('All available data types:', allDataTypes);
         
         for (const type of allDataTypes) {
           try {
             const data = e.dataTransfer?.getData(type);
             if (data && typeof data === 'string') {
-              console.log(`Final attempt with type "${type}":`, data);
-              
               // Try to find any markdown file that matches
               const allFiles = app.vault.getMarkdownFiles();
               const matchingFile = allFiles.find(file => {
@@ -1140,7 +1089,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               });
               
               if (matchingFile) {
-                console.log('Found matching file in final attempt:', matchingFile.path);
                 addContextFile(matchingFile);
                 filesAdded++;
                 break;
@@ -1149,10 +1097,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           } catch (error) {
             console.error(`Error processing type "${type}":`, error);
           }
-        }
-        
-        if (filesAdded === 0) {
-          console.log('All file resolution attempts failed');
         }
       }
     };
@@ -1266,7 +1210,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     setIsDragOver(false);
     setDragFileCount(0);
 
-    console.log('React drop event triggered');
     // Let the native handler take care of this
     // This prevents duplicate handling
   };

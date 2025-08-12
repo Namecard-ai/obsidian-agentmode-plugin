@@ -151,7 +151,6 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Setup token refresh timer
 			auth0Service.setupTokenRefreshTimer();
 
-			console.log('Login successful:', userInfo);
 			onLoginSuccess(userInfo);
 
 		} catch (error: any) {
