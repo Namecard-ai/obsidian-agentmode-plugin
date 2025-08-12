@@ -673,15 +673,15 @@ export default class AgentPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-		this.addRibbonIcon('bot-message-square', 'Open Agentmode Chat', () => {
+		this.addRibbonIcon('bot-message-square', 'Open Chat', () => {
 			this.activateAgentChatView();
 		});
 
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-agent-chat',
-			name: 'Open Agentmode Chat',
+			id: 'open-chat',
+			name: 'Open Chat',
 			callback: () => {
 				this.activateAgentChatView();
 			}
