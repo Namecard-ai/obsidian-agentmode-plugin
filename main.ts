@@ -757,7 +757,7 @@ export default class AgentPlugin extends Plugin {
 			
 			// Add icon
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-in' });
-			icon.innerHTML = '✅';
+			icon.textContent = '✅';
 			
 			// Add user name
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
@@ -767,7 +767,7 @@ export default class AgentPlugin extends Plugin {
 		} else {
 			// Not logged in status
 			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-out' });
-			icon.innerHTML = '⚫';
+			icon.textContent = '⚫';
 			
 			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
 			text.textContent = 'Agent Mode';
@@ -2603,7 +2603,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		// Add important notice
 		const keyInfoEl = containerEl.createEl('p', { cls: 'byok-info' });
-		keyInfoEl.innerHTML = `<strong>How this works:</strong> Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don't need to enter your own key (even if you've entered one, we'll directly ignore your key and use our managed service).`;
+		const strongEl = keyInfoEl.createEl('strong');
+		strongEl.textContent = 'How this works:';
+		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
 		keyInfoEl.style.padding = '12px';
 		keyInfoEl.style.backgroundColor = 'var(--background-secondary)';
 		keyInfoEl.style.borderRadius = '6px';
