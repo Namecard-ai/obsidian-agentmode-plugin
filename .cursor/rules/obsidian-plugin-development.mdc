@@ -1,11 +1,11 @@
 ---
 globs: *.ts,*.tsx,*.js,*.jsx,*.css,*.md
-description: Frontend project English language requirements
+description: Obsidian plugin development standards and best practices
 ---
 
-# Frontend English Language Requirements
+# Obsidian Plugin Development Standards
 
-This is an Obsidian plugin written in TypeScript/React. All UI text, code comments, and documentation must be in English.
+This is an Obsidian plugin written in TypeScript/React. This document outlines development standards, best practices, and lifecycle management guidelines.
 
 ## Language Requirements
 
@@ -37,6 +37,26 @@ This is an Obsidian plugin written in TypeScript/React. All UI text, code commen
 - Add JSDoc comments for complex functions
 - Document component props and their types
 - Include usage examples in comments when helpful
+
+## Obsidian Plugin Lifecycle Management
+
+### Event and Interval Registration
+- Use `this.registerDomEvent()` for global DOM events to ensure automatic cleanup when plugin is disabled
+- Use `this.registerInterval()` for intervals to ensure automatic cleanup when plugin is disabled
+- These registration methods prevent memory leaks by automatically removing listeners/intervals on plugin shutdown
+
+Example patterns:
+```typescript
+// DOM event registration - automatically cleaned up
+this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+    console.log('click', evt);
+});
+
+// Interval registration - automatically cleaned up
+this.registerInterval(window.setInterval(() => {
+    console.log('periodic task');
+}, 5 * 60 * 1000));
+```
 
 ## Project Structure
 - Main plugin entry: [main.ts](mdc:main.ts)
