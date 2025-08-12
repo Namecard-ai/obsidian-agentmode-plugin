@@ -38,6 +38,14 @@ This is an Obsidian plugin written in TypeScript/React. All UI text, code commen
 - Document component props and their types
 - Include usage examples in comments when helpful
 
+### Styling Guidelines
+- **CRITICAL**: Avoid inline styles via JavaScript or HTML attributes
+- Move all styling to CSS files for better theme compatibility
+- Use CSS classes instead of setting `.style` properties in JavaScript
+- Leverage CSS variables (e.g., `var(--background-primary)`) for theme support
+- Group related styles together in CSS with descriptive class names
+- Use semantic class names that describe purpose, not appearance
+
 ## Project Structure
 - Main plugin entry: [main.ts](mdc:main.ts)
 - React components: [AgentChatView.tsx](mdc:AgentChatView.tsx), [LoginComponent.tsx](mdc:LoginComponent.tsx)
