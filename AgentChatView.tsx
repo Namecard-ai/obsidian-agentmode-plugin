@@ -974,10 +974,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         Array.from(files).forEach(file => {
           console.log('Processing file:', file.name);
           if (file.name.endsWith('.md')) {
-            const tfile = app.vault.getAbstractFileByPath(file.name) as TFile;
-            if (tfile) {
-              console.log('Adding file via files array:', tfile.path);
-              addContextFile(tfile);
+            const abstractFile = app.vault.getAbstractFileByPath(file.name);
+            if (abstractFile && abstractFile instanceof TFile) {
+              console.log('Adding file via files array:', abstractFile.path);
+              addContextFile(abstractFile);
             } else {
               console.log('Could not find TFile for:', file.name);
             }
@@ -1023,10 +1023,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             if (!cleanPath) continue;
             
             // Try to find file by exact path
-            let file = app.vault.getAbstractFileByPath(cleanPath) as TFile;
-            if (file && file.extension === 'md') {
-              console.log('Found file by exact path:', file.path);
-              addContextFile(file);
+            let abstractFile = app.vault.getAbstractFileByPath(cleanPath);
+            if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
+              console.log('Found file by exact path:', abstractFile.path);
+              addContextFile(abstractFile);
               filesAdded++;
               continue;
             }
@@ -1041,16 +1041,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             ];
 
             for (const path of pathVariations) {
-              file = app.vault.getAbstractFileByPath(path) as TFile;
-              if (file && file.extension === 'md') {
-                console.log('Found file by path variation:', file.path);
-                addContextFile(file);
+              abstractFile = app.vault.getAbstractFileByPath(path);
+              if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
+                console.log('Found file by path variation:', abstractFile.path);
+                addContextFile(abstractFile);
                 filesAdded++;
                 break;
               }
             }
 
-            if (file && file.extension === 'md') continue;
+            if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') continue;
 
             // Try to find by basename
             const allFiles = app.vault.getMarkdownFiles();

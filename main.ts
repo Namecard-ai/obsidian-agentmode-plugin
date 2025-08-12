@@ -1553,11 +1553,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		console.log('📖 [TOOL] read_file starting with args:', args);
 		
 		try {
-			const file = this.app.vault.getAbstractFileByPath(args.file_path) as TFile;
-			if (!file) {
-				console.log('📖 [TOOL] read_file: File not found:', args.file_path);
-				return `File not found: ${args.file_path}`;
-			}
+			const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
+		if (!abstractFile || !(abstractFile instanceof TFile)) {
+			console.log('📖 [TOOL] read_file: File not found or not a file:', args.file_path);
+			return `File not found: ${args.file_path}`;
+		}
+		const file = abstractFile;
 
 			console.log('📖 [TOOL] read_file: Found file, reading content...');
 			const content = await this.app.vault.read(file);
@@ -1590,10 +1591,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return "❌ I'm currently in Ask Mode, which prohibits file editing operations. If you need to create or edit files, please ask the user to switch to Agent Mode and try again.";
 			}
 
-			const file = this.app.vault.getAbstractFileByPath(args.file_path) as TFile;
-			if (!file) {
-				return `Note not found: ${args.file_path}`;
-			}
+					const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
+		if (!abstractFile || !(abstractFile instanceof TFile)) {
+			return `Note not found: ${args.file_path}`;
+		}
+		const file = abstractFile;
 
 			// Read the current file content
 			const originalContent = await this.app.vault.read(file);
