@@ -33,6 +33,12 @@ This is an Obsidian plugin written in TypeScript/React. This document outlines d
 - Use proper error handling with try-catch blocks
 - Keep components small and focused on single responsibility
 
+### Variable Declarations
+- **Never use `var`** - always use `const` or `let` instead
+- Use `const` for variables that won't be reassigned
+- Use `let` for variables that will be reassigned
+- `var` has function-level scope which can lead to bugs - modern JavaScript uses block-level scope with `const`/`let`
+
 ### Documentation
 - Add JSDoc comments for complex functions
 - Document component props and their types
