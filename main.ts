@@ -222,7 +222,6 @@ export class Auth0Service {
 			const poll = async () => {
 				// Check if polling has been stopped
 				if (!this.isPolling) {
-					console.log('Polling stopped, aborting current poll');
 					return;
 				}
 
@@ -240,7 +239,6 @@ export class Auth0Service {
 				try {
 					// Check again if polling has been stopped (before sending request)
 					if (!this.isPolling) {
-						console.log('Polling stopped, aborting before request');
 						return;
 					}
 
@@ -261,7 +259,6 @@ export class Auth0Service {
 
 					// Check if polling has been stopped (before processing response)
 					if (!this.isPolling) {
-						console.log('Polling stopped, aborting after request');
 						return;
 					}
 
@@ -297,7 +294,6 @@ export class Auth0Service {
 					console.error('Polling error:', error);
 					// Check if polling has been stopped (after error occurred)
 					if (!this.isPolling) {
-						console.log('Polling stopped, aborting after error');
 						return;
 					}
 					// Network error, continue trying
@@ -312,7 +308,6 @@ export class Auth0Service {
 
 	// Stop polling
 	stopPolling() {
-		console.log('stopPolling');
 		this.isPolling = false;
 		if (this.pollingTimer) {
 			clearInterval(this.pollingTimer);
@@ -325,7 +320,6 @@ export class Auth0Service {
 		if (!this.plugin.settings.refreshToken) {
 			throw new Error('No refresh token available');
 		}
-		console.log('refreshToken', this.plugin.settings.refreshToken);
 		const url = `https://${this.config.domain}/oauth/token`;
 		const body = new URLSearchParams({
 			grant_type: 'refresh_token',
@@ -393,7 +387,6 @@ export class Auth0Service {
 		this.plugin.tokenRefreshTimer = setInterval(async () => {
 			if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
 				try {
-					console.log('Token is about to expire, starting automatic refresh...');
 					await this.autoRefreshToken();
 				} catch (error: any) {
 					console.error('Automatic token refresh failed:', error);
@@ -417,7 +410,6 @@ export class Auth0Service {
 			this.plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 			
 			await this.plugin.saveSettings();
-			console.log('Token refresh successful');
 		} catch (error: any) {
 			console.error('Token refresh failed:', error);
 			throw error;
@@ -446,7 +438,6 @@ export class Auth0Service {
 		
 		// Notify user
 		new Notice('Logged out');
-		console.log('User has logged out');
 
 		// Update status bar
 		this.plugin.updateStatusBar();
@@ -558,7 +549,6 @@ export class LoginModal extends Modal {
 				React.createElement(LoginComponent, {
 					auth0Service: this.plugin.getAuth0Service()!,
 					onLoginSuccess: (userInfo: Auth0UserInfo) => {
-						console.log('Login successful:', userInfo);
 						new Notice(`Welcome, ${userInfo.name || userInfo.email}!`);
 						this.resolveLogin(true);
 						this.close();
@@ -656,10 +646,6 @@ export default class AgentPlugin extends Plugin {
 			this.app.vault.on('modify', async (file) => {
 				// Check if the modified file is a TFile and is a markdown file (note)
 				if (file instanceof TFile && file.extension === 'md') {
-					console.log(`Note modified: ${file.path}`);
-					console.log(`File name: ${file.name}`);
-					console.log(`Last modified: ${new Date(file.stat.mtime).toISOString()}`);
-					
 					// Use debouncing to avoid frequent API calls
 					this.debouncedProcessFileForEmbedding(file);
 				}
@@ -706,12 +692,7 @@ export default class AgentPlugin extends Plugin {
 			clientId: process.env.AUTH0_CLIENT_ID || '',
 			audience: process.env.AUTH0_AUDIENCE || ''
 		};
-		
-		console.log('Auth0 Config initialized:', {
-			domain: this.auth0Config.domain,
-			clientId: this.auth0Config.clientId ? 'configured' : 'missing',
-			audience: this.auth0Config.audience ? 'configured' : 'missing'
-		});
+
 		
 		// Validate if configuration is complete
 		if (!this.auth0Config.domain || !this.auth0Config.clientId || !this.auth0Config.audience) {
@@ -727,7 +708,6 @@ export default class AgentPlugin extends Plugin {
 		// If already logged in, set up token refresh timer
 		if (this.settings.isLoggedIn && this.settings.accessToken) {
 			this.auth0Service.setupTokenRefreshTimer();
-			console.log('Logged in user detected, token refresh timer set up');
 		}
 	}
 
@@ -843,8 +823,6 @@ export default class AgentPlugin extends Plugin {
 			
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.vectorDbPath);
-			
-			console.log('Vector database initialized successfully');
 		} catch (error) {
 			console.error('Error initializing vector database:', error);
 			new Notice('Failed to initialize vector database');
@@ -857,7 +835,7 @@ export default class AgentPlugin extends Plugin {
 			await this.app.vault.adapter.mkdir(dirPath);
 		} catch (error) {
 			// Directory might already exist, which is fine
-			console.log('Directory creation info:', error);
+			console.log('Directory already exists:', dirPath);
 		}
 	}
 
@@ -1123,14 +1101,7 @@ export default class AgentPlugin extends Plugin {
 				for (const toolCall of currentMessage.tool_calls) {
 					try {
 						const args = JSON.parse(toolCall.function.arguments || '{}');
-						
-						// Debug: Log tool call input payload
-						console.log(`🔧 [TOOL CALL] ${toolCall.function.name}`);
-						console.log('📥 Input Payload:', {
-							tool_call_id: toolCall.id,
-							function_name: toolCall.function.name,
-							arguments: args
-						});
+
 						
 						let result = '';
 						
@@ -1153,15 +1124,6 @@ export default class AgentPlugin extends Plugin {
 							default:
 								result = 'Unknown tool call';
 						}
-						
-						// Debug: Log tool call output payload
-						console.log(`✅ [TOOL RESULT] ${toolCall.function.name}`);
-						console.log('📤 Output Payload:', {
-							tool_call_id: toolCall.id,
-							result_length: result.length,
-							result_preview: result.slice(0, 200),
-							full_result: result
-						});
 						
 						// Add tool result to conversation
 						const toolMessage: ChatCompletionMessageParam = {
@@ -1287,17 +1249,9 @@ export default class AgentPlugin extends Plugin {
 				const vaultName = this.app.vault.getName();
 				vaultPath = `Vault: ${vaultName}`;
 			}
-			
-			// Additional debugging
-			console.log('🔍 [SYSTEM] Vault adapter properties:', Object.keys(this.app.vault.adapter || {}));
-			console.log('🔍 [SYSTEM] Vault getName():', this.app.vault.getName?.());
-			console.log('🔍 [SYSTEM] Vault configDir:', this.app.vault.configDir);
 		} catch (error) {
 			console.warn('🔍 [SYSTEM] Could not determine vault path, using fallback:', error);
 		}
-		
-		console.log('🔍 [SYSTEM] Vault path:', vaultPath);
-		console.log('🔍 [SYSTEM] Vault path type:', typeof vaultPath);
 		const osInfo = navigator.platform;
 		
 		// Build context files section if any are provided
@@ -1478,23 +1432,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	// Tool implementations
 	private async toolVaultSearch(args: { query: string; explanation: string; target_subpaths?: string[] }) {
-		console.log('🔍 [TOOL] vault_search starting with args:', args);
-		
 		try {
 			// Use existing vector search functionality
 			const embedding = await this.getOpenAIEmbedding(args.query);
 			if (!embedding) {
-				console.log('🔍 [TOOL] vault_search: Failed to generate embedding');
 				return 'Failed to generate embedding for search query.';
 			}
 
-			console.log('🔍 [TOOL] vault_search: Generated embedding, length:', embedding.length);
 			const similarFiles = await this.searchSimilarFiles(embedding, 5);
 			
-			console.log('🔍 [TOOL] vault_search: Found similar files:', similarFiles.length);
-			
 			if (similarFiles.length === 0) {
-				console.log('🔍 [TOOL] vault_search: No relevant files found');
 				return 'No relevant files found for your query.';
 			}
 
@@ -1505,7 +1452,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}));
 
 			const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
-			console.log('🔍 [TOOL] vault_search: Returning result:', resultText);
 			
 			return resultText;
 		} catch (error: any) {
@@ -1515,21 +1461,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	private async toolReadFile(args: { file_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
-		console.log('📖 [TOOL] read_file starting with args:', args);
-		
 		try {
 			const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
 		if (!abstractFile || !(abstractFile instanceof TFile)) {
-			console.log('📖 [TOOL] read_file: File not found or not a file:', args.file_path);
 			return `File not found: ${args.file_path}`;
 		}
 		const file = abstractFile;
 
-			console.log('📖 [TOOL] read_file: Found file, reading content...');
 			const content = await this.app.vault.read(file);
 			
 			if (args.read_entire_note || (!args.start_line && !args.end_line)) {
-				console.log('📖 [TOOL] read_file: Returning entire file, length:', content.length);
 				return content;
 			}
 
@@ -1537,10 +1478,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const startIdx = (args.start_line || 1) - 1;
 			const endIdx = (args.end_line || lines.length) - 1;
 			
-			console.log(`📖 [TOOL] read_file: Returning lines ${startIdx + 1} to ${endIdx + 1} of ${lines.length} total lines`);
-			
 			const result = lines.slice(startIdx, endIdx + 1).join('\n');
-			console.log('📖 [TOOL] read_file: Result length:', result.length);
 			
 			return result;
 		} catch (error: any) {
@@ -1866,11 +1804,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 								try {
 									const dirExists = await this.app.vault.adapter.exists(directoryPath);
 									if (!dirExists) {
-										console.log(`Creating directory: ${directoryPath}`);
 										await this.app.vault.adapter.mkdir(directoryPath);
 									}
 								} catch (dirError: any) {
-									console.log(`Directory creation attempt for ${directoryPath}:`, dirError);
 									// Directory might already exist or be created by another process
 								}
 							}
@@ -1901,16 +1837,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	private async toolListVault(args: { vault_path: string; explanation: string }) {
-		console.log('📂 [TOOL] list_vault starting with args:', args);
-		
 		try {
 			// Convert absolute path to relative path if needed
 			let relativePath = args.vault_path;
 			
 			// If it's an absolute path, try to convert it to relative
 			if (relativePath.startsWith('/')) {
-				console.log('📂 [TOOL] list_vault: Absolute path detected, attempting conversion');
-				
 				// Try to extract vault name and make relative path
 				const pathParts = relativePath.split('/');
 				const vaultName = this.app.vault.getName();
@@ -1919,17 +1851,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				if (vaultIndex !== -1 && vaultIndex < pathParts.length - 1) {
 					// Found vault name in path, use everything after it
 					relativePath = pathParts.slice(vaultIndex + 1).join('/');
-					console.log('📂 [TOOL] list_vault: Converted to relative path:', relativePath);
 				} else {
 					// Can't convert, assume root
 					relativePath = '';
-					console.log('📂 [TOOL] list_vault: Cannot convert absolute path, using root');
 				}
 			}
 			
 			// Handle root directory cases
 			if (!relativePath || relativePath === '/' || relativePath === '.') {
-				console.log('📂 [TOOL] list_vault: Listing root vault directory');
 				const files = this.app.vault.getAllLoadedFiles();
 				
 				// Filter to only show top-level items
@@ -1946,18 +1875,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					}
 				}).slice(0, 20).join('\n');
 				
-				console.log('📂 [TOOL] list_vault: Root vault files count:', topLevelItems.length, 'returning first 20');
 				return result || 'No files found in vault root';
 			}
 			
 			// Check if the relative path exists as a folder
 			const folder = this.app.vault.getAbstractFileByPath(relativePath);
-			console.log('📂 [TOOL] list_vault: Checking folder:', relativePath, 'exists:', !!folder);
 			
 			if (folder && (folder as any).children) {
 				// It's a folder with children
 				const children = (folder as any).children;
-				console.log('📂 [TOOL] list_vault: Found folder with', children.length, 'children');
 				
 				const listing = children.map((child: any) => {
 					if (child.children) {
@@ -1968,15 +1894,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				});
 				
 				const result = listing.slice(0, 20).join('\n');
-				console.log('📂 [TOOL] list_vault: Returning folder contents (first 20 items)');
 				return result || 'Empty folder';
 			}
 			
 			// Try using adapter.list directly with the path
-			console.log('📂 [TOOL] list_vault: Trying adapter.list with path:', relativePath);
 			const contents = await this.app.vault.adapter.list(relativePath);
-			
-			console.log('📂 [TOOL] list_vault: Found', contents.folders.length, 'folders and', contents.files.length, 'files');
 			
 			const listing = [
 				...contents.folders.map(f => `📁 ${f}/`),
@@ -1984,14 +1906,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			];
 			
 			const result = listing.slice(0, 20).join('\n');
-			console.log('📂 [TOOL] list_vault: Returning adapter result (first 20 items)');
 			return result || 'Empty directory';
 			
 		} catch (error: any) {
 			console.error('📂 [TOOL] list_vault error:', error);
 			
 			// Fallback: list all files in vault
-			console.log('📂 [TOOL] list_vault: Error occurred, falling back to root listing');
 			try {
 				const files = this.app.vault.getAllLoadedFiles();
 				const result = files.map(f => f.path).slice(0, 20).join('\n');
@@ -2041,7 +1961,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				// Save the embedding to a JSON file
 				await this.saveEmbedding(record);
 				
-				console.log(`Successfully embedded and stored: ${file.name}`);
 				new Notice(`Vector embedding saved for: ${file.name}`);
 			}
 		} catch (error) {
@@ -2317,10 +2236,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const success = await loginModal.showLogin();
 			
 			if (success) {
-				console.log('User login successful');
 				this.updateStatusBar();
-			} else {
-				console.log('User cancelled login');
 			}
 		} catch (error: any) {
 			console.error('Login failed:', error);

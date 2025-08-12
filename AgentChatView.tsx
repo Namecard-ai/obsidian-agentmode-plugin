@@ -1112,7 +1112,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }
           }
         } catch (error) {
-          console.log('Could not access internal drag state:', error);
+          console.error('Could not access internal drag state:', error);
         }
       }
 
@@ -1147,7 +1147,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
             }
           } catch (error) {
-            console.log(`Error processing type "${type}":`, error);
+            console.error(`Error processing type "${type}":`, error);
           }
         }
         
