@@ -1110,7 +1110,7 @@ export default class AgentPlugin extends Plugin {
 		let finalAssistantContent = '';
 		while (true) {
 			// Start streaming chat completion
-			var reqOptions: RequestOptions = {
+			let reqOptions: RequestOptions = {
 				headers: {
 					'Authorization': `Bearer ${this.settings.accessToken}`
 				}
