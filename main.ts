@@ -838,8 +838,8 @@ export default class AgentPlugin extends Plugin {
 
 	async initializeVectorDB() {
 		try {
-			// Create vector database directory in the vault's .obsidian folder
-			this.vectorDbPath = '.obsidian/vectors';
+			// Create vector database directory in the vault's config folder
+			this.vectorDbPath = `${this.app.vault.configDir}/vectors`;
 			
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.vectorDbPath);
@@ -1271,10 +1271,15 @@ export default class AgentPlugin extends Plugin {
 			}
 			// Method 3: Try using the app's vault configDir
 			else if (this.app.vault.configDir) {
-				// configDir is usually .obsidian, so parent is vault path
+				// Get parent directory of configDir to get vault path
 				const configPath = this.app.vault.configDir;
 				if (typeof configPath === 'string') {
-					vaultPath = configPath.replace('/.obsidian', '');
+					// Use path manipulation to get parent directory instead of hardcoded replacement
+					const pathParts = configPath.split('/');
+					if (pathParts.length > 1) {
+						pathParts.pop(); // Remove the config directory name
+						vaultPath = pathParts.join('/') || '/';
+					}
 				}
 			}
 			// Method 4: Use vault name (fallback)
