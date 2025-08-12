@@ -44,6 +44,16 @@ This is an Obsidian plugin written in TypeScript/React. This document outlines d
 - Document component props and their types
 - Include usage examples in comments when helpful
 
+### Styling Guidelines
+- **CRITICAL**: Avoid inline styles via JavaScript or HTML attributes
+- Move all styling to CSS files for better theme compatibility
+- Use CSS classes instead of setting `.style` properties in JavaScript
+- Leverage CSS variables (e.g., `var(--background-primary)`) for theme support
+- Group related styles together in CSS with descriptive class names
+- Use semantic class names that describe purpose, not appearance
+- **Never use `innerHTML`** - always use `createEl()` and `appendText()` for DOM manipulation
+- Follow Obsidian's design system and use their CSS variables for consistent theming
+
 ## Obsidian Plugin Lifecycle Management
 
 ### Event and Interval Registration
