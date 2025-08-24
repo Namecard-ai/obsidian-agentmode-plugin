@@ -12,6 +12,7 @@ import { RequestOptions } from 'openai/internal/request-options';
 
 interface AgentPluginSettings {
 	openaiApiKey: string;
+	firecrawlApiKey: string;
 	
 	// Auth0 login status
 	isLoggedIn: boolean;
@@ -27,6 +28,7 @@ interface AgentPluginSettings {
 
 const DEFAULT_SETTINGS: AgentPluginSettings = {
 	openaiApiKey: '',
+	firecrawlApiKey: '',
 	isLoggedIn: false
 }
 
@@ -1040,6 +1042,40 @@ export default class AgentPlugin extends Plugin {
 							required: ['vault_path', 'explanation']
 						}
 					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'web_search',
+						description: 'Search the web for information using Firecrawl search API. Returns search results with titles, descriptions, and URLs.',
+						parameters: {
+							type: 'object',
+							properties: {
+								query: {
+									type: 'string',
+									description: 'Search query to find relevant web content'
+								}
+							},
+							required: ['query']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
+						name: 'web_scrape',
+						description: 'Scrape content from a specific URL using Firecrawl scrape API. Returns summarized content of the webpage.',
+						parameters: {
+							type: 'object',
+							properties: {
+								url: {
+									type: 'string',
+									description: 'URL to scrape content from'
+								}
+							},
+							required: ['url']
+						}
+					}
 				}
 			];
 
@@ -1119,6 +1155,12 @@ export default class AgentPlugin extends Plugin {
 								break;
 							case 'list_vault':
 								result = await this.toolListVault(args);
+								break;
+							case 'web_search':
+								result = await this.toolWebSearch(args);
+								break;
+							case 'web_scrape':
+								result = await this.toolWebScrape(args);
 								break;
 							default:
 								result = 'Unknown tool call';
@@ -1921,6 +1963,201 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
+	private async toolWebSearch(args: { query: string }) {
+		try {
+			if (!this.isLoggedIn() || !this.settings.accessToken) {
+				return 'Error: Not logged in. Please log in to use web search functionality.';
+			}
+
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
+
+			// Add Firecrawl BYOK key if available
+			if (this.settings.firecrawlApiKey) {
+				headers['X-BYOK'] = this.settings.firecrawlApiKey;
+			}
+
+			const response = await fetch(`${backendUrl}/search`, {
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify({
+					query: args.query
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error('🔍 [TOOL] web_search error:', response.status, errorData);
+				
+				if (response.status === 402) {
+					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+				} else if (response.status === 429) {
+					return 'Error: Search rate limit exceeded. Please try again later.';
+				} else {
+					return `Error: Web search failed (${response.status}). Please try again later.`;
+				}
+			}
+
+			const data = await response.json();
+			
+			if (!data.success) {
+				console.error('🔍 [TOOL] web_search API error:', data);
+				return 'Error: Web search API returned unsuccessful response.';
+			}
+
+			// Format the search results for display
+			const results = [];
+			
+			if (data.data?.web && Array.isArray(data.data.web)) {
+				results.push('🌐 Web Results:');
+				data.data.web.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.description) {
+						results.push(`   ${result.description}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.images && Array.isArray(data.data.images)) {
+				results.push('🖼️ Image Results:');
+				data.data.images.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.imageUrl) {
+						results.push(`   🔗 ${result.imageUrl}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.news && Array.isArray(data.data.news)) {
+				results.push('📰 News Results:');
+				data.data.news.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.snippet) {
+						results.push(`   ${result.snippet}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					if (result.date) {
+						results.push(`   📅 ${result.date}`);
+					}
+					results.push('');
+				});
+			}
+
+			const resultText = results.join('\n');
+			console.log('🔍 [TOOL] web_search completed successfully');
+			return resultText || 'No search results found.';
+
+		} catch (error: any) {
+			console.error('🔍 [TOOL] web_search error:', error);
+			return `Error performing web search: ${error.message}`;
+		}
+	}
+
+	private async toolWebScrape(args: { url: string }) {
+		try {
+			if (!this.isLoggedIn() || !this.settings.accessToken) {
+				return 'Error: Not logged in. Please log in to use web scrape functionality.';
+			}
+
+			// Basic URL validation
+			try {
+				new URL(args.url);
+			} catch (urlError) {
+				return 'Error: Invalid URL format. Please provide a valid URL.';
+			}
+
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
+
+			// Add Firecrawl BYOK key if available
+			if (this.settings.firecrawlApiKey) {
+				headers['X-BYOK'] = this.settings.firecrawlApiKey;
+			}
+
+			const response = await fetch(`${backendUrl}/scrape`, {
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify({
+					url: args.url,
+					formats: ['summary'] // Always use summary format as requested
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error('🕷️ [TOOL] web_scrape error:', response.status, errorData);
+				
+				if (response.status === 402) {
+					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+				} else if (response.status === 429) {
+					return 'Error: Scrape rate limit exceeded. Please try again later.';
+				} else {
+					return `Error: Web scrape failed (${response.status}). Please try again later.`;
+				}
+			}
+
+			const data = await response.json();
+			
+			if (!data.success) {
+				console.error('🕷️ [TOOL] web_scrape API error:', data);
+				return 'Error: Web scrape API returned unsuccessful response.';
+			}
+
+			// Format the scrape results for display
+			const results = [];
+			results.push(`🕷️ **Scraped Content from:** ${args.url}`);
+			results.push('');
+
+			if (data.data?.summary) {
+				results.push('📝 **Summary:**');
+				results.push(data.data.summary);
+				results.push('');
+			}
+
+			if (data.data?.metadata?.title) {
+				results.push(`📄 **Title:** ${data.data.metadata.title}`);
+			}
+
+			if (data.data?.metadata?.description) {
+				results.push(`📋 **Description:** ${data.data.metadata.description}`);
+			}
+
+			if (data.data?.metadata?.language) {
+				results.push(`🌐 **Language:** ${data.data.metadata.language}`);
+			}
+
+			if (data.warning) {
+				results.push('');
+				results.push(`⚠️ **Warning:** ${data.warning}`);
+			}
+
+			const resultText = results.join('\n');
+			console.log('🕷️ [TOOL] web_scrape completed successfully');
+			return resultText || 'No content could be scraped from the URL.';
+
+		} catch (error: any) {
+			console.error('🕷️ [TOOL] web_scrape error:', error);
+			return `Error performing web scrape: ${error.message}`;
+		}
+	}
+
 	private async buildContextContent(contextFiles: TFile[]): Promise<string> {
 		const contexts = [];
 		for (const file of contextFiles) {
@@ -2537,6 +2774,17 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.openaiApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.openaiApiKey = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Firecrawl API Key')
+			.setDesc('For web search and scrape functionality, you can get your API key from Firecrawl (https://firecrawl.dev/)')
+			.addText(text => text
+				.setPlaceholder('fc-...')
+				.setValue(this.plugin.settings.firecrawlApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.firecrawlApiKey = value;
 					await this.plugin.saveSettings();
 				}));
 	}
