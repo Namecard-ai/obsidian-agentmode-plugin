@@ -2764,7 +2764,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		const keyInfoEl = containerEl.createEl('p', { cls: 'byok-info' });
 		const strongEl = keyInfoEl.createEl('strong');
 		strongEl.textContent = 'How this works:';
-		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
+		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key and Firecrawl API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
 
 		new Setting(containerEl)
 			.setName('OpenAI API Key')
