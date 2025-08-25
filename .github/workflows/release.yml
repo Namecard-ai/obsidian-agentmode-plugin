@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: "22.x"
 
+      - name: Validate tag version
+        run: |
+          tag="${GITHUB_REF#refs/tags/}"
+          echo "Validating tag: $tag"
+          node scripts/validate-tag.js "$tag"
+
       - name: Build plugin (Production)
         if: ${{ !contains(github.ref_name, '-beta') }}
         run: |

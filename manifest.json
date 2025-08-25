@@ -1,7 +1,7 @@
 {
 	"id": "agentmode",
 	"name": "Agentmode",
-	"version": "1.0.11-beta",
+	"version": "1.0.14-beta",
 	"minAppVersion": "0.15.0",
 	"description": "An AI-powered assistant plugin that provides intelligent chat functionality with context-aware file integration.",
 	"author": "Namecard AI",
