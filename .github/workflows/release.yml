@@ -39,7 +39,7 @@ jobs:
         run: |
           echo "${{ secrets.ENV_DEVELOPMENT }}" > .env.development
           npm install
-          npm run build
+          npm run build:dev
 
       - name: Create release
         env:
