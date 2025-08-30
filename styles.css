@@ -174,6 +174,10 @@ If your plugin does not need CSS, delete this file.
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
+  /* Add text wrapping for long content */
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
 }
 
 /* 確保訊息內容可以被選取 */
@@ -182,6 +186,61 @@ If your plugin does not need CSS, delete this file.
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
+  /* Add text wrapping for long content */
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Ensure proper table overflow handling */
+.message table {
+  display: block !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+}
+
+/* Ensure table cells don't break layout */
+.message td, .message th {
+  white-space: nowrap !important;
+  padding: 8px 12px !important;
+}
+
+/* Handle pre-formatted and code blocks properly */
+.message pre {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  word-wrap: normal !important;
+  word-break: normal !important;
+}
+
+/* Handle inline code */
+.message code {
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Handle code blocks with proper scrolling */
+.message pre code {
+  display: block !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  word-wrap: normal !important;
+  word-break: normal !important;
+}
+
+/* Prevent horizontal scroll on main chat container */
+.chat-messages {
+  overflow-x: hidden !important;
+}
+
+/* Ensure paragraphs wrap properly */
+.message p {
+  word-wrap: break-word !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
 }
 
 /* 確保工具步驟內容也可以被選取 */
