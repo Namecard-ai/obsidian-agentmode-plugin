@@ -759,6 +759,58 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     fileUploadInputRef.current?.click();
   };
 
+  const handleImageFileDrop = async (file: TFile) => {
+    try {
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      
+      // Check file size
+      if (file.stat.size > maxSize) {
+        new Notice(`File "${file.name}" exceeds 50MB size limit`);
+        return;
+      }
+
+      // Check if already uploaded
+      if (uploadedImages.some(img => img.name === file.name && img.size === file.stat.size)) {
+        new Notice(`Image "${file.name}" has already been uploaded`);
+        return;
+      }
+
+      // Read file as binary and convert to base64
+      const arrayBuffer = await app.vault.readBinary(file);
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert to base64 safely (handle large files)
+      let binaryString = '';
+      const chunkSize = 8192;
+      
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.slice(i, i + chunkSize);
+        binaryString += String.fromCharCode(...chunk);
+      }
+      
+      const base64Data = btoa(binaryString);
+      const fileExtension = file.extension.toLowerCase();
+      const mimeType = (plugin as any).constructor.MIME_TYPES[fileExtension] || 'application/octet-stream';
+
+      // Create File object for compatibility with existing upload logic
+      const fileObj = new File([arrayBuffer], file.name, { type: mimeType });
+      
+      const uploadedImage: UploadedImage = {
+        id: generateId(),
+        file: fileObj,
+        name: file.name,
+        base64Data: base64Data,
+        size: file.stat.size
+      };
+
+      setUploadedImages(prev => [...prev, uploadedImage]);
+      new Notice(`Image "${file.name}" uploaded successfully`);
+    } catch (error) {
+      console.error('Error processing dropped image:', error);
+      new Notice(`Error processing image "${file.name}"`);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -914,7 +966,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       }
     };
 
-    const handleNativeDrop = (e: DragEvent) => {
+    const handleNativeDrop = async (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(false);
@@ -923,15 +975,22 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       // Handle Obsidian's native file drag data
       const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
-        Array.from(files).forEach(file => {
+        const filePromises = Array.from(files).map(async (file) => {
           const abstractFile = app.vault.getAbstractFileByPath(file.name);
           if (abstractFile && abstractFile instanceof TFile) {
+            const fileExtension = abstractFile.extension.toLowerCase();
+            
+            // Check if it's an image file
+            if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+              await handleImageFileDrop(abstractFile);
+            }
             // Check if file is supported by read_file tool
-            if (plugin.isFileSupportedByReadTool(abstractFile)) {
+            else if (plugin.isFileSupportedByReadTool(abstractFile)) {
               addContextFile(abstractFile);
             }
           }
         });
+        await Promise.all(filePromises);
         return;
       }
 
@@ -969,10 +1028,21 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             
             // Try to find file by exact path
             let abstractFile = app.vault.getAbstractFileByPath(cleanPath);
-            if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) {
-              addContextFile(abstractFile);
-              filesAdded++;
-              continue;
+            if (abstractFile && abstractFile instanceof TFile) {
+              const fileExtension = abstractFile.extension.toLowerCase();
+              
+              // Check if it's an image file
+              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                await handleImageFileDrop(abstractFile);
+                filesAdded++;
+                continue;
+              }
+              // Check if file is supported by read_file tool
+              else if (plugin.isFileSupportedByReadTool(abstractFile)) {
+                addContextFile(abstractFile);
+                filesAdded++;
+                continue;
+              }
             }
 
             // Try with different path variations
@@ -986,19 +1056,43 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             for (const path of pathVariations) {
               abstractFile = app.vault.getAbstractFileByPath(path);
-              if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) {
-                addContextFile(abstractFile);
-                filesAdded++;
-                break;
+              if (abstractFile && abstractFile instanceof TFile) {
+                const fileExtension = abstractFile.extension.toLowerCase();
+                
+                // Check if it's an image file
+                if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                  handleImageFileDrop(abstractFile).catch(error => {
+                    console.error('Error handling dropped image:', error);
+                  });
+                  filesAdded++;
+                  break;
+                }
+                // Check if file is supported by read_file tool
+                else if (plugin.isFileSupportedByReadTool(abstractFile)) {
+                  addContextFile(abstractFile);
+                  filesAdded++;
+                  break;
+                }
               }
             }
 
-            if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) continue;
+            if (abstractFile && abstractFile instanceof TFile) {
+              const fileExtension = abstractFile.extension.toLowerCase();
+              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension) || 
+                  plugin.isFileSupportedByReadTool(abstractFile)) {
+                continue;
+              }
+            }
 
             // Try to find by basename in all supported files
             const allFiles = app.vault.getFiles();
             const foundFile = allFiles.find(f => {
-              if (!plugin.isFileSupportedByReadTool(f)) return false;
+              const fileExtension = f.extension.toLowerCase();
+              const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+              const isReadable = plugin.isFileSupportedByReadTool(f);
+              
+              if (!isImage && !isReadable) return false;
+              
               return f.basename === cleanPath || 
                      f.name === cleanPath ||
                      f.path.endsWith('/' + cleanPath) ||
@@ -1007,8 +1101,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             });
             
             if (foundFile) {
-              addContextFile(foundFile);
-              filesAdded++;
+              const fileExtension = foundFile.extension.toLowerCase();
+              
+              // Check if it's an image file
+              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                handleImageFileDrop(foundFile).catch(error => {
+                  console.error('Error handling dropped image:', error);
+                });
+                filesAdded++;
+              }
+              // Otherwise add as context file
+              else if (plugin.isFileSupportedByReadTool(foundFile)) {
+                addContextFile(foundFile);
+                filesAdded++;
+              }
             }
           }
           
@@ -1042,15 +1148,38 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             
             if (obj) {
               if (Array.isArray(obj)) {
-                obj.forEach((file: any) => {
-                  if (file && plugin.isFileSupportedByReadTool(file)) {
-                    addContextFile(file);
-                    filesAdded++;
+                const objPromises = obj.map(async (file: any) => {
+                  if (file) {
+                    const fileExtension = file.extension?.toLowerCase();
+                    
+                    // Check if it's an image file
+                    if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                      await handleImageFileDrop(file);
+                      return true;
+                    }
+                    // Check if file is supported by read_file tool
+                    else if (plugin.isFileSupportedByReadTool(file)) {
+                      addContextFile(file);
+                      return true;
+                    }
                   }
+                  return false;
                 });
-              } else if (plugin.isFileSupportedByReadTool(obj)) {
-                addContextFile(obj);
-                filesAdded++;
+                const results = await Promise.all(objPromises);
+                filesAdded += results.filter(Boolean).length;
+              } else if (obj) {
+                const fileExtension = obj.extension?.toLowerCase();
+                
+                // Check if it's an image file
+                if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                  await handleImageFileDrop(obj);
+                  filesAdded++;
+                }
+                // Check if file is supported by read_file tool
+                else if (plugin.isFileSupportedByReadTool(obj)) {
+                  addContextFile(obj);
+                  filesAdded++;
+                }
               }
             }
           }
@@ -1062,12 +1191,25 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
-              view.tree.selectedDoms.forEach((dom: any) => {
-                if (dom.file && plugin.isFileSupportedByReadTool(dom.file)) {
-                  addContextFile(dom.file);
-                  filesAdded++;
+              const domPromises = view.tree.selectedDoms.map(async (dom: any) => {
+                if (dom.file) {
+                  const fileExtension = dom.file.extension?.toLowerCase();
+                  
+                  // Check if it's an image file
+                  if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                    await handleImageFileDrop(dom.file);
+                    return true;
+                  }
+                  // Check if file is supported by read_file tool
+                  else if (plugin.isFileSupportedByReadTool(dom.file)) {
+                    addContextFile(dom.file);
+                    return true;
+                  }
                 }
+                return false;
               });
+              const results = await Promise.all(domPromises);
+              filesAdded += results.filter(Boolean).length;
             }
           }
         } catch (error) {
@@ -1086,7 +1228,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               // Try to find any supported file that matches
               const allFiles = app.vault.getFiles();
               const matchingFile = allFiles.find(file => {
-                if (!plugin.isFileSupportedByReadTool(file)) return false;
+                const fileExtension = file.extension.toLowerCase();
+                const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+                const isReadable = plugin.isFileSupportedByReadTool(file);
+                
+                if (!isImage && !isReadable) return false;
+                
                 return data.includes(file.basename) || 
                        data.includes(file.name) || 
                        data.includes(file.path) ||
@@ -1095,9 +1242,22 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               });
               
               if (matchingFile) {
-                addContextFile(matchingFile);
-                filesAdded++;
-                break;
+                const fileExtension = matchingFile.extension.toLowerCase();
+                
+                // Check if it's an image file
+                if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                  handleImageFileDrop(matchingFile).catch(error => {
+                    console.error('Error handling dropped image:', error);
+                  });
+                  filesAdded++;
+                  break;
+                }
+                // Otherwise add as context file
+                else if (plugin.isFileSupportedByReadTool(matchingFile)) {
+                  addContextFile(matchingFile);
+                  filesAdded++;
+                  break;
+                }
               }
             }
           } catch (error) {
