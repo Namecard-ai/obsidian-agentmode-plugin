@@ -763,15 +763,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
     const maxSize = 50 * 1024 * 1024; // 50MB
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
-      // Check file type
-      if (!supportedTypes.includes(file.type)) {
-        new Notice(`File "${file.name}" is not a supported image format. Supported formats: JPG, PNG, GIF, WebP, BMP`);
+      // Check file type using IMAGE_EXTENSIONS from main.ts
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      const isImageSupported = fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+      
+      if (!isImageSupported) {
+        const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
+        new Notice(`File "${file.name}" is not a supported image format. Supported formats: ${supportedFormats}`);
         continue;
       }
 

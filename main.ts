@@ -1496,6 +1496,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	// File type constants for easy extension
 	private static readonly CONVERTIBLE_EXTENSIONS = ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'html'];
 	private static readonly PLAIN_TEXT_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt'];
+	private static readonly IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 	private static readonly MIME_TYPES: Record<string, string> = {
 		'pdf': 'application/pdf',
 		'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -1504,7 +1505,13 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		'ppt': 'application/vnd.ms-powerpoint',
 		'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 		'xls': 'application/vnd.ms-excel',
-		'html': 'text/html'
+		'html': 'text/html',
+		'jpg': 'image/jpeg',
+		'jpeg': 'image/jpeg',
+		'png': 'image/png',
+		'gif': 'image/gif',
+		'webp': 'image/webp',
+		'bmp': 'image/bmp'
 	};
 	private static readonly MAX_FILE_SIZE = 64 * 1024 * 1024; // 64MB
 

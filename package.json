@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "ENV_MODE=development node esbuild.config.mjs",
 		"dev:local": "ENV_MODE=local node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && ENV_MODE=production node esbuild.config.mjs production",
+		"build": "tsc -noEmit -skipLibCheck && ENV_MODE=local node esbuild.config.mjs production",
 		"build:local": "tsc -noEmit -skipLibCheck && ENV_MODE=local node esbuild.config.mjs production",
 		"build:dev": "tsc -noEmit -skipLibCheck && ENV_MODE=development node esbuild.config.mjs production",
 		"build:prod": "tsc -noEmit -skipLibCheck && ENV_MODE=production node esbuild.config.mjs production",
