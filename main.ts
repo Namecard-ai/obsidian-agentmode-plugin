@@ -873,14 +873,6 @@ export default class AgentPlugin extends Plugin {
 				}) as ChatCompletionMessageParam)
 			];
 
-			// Add context files information if any
-			if (contextFiles.length > 0) {
-				const contextContent = await this.buildContextContent(contextFiles);
-				chatMessages.push({
-					role: 'user',
-					content: `Context from attached files:\n\n${contextContent}`
-				});
-			}
 
 			// Define available tools in OpenAI format
 			const tools = [
@@ -1521,6 +1513,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		if (AgentPlugin.CONVERTIBLE_EXTENSIONS.includes(ext || '')) return 'convertible';
 		if (AgentPlugin.PLAIN_TEXT_EXTENSIONS.includes(ext || '')) return 'plain_text';
 		return 'unsupported';
+	}
+
+	public isFileSupportedByReadTool(file: TFile): boolean {
+		const fileType = this.getFileType(file.path);
+		return fileType === 'convertible' || fileType === 'plain_text';
 	}
 
 	private async toolReadFile(args: { file_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
@@ -2280,19 +2277,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			console.error('🕷️ [TOOL] web_scrape error:', error);
 			return `Error performing web scrape: ${error.message}`;
 		}
-	}
-
-	private async buildContextContent(contextFiles: TFile[]): Promise<string> {
-		const contexts = [];
-		for (const file of contextFiles) {
-			try {
-				const content = await this.app.vault.read(file);
-				contexts.push(`=== ${file.name} ===\n${content}`);
-			} catch (error: any) {
-				contexts.push(`=== ${file.name} ===\n[Error reading file: ${error.message}]`);
-			}
-		}
-		return contexts.join('\n\n');
 	}
 
 	async processFileForEmbedding(file: TFile) {

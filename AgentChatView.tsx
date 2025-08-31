@@ -921,9 +921,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
         Array.from(files).forEach(file => {
-          if (file.name.endsWith('.md')) {
-            const abstractFile = app.vault.getAbstractFileByPath(file.name);
-            if (abstractFile && abstractFile instanceof TFile) {
+          const abstractFile = app.vault.getAbstractFileByPath(file.name);
+          if (abstractFile && abstractFile instanceof TFile) {
+            // Check if file is supported by read_file tool
+            if (plugin.isFileSupportedByReadTool(abstractFile)) {
               addContextFile(abstractFile);
             }
           }
@@ -965,7 +966,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             
             // Try to find file by exact path
             let abstractFile = app.vault.getAbstractFileByPath(cleanPath);
-            if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
+            if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) {
               addContextFile(abstractFile);
               filesAdded++;
               continue;
@@ -982,24 +983,25 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             for (const path of pathVariations) {
               abstractFile = app.vault.getAbstractFileByPath(path);
-              if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') {
+              if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) {
                 addContextFile(abstractFile);
                 filesAdded++;
                 break;
               }
             }
 
-            if (abstractFile && abstractFile instanceof TFile && abstractFile.extension === 'md') continue;
+            if (abstractFile && abstractFile instanceof TFile && plugin.isFileSupportedByReadTool(abstractFile)) continue;
 
-            // Try to find by basename
-            const allFiles = app.vault.getMarkdownFiles();
-            const foundFile = allFiles.find(f => 
-              f.basename === cleanPath || 
-              f.name === cleanPath ||
-              f.path.endsWith('/' + cleanPath) ||
-              f.path.endsWith('\\' + cleanPath) ||
-              cleanPath.includes(f.basename)
-            );
+            // Try to find by basename in all supported files
+            const allFiles = app.vault.getFiles();
+            const foundFile = allFiles.find(f => {
+              if (!plugin.isFileSupportedByReadTool(f)) return false;
+              return f.basename === cleanPath || 
+                     f.name === cleanPath ||
+                     f.path.endsWith('/' + cleanPath) ||
+                     f.path.endsWith('\\' + cleanPath) ||
+                     cleanPath.includes(f.basename);
+            });
             
             if (foundFile) {
               addContextFile(foundFile);
@@ -1038,12 +1040,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             if (obj) {
               if (Array.isArray(obj)) {
                 obj.forEach((file: any) => {
-                  if (file && file.extension === 'md') {
+                  if (file && plugin.isFileSupportedByReadTool(file)) {
                     addContextFile(file);
                     filesAdded++;
                   }
                 });
-              } else if (obj.extension === 'md') {
+              } else if (plugin.isFileSupportedByReadTool(obj)) {
                 addContextFile(obj);
                 filesAdded++;
               }
@@ -1058,7 +1060,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
               view.tree.selectedDoms.forEach((dom: any) => {
-                if (dom.file && dom.file.extension === 'md') {
+                if (dom.file && plugin.isFileSupportedByReadTool(dom.file)) {
                   addContextFile(dom.file);
                   filesAdded++;
                 }
@@ -1078,9 +1080,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           try {
             const data = e.dataTransfer?.getData(type);
             if (data && typeof data === 'string') {
-              // Try to find any markdown file that matches
-              const allFiles = app.vault.getMarkdownFiles();
+              // Try to find any supported file that matches
+              const allFiles = app.vault.getFiles();
               const matchingFile = allFiles.find(file => {
+                if (!plugin.isFileSupportedByReadTool(file)) return false;
                 return data.includes(file.basename) || 
                        data.includes(file.name) || 
                        data.includes(file.path) ||
