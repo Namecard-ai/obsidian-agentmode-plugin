@@ -914,7 +914,7 @@ export default class AgentPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'read_file',
-						description: 'Read the contents of a vault file or a range of lines within a vault file.',
+						description: 'Read the contents of a vault file or a range of lines within a vault file. Supports plain text files (.md, .canvas) and convertible files (.pdf, .pptx, .ppt, .docx, .doc, .xlsx, .xls, .html). For convertible files, the content will be converted to markdown format and start_line/end_line parameters are ignored - use read_entire_note: true instead.',
 						parameters: {
 							type: 'object',
 							properties: {
@@ -924,15 +924,15 @@ export default class AgentPlugin extends Plugin {
 								},
 								start_line: {
 									type: 'integer',
-									description: 'The one-indexed line number to start reading from.'
+									description: 'The one-indexed line number to start reading from. Only applies to plain text files (.md, .canvas).'
 								},
 								end_line: {
 									type: 'integer',
-									description: 'The one-indexed line number to end reading at (inclusive).'
+									description: 'The one-indexed line number to end reading at (inclusive). Only applies to plain text files (.md, .canvas).'
 								},
 								read_entire_note: {
 									type: 'boolean',
-									description: 'Set to true only if full content is needed.'
+									description: 'Set to true only if full content is needed. Required to be true for convertible files (.pdf, .pptx, .ppt, .docx, .doc, .xlsx, .xls, .html).'
 								},
 								explanation: {
 									type: 'string',
@@ -1501,30 +1501,154 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
+	// File type constants for easy extension
+	private static readonly CONVERTIBLE_EXTENSIONS = ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'html'];
+	private static readonly PLAIN_TEXT_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt'];
+	private static readonly MIME_TYPES: Record<string, string> = {
+		'pdf': 'application/pdf',
+		'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		'doc': 'application/msword',
+		'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+		'ppt': 'application/vnd.ms-powerpoint',
+		'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		'xls': 'application/vnd.ms-excel',
+		'html': 'text/html'
+	};
+	private static readonly MAX_FILE_SIZE = 64 * 1024 * 1024; // 64MB
+
+	private getFileType(filePath: string): 'convertible' | 'plain_text' | 'unsupported' {
+		const ext = filePath.split('.').pop()?.toLowerCase();
+		if (AgentPlugin.CONVERTIBLE_EXTENSIONS.includes(ext || '')) return 'convertible';
+		if (AgentPlugin.PLAIN_TEXT_EXTENSIONS.includes(ext || '')) return 'plain_text';
+		return 'unsupported';
+	}
+
 	private async toolReadFile(args: { file_path: string; start_line?: number; end_line?: number; read_entire_note?: boolean; explanation: string }) {
 		try {
 			const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
-		if (!abstractFile || !(abstractFile instanceof TFile)) {
-			return `File not found: ${args.file_path}`;
-		}
-		const file = abstractFile;
-
-			const content = await this.app.vault.read(file);
-			
-			if (args.read_entire_note || (!args.start_line && !args.end_line)) {
-				return content;
+			if (!abstractFile || !(abstractFile instanceof TFile)) {
+				return `File not found: ${args.file_path}`;
 			}
+			const file = abstractFile;
 
-			const lines = content.split('\n');
-			const startIdx = (args.start_line || 1) - 1;
-			const endIdx = (args.end_line || lines.length) - 1;
+			const fileType = this.getFileType(args.file_path);
 			
-			const result = lines.slice(startIdx, endIdx + 1).join('\n');
-			
-			return result;
+			if (fileType === 'plain_text') {
+				return await this.readPlainTextFile(file, args);
+			} else if (fileType === 'convertible') {
+				return await this.readConvertibleFile(file, args);
+			} else {
+				return `Unsupported file type: ${args.file_path}`;
+			}
 		} catch (error: any) {
 			console.error('📖 [TOOL] read_file error:', error);
 			return `Error reading file: ${error.message}`;
+		}
+	}
+
+	private async readPlainTextFile(file: TFile, args: { start_line?: number; end_line?: number; read_entire_note?: boolean }): Promise<string> {
+		const content = await this.app.vault.read(file);
+		
+		if (args.read_entire_note || (!args.start_line && !args.end_line)) {
+			return content;
+		}
+
+		const lines = content.split('\n');
+		const startIdx = (args.start_line || 1) - 1;
+		const endIdx = (args.end_line || lines.length) - 1;
+		
+		return lines.slice(startIdx, endIdx + 1).join('\n');
+	}
+
+	private async readConvertibleFile(file: TFile, args: { file_path: string }): Promise<string> {
+		// Check file size
+		if (file.stat.size > AgentPlugin.MAX_FILE_SIZE) {
+			return `File too large: ${(file.stat.size / 1024 / 1024).toFixed(1)}MB (max: 64MB)`;
+		}
+
+		// Read file as binary
+		const arrayBuffer = await this.app.vault.readBinary(file);
+		
+		// Convert to base64 (handle large files safely)
+		const uint8Array = new Uint8Array(arrayBuffer);
+		let binaryString = '';
+		const chunkSize = 8192; // Process in chunks to avoid stack overflow
+		
+		for (let i = 0; i < uint8Array.length; i += chunkSize) {
+			const chunk = uint8Array.slice(i, i + chunkSize);
+			binaryString += String.fromCharCode(...chunk);
+		}
+		
+		const base64 = btoa(binaryString);
+		
+		// Get MIME type
+		const ext = args.file_path.split('.').pop()?.toLowerCase() || '';
+		const mimeType = AgentPlugin.MIME_TYPES[ext] || 'application/octet-stream';
+		
+		// Construct data URI
+		const dataUri = `data:${mimeType};base64,${base64}`;
+		
+		// Call backend convert API
+		return await this.callConvertAPI(dataUri, args.file_path);
+	}
+
+	private async callConvertAPI(dataUri: string, filePath: string): Promise<string> {
+		try {
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			if (!backendUrl) {
+				return 'Error: Backend URL not configured';
+			}
+
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json'
+			};
+
+			// Add authorization header if access token is available
+			if (this.settings.accessToken) {
+				headers['Authorization'] = `Bearer ${this.settings.accessToken}`;
+			} else {
+				return 'Error: Authentication required. Please log in first.';
+			}
+
+			const response = await fetch(`${backendUrl}/convert`, {
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify({
+					uri: dataUri,
+					enable_plugins: true
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error('📄 [TOOL] convert error:', response.status, errorData);
+				
+				if (response.status === 401) {
+					this.logout();
+					return 'Error: Authentication failed. Please log in again.';
+				} else if (response.status === 413) {
+					return 'Error: File too large for conversion.';
+				} else if (response.status === 504) {
+					return 'Error: Conversion timeout. The file may be too complex to process.';
+				} else if (response.status === 502) {
+					return 'Error: Convert service unavailable.';
+				} else {
+					const errorMsg = errorData?.error?.message || 'Unknown conversion error';
+					return `Error converting file: ${errorMsg}`;
+				}
+			}
+
+			const data = await response.json();
+			
+			if (!data.success) {
+				console.error('📄 [TOOL] convert API error:', data);
+				return 'Error: File conversion failed.';
+			}
+			return data.data.markdown || 'No content could be extracted from the file.';
+
+		} catch (error: any) {
+			console.error('📄 [TOOL] convert error:', error);
+			return `Error converting file: ${error.message}`;
 		}
 	}
 
