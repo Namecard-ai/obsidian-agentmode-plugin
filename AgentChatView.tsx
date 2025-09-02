@@ -1350,11 +1350,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     e.stopPropagation();
     setIsDragOver(true);
     
-    // Try to count markdown files being dragged
+    // Count all files being dragged (not just markdown)
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const mdFiles = Array.from(files).filter(file => file.name.endsWith('.md'));
-      setDragFileCount(mdFiles.length);
+      setDragFileCount(files.length);
     } else {
       setDragFileCount(1); // Default to 1 if we can't determine
     }
@@ -1378,6 +1377,153 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     // Let the native handler take care of this
     // This prevents duplicate handling
+  };
+
+  // Handler for drag-drop directly into the textarea input
+  const handleTextareaDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    console.log('Textarea drop event triggered');
+
+    // Get the files being dragged
+    const dataTransfer = e.dataTransfer;
+    if (!dataTransfer) return;
+
+    // Get the textarea element and remove visual feedback
+    const textarea = e.currentTarget;
+    if (textarea) {
+      textarea.style.borderColor = '';
+      textarea.style.boxShadow = '';
+    }
+    
+    // Get the current cursor position where user dropped
+    let dropPos = textarea?.selectionStart || inputText.length;
+
+    // Try to get Obsidian internal drag data (this contains the file paths)
+    const obsidianData = dataTransfer.getData('obsidian/file');
+    if (obsidianData) {
+      try {
+        const files = JSON.parse(obsidianData);
+        if (Array.isArray(files) && files.length > 0) {
+          // Insert links at the calculated drop position
+          const beforeCursor = inputText.slice(0, dropPos);
+          const afterCursor = inputText.slice(dropPos);
+          
+          // Create appropriate links for each file based on type
+          const links = files.map((filePath: string) => {
+            // Check if it's an image file
+            const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'];
+            const isImage = imageExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+            
+            // Check if it's a PDF or document that should be embedded
+            const embedExtensions = ['.pdf', '.mp4', '.webm', '.mp3', '.wav', '.m4a', '.ogg', '.3gp', '.flac'];
+            const shouldEmbed = isImage || embedExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+            
+            // Use ![[]] for embeddable files, [[]] for regular links
+            return shouldEmbed ? `![[${filePath}]]` : `[[${filePath}]]`;
+          }).join(' ');
+          
+          const newText = beforeCursor + links + afterCursor;
+          
+          setInputText(newText);
+          
+          // Set cursor position after inserted links
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newCursorPos = dropPos + links.length;
+              textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+              textareaRef.current.focus();
+            }
+          }, 0);
+          
+          return;
+        }
+      } catch (error) {
+        console.error('Error parsing Obsidian drag data:', error);
+      }
+    }
+
+    // Fallback: Try other data types (for external files or different drag sources)
+    const types = Array.from(dataTransfer.types);
+    console.log('Available data types:', types);
+    
+    for (const type of types) {
+      const data = dataTransfer.getData(type);
+      console.log(`Data for type ${type}:`, data);
+      
+      // Try to extract file paths from various formats
+      if (type === 'text/plain' || type === 'text/uri-list') {
+        // Check if it looks like a file path
+        if (data.includes('/') || data.includes('\\')) {
+          const beforeCursor = inputText.slice(0, dropPos);
+          const afterCursor = inputText.slice(dropPos);
+          
+          // Extract just the filename or path
+          let linkText = data;
+          if (data.startsWith('file://')) {
+            linkText = data.replace('file://', '');
+          }
+          
+          // Determine if it's an embeddable file based on extension
+          const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp'];
+          const embedExtensions = ['.pdf', '.mp4', '.webm', '.mp3', '.wav', '.m4a', '.ogg', '.3gp', '.flac'];
+          const isImage = imageExtensions.some(ext => linkText.toLowerCase().endsWith(ext));
+          const shouldEmbed = isImage || embedExtensions.some(ext => linkText.toLowerCase().endsWith(ext));
+          
+          // Create appropriate link type
+          const link = shouldEmbed ? `![[${linkText}]]` : `[[${linkText}]]`;
+          const newText = beforeCursor + link + afterCursor;
+          
+          setInputText(newText);
+          
+          // Set cursor position after inserted link
+          setTimeout(() => {
+            if (textareaRef.current) {
+              const newCursorPos = dropPos + link.length;
+              textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+              textareaRef.current.focus();
+            }
+          }, 0);
+          
+          return;
+        }
+      }
+    }
+
+    // If we couldn't handle it as a file link, check if there are actual files
+    const files = dataTransfer.files;
+    if (files && files.length > 0) {
+      console.log('Found files in dataTransfer:', files);
+      // Note: These are external files that need to be uploaded/imported
+      // For now, we'll just notify the user
+      new Notice(`External file drag detected. Please use the file picker to add files from outside the vault.`);
+    }
+  };
+
+  const handleTextareaDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Allow drop and show copy cursor
+    e.dataTransfer.dropEffect = 'copy';
+    
+    // Add visual feedback by styling the textarea
+    const textarea = e.currentTarget;
+    if (textarea) {
+      textarea.style.borderColor = 'var(--interactive-accent)';
+      textarea.style.boxShadow = '0 0 0 2px var(--interactive-accent-hover)';
+    }
+  };
+  
+  const handleTextareaDragLeave = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Remove visual feedback
+    const textarea = e.currentTarget;
+    if (textarea) {
+      textarea.style.borderColor = '';
+      textarea.style.boxShadow = '';
+    }
   };
 
   const renderMessage = (message: Message) => {
@@ -2055,6 +2201,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
+                onDrop={handleTextareaDrop}
+                onDragOver={handleTextareaDragOver}
+                onDragLeave={handleTextareaDragLeave}
                 placeholder={chatMode === 'Ask' 
                   ? "Ask something... Use [[]] to link notes" 
                   : "Give instructions to the agent... Use [[]] to link notes"

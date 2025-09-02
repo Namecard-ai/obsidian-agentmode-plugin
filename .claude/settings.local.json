@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:local:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:local:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": []
+  }
+}

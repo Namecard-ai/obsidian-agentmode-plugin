@@ -1,0 +1,5 @@
+
+> obsidian-agent-plugin@1.0.0 build:dev
+> tsc -noEmit -skipLibCheck && ENV_MODE=development node esbuild.config.mjs production
+
+[dotenv@17.1.0] injecting env (4) from .env.development (tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit)
