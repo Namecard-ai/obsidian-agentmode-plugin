@@ -1038,6 +1038,37 @@ export default class AgentPlugin extends Plugin {
 				{
 					type: 'function' as const,
 					function: {
+						name: 'vault_grep',
+						description: 'Perform keyword-based text search across vault files, similar to Linux grep command. Searches for exact text matches in plain text files only. Does NOT support regular expressions - use exact text patterns only.',
+						parameters: {
+							type: 'object',
+							properties: {
+								pattern: {
+									type: 'string',
+									description: 'The exact text pattern or keyword to search for. Case-sensitive matching only. Regular expressions are NOT supported.'
+								},
+								target_subpaths: {
+									type: 'array',
+									items: { type: 'string' },
+									description: 'Optional list of folders to scope the search to specific subdirectories.'
+								},
+								file_extensions: {
+									type: 'array',
+									items: { type: 'string' },
+									description: 'Optional file extension filter (e.g., ["md", "txt"]). Defaults to all supported plain text files.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'One sentence explanation of why this keyword search is necessary for the user\'s task.'
+								}
+							},
+							required: ['pattern', 'explanation']
+						}
+					}
+				},
+				{
+					type: 'function' as const,
+					function: {
 						name: 'web_search',
 						description: 'Search the web for information using Firecrawl search API. Returns search results with titles, descriptions, and URLs.',
 						parameters: {
@@ -1147,6 +1178,9 @@ export default class AgentPlugin extends Plugin {
 								break;
 							case 'list_vault':
 								result = await this.toolListVault(args);
+								break;
+							case 'vault_grep':
+								result = await this.toolVaultGrep(args);
 								break;
 							case 'web_search':
 								result = await this.toolWebSearch(args);
@@ -2089,6 +2123,107 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			} catch (fallbackError: any) {
 				return `Error listing vault: ${error.message}`;
 			}
+		}
+	}
+
+	// Simple cache for vault grep results
+	private vaultGrepCache: Map<string, { results: any[], timestamp: number }> = new Map();
+	private readonly CACHE_DURATION = 60000; // 1 minute in milliseconds
+
+	private async toolVaultGrep(args: { 
+		pattern: string; 
+		target_subpaths?: string[]; 
+		file_extensions?: string[]; 
+		explanation: string 
+	}) {
+		try {
+			console.log('🔍 [TOOL] vault_grep called with args:', args);
+
+			// Create cache key
+			const cacheKey = JSON.stringify({
+				pattern: args.pattern,
+				target_subpaths: args.target_subpaths || [],
+				file_extensions: args.file_extensions || []
+			});
+
+			// Check cache
+			const cached = this.vaultGrepCache.get(cacheKey);
+			if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+				console.log('📋 [TOOL] vault_grep returning cached results');
+				return JSON.stringify(cached.results);
+			}
+
+			// Get all files in vault
+			const allFiles = this.app.vault.getAllLoadedFiles();
+			
+			// Filter files by type (only TFile, not folders)
+			const files = allFiles.filter(file => file.hasOwnProperty('extension')) as TFile[];
+			
+			// Apply file extension filter
+			const allowedExtensions = args.file_extensions || AgentPlugin.GREPPABLE_EXTENSIONS;
+			const filteredByExtension = files.filter(file => 
+				allowedExtensions.includes(file.extension.toLowerCase())
+			);
+
+			// Apply subpath filter if specified
+			let filteredFiles = filteredByExtension;
+			if (args.target_subpaths && args.target_subpaths.length > 0) {
+				filteredFiles = filteredByExtension.filter(file => 
+					args.target_subpaths!.some(subpath => 
+						file.path.startsWith(subpath.endsWith('/') ? subpath : subpath + '/')
+					)
+				);
+			}
+
+			console.log(`🔍 [TOOL] vault_grep searching ${filteredFiles.length} files for pattern: "${args.pattern}"`);
+
+			const results: Array<{ path: string; line: number; content: string }> = [];
+
+			// Search through each file
+			for (const file of filteredFiles) {
+				try {
+					const content = await this.app.vault.read(file);
+					const lines = content.split('\n');
+					
+					// Search each line for the pattern (case-sensitive)
+					for (let i = 0; i < lines.length; i++) {
+						if (lines[i].includes(args.pattern)) {
+							results.push({
+								path: file.path,
+								line: i + 1, // 1-indexed line numbers
+								content: lines[i]
+							});
+						}
+					}
+				} catch (error) {
+					console.warn(`⚠️ [TOOL] vault_grep could not read file ${file.path}:`, error);
+					// Continue with other files
+				}
+			}
+
+			console.log(`✅ [TOOL] vault_grep found ${results.length} matches`);
+
+			// Cache the results
+			this.vaultGrepCache.set(cacheKey, {
+				results: results,
+				timestamp: Date.now()
+			});
+
+			// Clean up old cache entries (simple cleanup)
+			if (this.vaultGrepCache.size > 50) {
+				const now = Date.now();
+				for (const [key, value] of this.vaultGrepCache.entries()) {
+					if (now - value.timestamp > this.CACHE_DURATION) {
+						this.vaultGrepCache.delete(key);
+					}
+				}
+			}
+
+			return JSON.stringify(results);
+
+		} catch (error: any) {
+			console.error('🔍 [TOOL] vault_grep error:', error);
+			return `Error performing grep search: ${error.message}`;
 		}
 	}
 
