@@ -1494,6 +1494,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	// File type constants for easy extension
+	private static readonly GREPPABLE_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt', 'html']
 	private static readonly CONVERTIBLE_EXTENSIONS = ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'html'];
 	private static readonly PLAIN_TEXT_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt'];
 	private static readonly IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
