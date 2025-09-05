@@ -7,6 +7,7 @@ import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import * as Diff from 'diff';
 import { RequestOptions } from 'openai/internal/request-options';
+import * as CryptoJS from 'crypto-js';
 
 // Remember to rename these classes and interfaces!
 
@@ -2424,7 +2425,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	async processFileForEmbedding(file: TFile) {
 		try {
-
 			// Read file content
 			const content = await this.app.vault.read(file);
 			
@@ -2458,9 +2458,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	async saveEmbedding(record: EmbeddingRecord) {
 		try {
-			// Create a safe filename from the file path
-			const safeFilename = record.file_path.replace(/[^a-zA-Z0-9]/g, '_') + '.json';
-			const embeddingFilePath = this.vectorDbPath + '/' + safeFilename;
+			// Generate MD5 hash from the file path (which is relative to vault)
+			const pathHash = CryptoJS.MD5(record.file_path).toString(CryptoJS.enc.Hex);
+			const embeddingFilePath = this.vectorDbPath + '/' + pathHash + '.json';
 			
 			// Save the embedding record as JSON
 			const jsonData = JSON.stringify(record, null, 2);
