@@ -8,6 +8,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import * as Diff from 'diff';
 import { RequestOptions } from 'openai/internal/request-options';
 import * as CryptoJS from 'crypto-js';
+import { getEncoding } from 'js-tiktoken';
 
 // Remember to rename these classes and interfaces!
 
@@ -64,8 +65,8 @@ export interface Auth0UserInfo {
 
 export interface EmbeddingRecord {
 	id: string;
-	vector: number[];
-	content: string;
+	vectors: number[][];
+	content_md5_hash: string;
 	file_path: string;
 	file_name: string;
 	last_modified: string;
@@ -2423,23 +2424,101 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
+	// Helper method to split text into chunks based on token count
+	splitTextIntoChunks(text: string, maxTokens: number = 8000, overlapTokens: number = 200): string[] {
+		const encoder = getEncoding('cl100k_base');
+		
+		const splitRecursively = (content: string): string[] => {
+			const tokens = encoder.encode(content);
+			
+			// If content is within token limit, return as single chunk
+			if (tokens.length <= maxTokens) {
+				return [content];
+			}
+			
+			// Split content in half
+			const midPoint = Math.floor(content.length / 2);
+			const firstHalf = content.substring(0, midPoint);
+			const secondHalf = content.substring(midPoint);
+			
+			// Recursively split each half
+			const firstChunks = splitRecursively(firstHalf);
+			const secondChunks = splitRecursively(secondHalf);
+			
+			return [...firstChunks, ...secondChunks];
+		};
+		
+		const chunks = splitRecursively(text);
+		
+		// Add overlap between chunks
+		if (chunks.length > 1 && overlapTokens > 0) {
+			const overlappedChunks: string[] = [];
+			
+			for (let i = 0; i < chunks.length; i++) {
+				let chunk = chunks[i];
+				
+				// Add overlap from previous chunk (except for first chunk)
+				if (i > 0) {
+					const prevChunk = chunks[i - 1];
+					const prevWords = prevChunk.split(' ');
+					const overlapWords = prevWords.slice(-Math.min(50, prevWords.length)); // Use word-based overlap as approximation
+					const overlapText = overlapWords.join(' ');
+					chunk = overlapText + '\n\n' + chunk;
+				}
+				
+				// Add overlap to next chunk (except for last chunk)
+				if (i < chunks.length - 1) {
+					const currentWords = chunk.split(' ');
+					const overlapWords = currentWords.slice(0, Math.min(50, currentWords.length)); // Use word-based overlap as approximation
+					const overlapText = overlapWords.join(' ');
+					chunk = chunk + '\n\n' + overlapText;
+				}
+				
+				overlappedChunks.push(chunk);
+			}
+			
+			return overlappedChunks;
+		}
+		
+		return chunks;
+	}
+
 	async processFileForEmbedding(file: TFile) {
 		try {
 			// Read file content
 			const content = await this.app.vault.read(file);
 			
-			// Create content for embedding (include metadata in the text)
-			const embeddingContent = `File: ${file.name}\nPath: ${file.path}\nContent:\n${content}`;
+			// Generate MD5 hash for content
+			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
 			
-			// Get embedding from OpenAI
-			const embedding = await this.getOpenAIEmbedding(embeddingContent);
+			// Generate MD5 hash for file path (used as ID)
+			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
 			
-			if (embedding) {
+			// Split content into chunks
+			const chunks = this.splitTextIntoChunks(content);
+			
+			// Generate embeddings for each chunk
+			const vectors: number[][] = [];
+			
+			for (let i = 0; i < chunks.length; i++) {
+				const chunk = chunks[i];
+				// Include metadata in the chunk for embedding
+				const embeddingContent = `File: ${file.name}\nPath: ${file.path}\nChunk ${i + 1}/${chunks.length}:\n${chunk}`;
+				
+				const embedding = await this.getOpenAIEmbedding(embeddingContent);
+				if (embedding) {
+					vectors.push(embedding);
+				} else {
+					console.error(`Failed to generate embedding for chunk ${i + 1} of ${file.name}`);
+				}
+			}
+			
+			if (vectors.length > 0) {
 				// Create record for vector storage
 				const record: EmbeddingRecord = {
-					id: file.path, // Use file path as unique ID
-					vector: embedding,
-					content: content,
+					id: pathMd5, // Use MD5 hash of file path as unique ID
+					vectors: vectors,
+					content_md5_hash: contentMd5,
 					file_path: file.path,
 					file_name: file.name,
 					last_modified: new Date(file.stat.mtime).toISOString()
@@ -2448,7 +2527,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				// Save the embedding to a JSON file
 				await this.saveEmbedding(record);
 				
-				new Notice(`Vector embedding saved for: ${file.name}`);
+				new Notice(`Vector embeddings saved for: ${file.name} (${vectors.length} chunks)`);
+			} else {
+				new Notice(`Failed to generate any embeddings for: ${file.name}`);
 			}
 		} catch (error) {
 			console.error('Error processing file for embedding:', error);
@@ -2510,10 +2591,20 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		const allEmbeddings = await this.loadAllEmbeddings();
 		
 		// Calculate similarities and sort
-		const similarities = allEmbeddings.map(record => ({
-			record,
-			similarity: this.cosineSimilarity(queryEmbedding, record.vector)
-		}));
+		const similarities = allEmbeddings.map(record => {
+			// For each file, calculate similarity with all its vectors and take the maximum
+			let maxSimilarity = -1;
+			
+			for (const vector of record.vectors) {
+				const similarity = this.cosineSimilarity(queryEmbedding, vector);
+				maxSimilarity = Math.max(maxSimilarity, similarity);
+			}
+			
+			return {
+				record,
+				similarity: maxSimilarity
+			};
+		});
 		
 		// Sort by similarity (highest first) and return top K
 		return similarities
