@@ -632,6 +632,10 @@ export default class AgentPlugin extends Plugin {
 	private readonly RETRY_ATTEMPTS = 3;
 	private readonly RETRY_DELAY = 5000; // 5 seconds
 	
+	// Settings UI update callbacks
+	private settingsUpdateCallbacks: (() => void)[] = [];
+	private lastSuccessfulEmbeddingTime: number | null = null;
+	
 	private openaiClient: OpenAI | null = null;
 	
 	// Auth0 configuration
@@ -2550,6 +2554,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 				// Save the embedding to a JSON file
 				await this.saveEmbedding(record);
+				
+				// Update last successful embedding time
+				this.lastSuccessfulEmbeddingTime = Date.now();
 			} else {
 				new Notice(`Failed to generate any embeddings for: ${file.name}`);
 			}
@@ -2753,6 +2760,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			
 			console.log(`Added to embedding queue: ${filePath} (source: ${source})`);
 			
+			// Notify UI update
+			this.notifySettingsUpdate();
+			
 			// Trigger immediate processing if not already processing
 			this.processEmbeddingQueue();
 		}
@@ -2785,6 +2795,8 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			console.error('Error in processEmbeddingQueue:', error);
 		} finally {
 			this.isProcessingQueue = false;
+			// Notify UI update after processing
+			this.notifySettingsUpdate();
 		}
 	}
 
@@ -2918,6 +2930,44 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			console.log(`Cleared ${queueSize} items from embedding queue after logout`);
 			new Notice(`Cleared embedding queue (${queueSize} pending items)`);
 		}
+		
+		// Notify UI update
+		this.notifySettingsUpdate();
+	}
+
+	// Settings UI update callback management
+	addSettingsUpdateListener(callback: () => void) {
+		this.settingsUpdateCallbacks.push(callback);
+	}
+
+	removeSettingsUpdateListener(callback: () => void) {
+		const index = this.settingsUpdateCallbacks.indexOf(callback);
+		if (index > -1) {
+			this.settingsUpdateCallbacks.splice(index, 1);
+		}
+	}
+
+	private notifySettingsUpdate() {
+		this.settingsUpdateCallbacks.forEach(callback => {
+			try {
+				callback();
+			} catch (error) {
+				console.error('Error in settings update callback:', error);
+			}
+		});
+	}
+
+	// Public methods for Settings UI
+	getEmbeddingQueueSize(): number {
+		return this.embeddingQueue.size;
+	}
+
+	getLastSuccessfulEmbeddingTime(): number | null {
+		return this.lastSuccessfulEmbeddingTime;
+	}
+
+	async triggerReindexAllFiles(): Promise<void> {
+		await this.initializeBatchEmbeddingQueue();
 	}
 
 	private async initializeBatchEmbeddingQueue() {
@@ -3197,6 +3247,8 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 class AgentPluginSettingTab extends PluginSettingTab {
 	plugin: AgentPlugin;
+	private updateCallback: (() => void) | null = null;
+	private vaultIndexingContainer: HTMLElement | null = null;
 
 	constructor(app: App, plugin: AgentPlugin) {
 		super(app, plugin);
@@ -3307,6 +3359,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				
 			});
 			
+			// Add Vault File Indexing section
+			this.createVaultIndexingSection(authContainer);
+			
 			// Logout button
 			new Setting(authContainer)
 				.setName('Log out')
@@ -3370,6 +3425,139 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.settings.firecrawlApiKey = value;
 					await this.plugin.saveSettings();
 				}));
+		
+		// Register settings update callback for vault indexing status
+		this.registerSettingsUpdateCallback();
+	}
+	
+	private registerSettingsUpdateCallback() {
+		// Remove old callback if exists
+		if (this.updateCallback) {
+			this.plugin.removeSettingsUpdateListener(this.updateCallback);
+		}
+		
+		// Register new callback
+		this.updateCallback = () => this.updateVaultIndexingStatus();
+		this.plugin.addSettingsUpdateListener(this.updateCallback);
+	}
+	
+	// Clean up callback when tab is destroyed
+	onDestroy() {
+		if (this.updateCallback) {
+			this.plugin.removeSettingsUpdateListener(this.updateCallback);
+			this.updateCallback = null;
+		}
+	}
+
+	private createVaultIndexingSection(containerEl: HTMLElement) {
+		// Create Vault File Indexing section
+		containerEl.createEl('h4', { text: 'Vault File Indexing', cls: 'vault-indexing-header' });
+		
+		this.vaultIndexingContainer = containerEl.createDiv('vault-indexing-container');
+		this.updateVaultIndexingStatus();
+		
+		// Add Reindex button
+		new Setting(this.vaultIndexingContainer)
+			.setName('Reindex All Files')
+			.setDesc('Rebuild the search index for all markdown files in your vault')
+			.addButton(button => {
+				const queueSize = this.plugin.getEmbeddingQueueSize();
+				const isIndexing = queueSize > 0;
+				
+				button
+					.setButtonText('Reindex All Files')
+					.setDisabled(isIndexing)
+					.onClick(async () => {
+						const confirmed = await this.showReindexConfirmation();
+						if (!confirmed) {
+							// If user cancelled, we need to reset the button state
+							// The button will be updated by the next UI refresh
+							setTimeout(() => this.updateVaultIndexingStatus(), 100);
+						}
+					});
+			});
+	}
+
+	private updateVaultIndexingStatus() {
+		if (!this.vaultIndexingContainer) return;
+		
+		// Find or create status container
+		let statusContainer = this.vaultIndexingContainer.querySelector('.vault-indexing-status') as HTMLElement;
+		if (!statusContainer) {
+			statusContainer = this.vaultIndexingContainer.createDiv('vault-indexing-status');
+		} else {
+			statusContainer.empty();
+		}
+		
+		const queueSize = this.plugin.getEmbeddingQueueSize();
+		const lastSuccessTime = this.plugin.getLastSuccessfulEmbeddingTime();
+		const isIndexing = queueSize > 0;
+		
+		// Status display
+		if (isIndexing) {
+			statusContainer.createEl('div', { 
+				text: `⏳ Indexing (${queueSize} files remaining)`, 
+				cls: 'indexing-status-indexing' 
+			});
+		} else {
+			statusContainer.createEl('div', { 
+				text: '✅ Synced (All files indexed)', 
+				cls: 'indexing-status-synced' 
+			});
+		}
+		
+		// Last successful indexing time
+		if (lastSuccessTime) {
+			const lastTimeStr = new Date(lastSuccessTime).toLocaleString();
+			statusContainer.createEl('div', { 
+				text: `Last successful indexing: ${lastTimeStr}`, 
+				cls: 'last-indexing-time' 
+			});
+		}
+		
+		// Update Reindex button state
+		const reindexButton = this.vaultIndexingContainer.querySelector('button') as HTMLButtonElement;
+		if (reindexButton) {
+			reindexButton.disabled = isIndexing;
+		}
+	}
+
+	private async showReindexConfirmation(): Promise<boolean> {
+		return new Promise((resolve) => {
+			const modal = new Modal(this.app);
+			modal.titleEl.setText('Reindex All Files');
+			
+			const content = modal.contentEl;
+			content.createEl('p', { 
+				text: 'This will reindex all markdown files in your vault and may take some time. Are you sure you want to continue?' 
+			});
+			
+			const buttonContainer = content.createDiv('modal-button-container');
+			buttonContainer.style.display = 'flex';
+			buttonContainer.style.justifyContent = 'flex-end';
+			buttonContainer.style.gap = '10px';
+			buttonContainer.style.marginTop = '20px';
+			
+			// Cancel button
+			const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+			cancelBtn.addEventListener('click', () => {
+				modal.close();
+				resolve(false); // User cancelled
+			});
+			
+			// Reindex button
+			const reindexBtn = buttonContainer.createEl('button', { 
+				text: 'Reindex', 
+				cls: 'mod-cta' 
+			});
+			reindexBtn.addEventListener('click', async () => {
+				modal.close();
+				await this.plugin.triggerReindexAllFiles();
+				resolve(true); // User confirmed
+			});
+			
+			modal.open();
+		});
 	}
 
 	// Helper method to add Billing Portal button

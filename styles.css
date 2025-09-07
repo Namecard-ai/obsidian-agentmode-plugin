@@ -1142,3 +1142,78 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
 }
+
+/* Vault File Indexing Styles */
+.vault-indexing-header {
+  color: var(--text-normal);
+  margin-bottom: 12px;
+  font-size: var(--font-ui-large);
+  font-weight: 600;
+}
+
+.vault-indexing-container {
+  margin-bottom: 16px;
+}
+
+.vault-indexing-status {
+  padding: 12px;
+  border-radius: 6px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  margin-bottom: 12px;
+}
+
+.indexing-status-synced {
+  color: var(--text-success);
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+  margin-bottom: 6px;
+}
+
+.indexing-status-indexing {
+  color: var(--text-warning);
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+  margin-bottom: 6px;
+}
+
+.last-indexing-time {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  margin-top: 4px;
+}
+
+.modal-button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-button-container button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.modal-button-container button:first-child {
+  background-color: var(--interactive-normal);
+  color: var(--text-normal);
+}
+
+.modal-button-container button:first-child:hover {
+  background-color: var(--interactive-hover);
+}
+
+.modal-button-container button.mod-cta {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.modal-button-container button.mod-cta:hover {
+  background-color: var(--interactive-accent-hover);
+}
