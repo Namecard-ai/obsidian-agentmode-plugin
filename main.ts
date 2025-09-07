@@ -677,6 +677,16 @@ export default class AgentPlugin extends Plugin {
 			})
 		);
 
+		// Listen for file deletions to clean up embedding indexes
+		this.registerEvent(
+			this.app.vault.on('delete', async (file) => {
+				// Check if the deleted file is a TFile and is a markdown file (note)
+				if (file instanceof TFile && file.extension === 'md') {
+					await this.cleanupDeletedFileEmbedding(file.path);
+				}
+			})
+		);
+
 		// Register a new view
 		this.registerView(
 			VIEW_TYPE_AGENT_CHAT,
@@ -1541,7 +1551,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'No relevant files found for your query.';
 			}
 
-			const results = similarFiles.map(file => ({
+			// Filter out deleted files and clean up their indexes
+			const validFiles = await this.filterAndCleanupResults(similarFiles);
+			
+			if (validFiles.length === 0) {
+				return 'No relevant files found for your query (some outdated results were cleaned up).';
+			}
+
+			const results = validFiles.map(file => ({
 				path: file.file_path,
 				name: file.file_name,
 				relevance: 'High' // You could calculate actual similarity scores here
@@ -2967,7 +2984,79 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	async triggerReindexAllFiles(): Promise<void> {
+		// 1. Add all files to embedding queue
 		await this.initializeBatchEmbeddingQueue();
+		
+		// 2. Clean up orphaned index files
+		await this.cleanupOrphanedIndexFiles();
+	}
+
+	private async cleanupDeletedFileEmbedding(filePath: string): Promise<void> {
+		try {
+			const pathMd5 = CryptoJS.MD5(filePath).toString(CryptoJS.enc.Hex);
+			const indexFilePath = this.vectorDbPath + '/' + pathMd5 + '.json';
+			
+			// Check if index file exists
+			if (await this.app.vault.adapter.exists(indexFilePath)) {
+				await this.app.vault.adapter.remove(indexFilePath);
+				console.log(`Cleaned up index file for deleted file: ${filePath}`);
+			}
+		} catch (error) {
+			console.error(`Failed to cleanup index for deleted file ${filePath}:`, error);
+		}
+	}
+
+	private async cleanupOrphanedIndexFiles(): Promise<void> {
+		try {
+			const files = await this.app.vault.adapter.list(this.vectorDbPath);
+			let cleanedCount = 0;
+			
+			for (const indexFile of files.files) {
+				if (indexFile.endsWith('.json')) {
+					try {
+						// Read index file to get the original file path
+						const content = await this.app.vault.adapter.read(indexFile);
+						const record: EmbeddingRecord = JSON.parse(content);
+						
+						// Check if the corresponding vault file still exists
+						const fileExists = this.app.vault.getAbstractFileByPath(record.file_path) instanceof TFile;
+						
+						if (!fileExists) {
+							await this.app.vault.adapter.remove(indexFile);
+							cleanedCount++;
+							console.log(`Cleaned up orphaned index: ${indexFile} (original file: ${record.file_path})`);
+						}
+					} catch (error) {
+						console.error(`Failed to process index file ${indexFile}:`, error);
+					}
+				}
+			}
+			
+			if (cleanedCount > 0) {
+				console.log(`Batch cleanup completed: removed ${cleanedCount} orphaned index files`);
+				new Notice(`Cleaned up ${cleanedCount} orphaned index files`);
+			}
+		} catch (error) {
+			console.error('Failed to cleanup orphaned index files:', error);
+		}
+	}
+
+	private async filterAndCleanupResults(embeddings: EmbeddingRecord[]): Promise<EmbeddingRecord[]> {
+		const validEmbeddings: EmbeddingRecord[] = [];
+		
+		for (const embedding of embeddings) {
+			const fileExists = this.app.vault.getAbstractFileByPath(embedding.file_path) instanceof TFile;
+			
+			if (fileExists) {
+				validEmbeddings.push(embedding);
+			} else {
+				// File doesn't exist, clean up its index
+				console.log(`Found deleted file in search results: ${embedding.file_path}, cleaning up index`);
+				await this.cleanupDeletedFileEmbedding(embedding.file_path);
+			}
+		}
+		
+		return validEmbeddings;
 	}
 
 	private async initializeBatchEmbeddingQueue() {
