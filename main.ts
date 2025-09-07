@@ -2906,8 +2906,30 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
+	private clearEmbeddingQueue() {
+		const queueSize = this.embeddingQueue.size;
+		
+		// Clear the queue and details
+		this.embeddingQueue.clear();
+		this.queueDetails.clear();
+		
+		// Reset processing flag
+		this.isProcessingQueue = false;
+		
+		if (queueSize > 0) {
+			console.log(`Cleared ${queueSize} items from embedding queue after logout`);
+			new Notice(`Cleared embedding queue (${queueSize} pending items)`);
+		}
+	}
+
 	private async initializeBatchEmbeddingQueue() {
 		try {
+			// Check if user is logged in before initializing batch processing
+			if (!this.isLoggedIn()) {
+				console.log('User not logged in, skipping batch embedding queue initialization');
+				return;
+			}
+
 			console.log('Initializing batch embedding queue for all markdown files...');
 			
 			// Get all markdown files in the vault
@@ -3029,6 +3051,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			
 			if (success) {
 				this.updateStatusBar();
+				
+				// Start batch embedding queue after successful login
+				await this.initializeBatchEmbeddingQueue();
 			}
 		} catch (error: any) {
 			console.error('Login failed:', error);
@@ -3043,6 +3068,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		try {
 			await this.auth0Service.logout();
+			
+			// Clear embedding queue after logout
+			this.clearEmbeddingQueue();
+			
 			// UI update logic will be added here later
 		} catch (error: any) {
 			console.error('Logout failed:', error);
