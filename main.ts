@@ -3359,9 +3359,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				
 			});
 			
-			// Add Vault File Indexing section
-			this.createVaultIndexingSection(authContainer);
-			
 			// Logout button
 			new Setting(authContainer)
 				.setName('Log out')
@@ -3425,6 +3422,14 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.plugin.settings.firecrawlApiKey = value;
 					await this.plugin.saveSettings();
 				}));
+
+		// Add Vault File Indexing section (only for logged-in users)
+		if (this.plugin.isLoggedIn()) {
+			// Add separator
+			containerEl.createEl('hr', { cls: 'auth-settings-separator' });
+			
+			this.createVaultIndexingSection(containerEl);
+		}
 		
 		// Register settings update callback for vault indexing status
 		this.registerSettingsUpdateCallback();
