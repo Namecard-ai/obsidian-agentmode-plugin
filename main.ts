@@ -70,7 +70,14 @@ export interface EmbeddingRecord {
 	file_path: string;
 	file_name: string;
 	last_modified: string;
+	error_trace?: string; // Error tracking field for failed embeddings
 	[key: string]: any; // Add index signature for compatibility
+}
+
+export interface EmbeddingQueueItem {
+	filePath: string;
+	addedAt: number;
+	source: 'file_modify' | 'manual' | 'batch_process';
 }
 
 export interface ChatMessage {
@@ -615,6 +622,16 @@ export default class AgentPlugin extends Plugin {
 	// Add debouncing for file processing
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
+	
+	// Embedding Queue for processing files
+	private embeddingQueue: Set<string> = new Set(); // Use Set to avoid duplicates
+	private queueDetails: Map<string, EmbeddingQueueItem> = new Map(); // Store detailed info
+	private isProcessingQueue: boolean = false;
+	private queueConsumerTimer: NodeJS.Timeout | null = null;
+	private readonly QUEUE_CONSUMER_INTERVAL = 5000; // 5 seconds
+	private readonly RETRY_ATTEMPTS = 3;
+	private readonly RETRY_DELAY = 5000; // 5 seconds
+	
 	private openaiClient: OpenAI | null = null;
 	
 	// Auth0 configuration
@@ -678,6 +695,12 @@ export default class AgentPlugin extends Plugin {
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new AgentPluginSettingTab(this.app, this));
+
+		// Start the embedding queue consumer
+		this.startQueueConsumer();
+
+		// Initialize batch processing for all markdown files in vault
+		this.initializeBatchEmbeddingQueue();
 	}
 
 	initializeOpenAI() {
@@ -2522,6 +2545,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					file_path: file.path,
 					file_name: file.name,
 					last_modified: new Date(file.stat.mtime).toISOString()
+					// Note: error_trace is intentionally omitted (cleared) on successful embedding
 				};
 
 				// Save the embedding to a JSON file
@@ -2653,6 +2677,13 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		});
 		this.fileProcessingTimeouts.clear();
 		
+		// Stop embedding queue consumer
+		this.stopQueueConsumer();
+		
+		// Clear embedding queue
+		this.embeddingQueue.clear();
+		this.queueDetails.clear();
+		
 		// Clear Auth0 related timers
 		if (this.tokenRefreshTimer) {
 			clearInterval(this.tokenRefreshTimer);
@@ -2700,16 +2731,199 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
-	// Add debouncing for file processing
+	// Add debouncing for file processing - now adds to queue instead of direct processing
 	private debouncedProcessFileForEmbedding(file: TFile) {
 		const fileKey = file.path;
 		if (this.fileProcessingTimeouts.has(fileKey)) {
 			clearTimeout(this.fileProcessingTimeouts.get(fileKey));
 		}
 		this.fileProcessingTimeouts.set(fileKey, setTimeout(() => {
-			this.processFileForEmbedding(file);
+			this.addToEmbeddingQueue(file.path, 'file_modify');
 			this.fileProcessingTimeouts.delete(fileKey);
 		}, this.DEBOUNCE_DELAY));
+	}
+
+	// Embedding Queue Management Methods
+	private addToEmbeddingQueue(filePath: string, source: 'file_modify' | 'manual' | 'batch_process') {
+		if (!this.embeddingQueue.has(filePath)) {
+			this.embeddingQueue.add(filePath);
+			this.queueDetails.set(filePath, {
+				filePath,
+				addedAt: Date.now(),
+				source
+			});
+			
+			console.log(`Added to embedding queue: ${filePath} (source: ${source})`);
+			
+			// Trigger immediate processing if not already processing
+			this.processEmbeddingQueue();
+		}
+	}
+
+	private async processEmbeddingQueue() {
+		if (this.isProcessingQueue || this.embeddingQueue.size === 0) {
+			return;
+		}
+
+		this.isProcessingQueue = true;
+		
+		try {
+			// Process one file at a time
+			const filePath = this.embeddingQueue.values().next().value;
+			if (filePath) {
+				await this.processFileFromQueue(filePath);
+				
+				// Remove from queue after processing
+				this.embeddingQueue.delete(filePath);
+				this.queueDetails.delete(filePath);
+				
+				// Continue processing if there are more items
+				if (this.embeddingQueue.size > 0) {
+					// Use setTimeout to avoid blocking the main thread
+					setTimeout(() => this.processEmbeddingQueue(), 100);
+				}
+			}
+		} catch (error) {
+			console.error('Error in processEmbeddingQueue:', error);
+		} finally {
+			this.isProcessingQueue = false;
+		}
+	}
+
+	private async processFileFromQueue(filePath: string): Promise<void> {
+		try {
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (!(file instanceof TFile)) {
+				console.warn(`File not found or not a TFile: ${filePath}`);
+				return;
+			}
+
+			// Check if file needs processing by comparing MD5 hash
+			if (await this.shouldSkipFileProcessing(file)) {
+				console.log(`Skipping file (no changes detected): ${filePath}`);
+				return;
+			}
+
+			// Process with retry logic
+			await this.processFileForEmbeddingWithRetry(file);
+			
+		} catch (error) {
+			console.error(`Error processing file from queue: ${filePath}`, error);
+		}
+	}
+
+	private async shouldSkipFileProcessing(file: TFile): Promise<boolean> {
+		try {
+			// Read current file content and generate MD5
+			const content = await this.app.vault.read(file);
+			const currentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
+			
+			// Check if embedding record exists
+			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
+			const embeddingFilePath = this.vectorDbPath + '/' + pathMd5 + '.json';
+			
+			try {
+				const existingContent = await this.app.vault.adapter.read(embeddingFilePath);
+				const existingRecord: EmbeddingRecord = JSON.parse(existingContent);
+				
+				// Skip if vectors exist and MD5 matches (no changes)
+				if (existingRecord.vectors && 
+					existingRecord.vectors.length > 0 && 
+					existingRecord.content_md5_hash === currentMd5) {
+					return true;
+				}
+			} catch (error) {
+				// File doesn't exist or can't be read, so we should process
+				return false;
+			}
+			
+			return false;
+		} catch (error) {
+			console.error('Error checking if file should be skipped:', error);
+			return false;
+		}
+	}
+
+	private async processFileForEmbeddingWithRetry(file: TFile): Promise<void> {
+		let lastError: any = null;
+		
+		for (let attempt = 1; attempt <= this.RETRY_ATTEMPTS; attempt++) {
+			try {
+				await this.processFileForEmbedding(file);
+				return; // Success, exit retry loop
+			} catch (error) {
+				lastError = error;
+				console.error(`Embedding attempt ${attempt}/${this.RETRY_ATTEMPTS} failed for ${file.path}:`, error);
+				
+				if (attempt < this.RETRY_ATTEMPTS) {
+					// Wait before retry
+					await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+				}
+			}
+		}
+		
+		// All retries failed, save error record
+		await this.saveErrorRecord(file, lastError);
+	}
+
+	private async saveErrorRecord(file: TFile, error: any): Promise<void> {
+		try {
+			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
+			const content = await this.app.vault.read(file);
+			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
+			
+			const errorRecord: EmbeddingRecord = {
+				id: pathMd5,
+				vectors: [], // Empty array for failed embeddings
+				content_md5_hash: contentMd5,
+				file_path: file.path,
+				file_name: file.name,
+				last_modified: new Date(file.stat.mtime).toISOString(),
+				error_trace: error?.message || String(error)
+			};
+
+			await this.saveEmbedding(errorRecord);
+			new Notice(`Failed to generate embeddings for: ${file.name} (saved error record)`);
+		} catch (saveError) {
+			console.error('Error saving error record:', saveError);
+		}
+	}
+
+	private startQueueConsumer() {
+		if (this.queueConsumerTimer) {
+			clearInterval(this.queueConsumerTimer);
+		}
+		
+		this.queueConsumerTimer = setInterval(() => {
+			this.processEmbeddingQueue();
+		}, this.QUEUE_CONSUMER_INTERVAL);
+	}
+
+	private stopQueueConsumer() {
+		if (this.queueConsumerTimer) {
+			clearInterval(this.queueConsumerTimer);
+			this.queueConsumerTimer = null;
+		}
+	}
+
+	private async initializeBatchEmbeddingQueue() {
+		try {
+			console.log('Initializing batch embedding queue for all markdown files...');
+			
+			// Get all markdown files in the vault
+			const allFiles = this.app.vault.getMarkdownFiles();
+			
+			console.log(`Found ${allFiles.length} markdown files in vault`);
+			
+			// Add all files to queue with batch_process source
+			for (const file of allFiles) {
+				this.addToEmbeddingQueue(file.path, 'batch_process');
+			}
+			
+			new Notice(`Added ${allFiles.length} files to embedding queue for processing`);
+		} catch (error) {
+			console.error('Error initializing batch embedding queue:', error);
+		}
 	}
 
 	// Edit confirmation management methods
