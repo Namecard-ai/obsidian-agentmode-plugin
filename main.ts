@@ -2550,8 +2550,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 				// Save the embedding to a JSON file
 				await this.saveEmbedding(record);
-				
-				new Notice(`Vector embeddings saved for: ${file.name} (${vectors.length} chunks)`);
 			} else {
 				new Notice(`Failed to generate any embeddings for: ${file.name}`);
 			}
