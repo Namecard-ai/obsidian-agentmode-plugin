@@ -811,6 +811,91 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
   };
 
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    let hasImage = false;
+    
+    // Process all clipboard items
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      // Check if it's an image
+      if (item.type.startsWith('image/')) {
+        hasImage = true;
+        
+        try {
+          const file = item.getAsFile();
+          if (!file) continue;
+          
+          // Get file extension from MIME type
+          const mimeToExtension: Record<string, string> = {
+            'image/jpeg': 'jpg',
+            'image/jpg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+            'image/bmp': 'bmp'
+          };
+          
+          const fileExtension = mimeToExtension[item.type];
+          
+          // Check if extension is supported
+          if (!fileExtension || !(plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+            const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
+            new Notice(`Pasted image format "${item.type}" is not supported. Supported formats: ${supportedFormats}`);
+            continue;
+          }
+          
+          // Check file size (50MB limit)
+          const maxSize = 50 * 1024 * 1024;
+          if (file.size > maxSize) {
+            new Notice(`Pasted image exceeds 50MB size limit`);
+            continue;
+          }
+          
+          // Generate filename with timestamp
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `pasted-image-${timestamp}.${fileExtension}`;
+          
+          // Check if already uploaded (by size and approximate time)
+          const existingImage = uploadedImages.find(img => 
+            img.size === file.size && 
+            Math.abs(Date.now() - new Date(img.name.match(/pasted-image-(.+)\./)?.[1]?.replace(/-/g, ':') || '').getTime()) < 5000
+          );
+          
+          if (existingImage) {
+            new Notice(`Similar image was already uploaded recently`);
+            continue;
+          }
+          
+          // Convert to base64
+          const base64Data = await fileToBase64(file);
+          
+          // Create new File object with proper name
+          const renamedFile = new File([file], filename, { type: file.type });
+          
+          const uploadedImage: UploadedImage = {
+            id: generateId(),
+            file: renamedFile,
+            name: filename,
+            base64Data: base64Data,
+            size: file.size
+          };
+          
+          setUploadedImages(prev => [...prev, uploadedImage]);
+          new Notice(`Image "${filename}" uploaded successfully`);
+          
+        } catch (error) {
+          console.error('Error processing pasted image:', error);
+          new Notice(`Error processing pasted image`);
+        }
+      }
+    }
+    
+    // If we processed images, we still allow text to be pasted normally
+    // The default paste behavior for text will continue
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -2055,6 +2140,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyPress={handleKeyPress}
+                onPaste={handlePaste}
                 placeholder={chatMode === 'Ask' 
                   ? "Ask something... Use [[]] to link notes" 
                   : "Give instructions to the agent... Use [[]] to link notes"
