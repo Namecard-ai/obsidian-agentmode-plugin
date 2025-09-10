@@ -815,13 +815,26 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const items = e.clipboardData.items;
     let hasImage = false;
     
+    // First, check if there are any images in the clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        hasImage = true;
+        break;
+      }
+    }
+    
+    // If there are images, prevent default paste behavior and only process images
+    if (hasImage) {
+      e.preventDefault();
+    }
+    
     // Process all clipboard items
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       
       // Check if it's an image
       if (item.type.startsWith('image/')) {
-        hasImage = true;
         
         try {
           const file = item.getAsFile();
@@ -853,18 +866,35 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             continue;
           }
           
-          // Generate filename with timestamp
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const filename = `pasted-image-${timestamp}.${fileExtension}`;
+          // Try to use original filename, fallback to generated name
+          let filename: string;
+          if (file.name && file.name.trim() !== '' && file.name !== 'image.png' && file.name !== 'image.jpg') {
+            // Use original filename if available and not a generic name
+            filename = file.name;
+          } else {
+            // Generate filename with timestamp as fallback
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            filename = `pasted-image-${timestamp}.${fileExtension}`;
+          }
           
-          // Check if already uploaded (by size and approximate time)
-          const existingImage = uploadedImages.find(img => 
-            img.size === file.size && 
-            Math.abs(Date.now() - new Date(img.name.match(/pasted-image-(.+)\./)?.[1]?.replace(/-/g, ':') || '').getTime()) < 5000
-          );
+          // Check if already uploaded (by filename and size, or just size for generated names)
+          const existingImage = uploadedImages.find(img => {
+            if (filename.startsWith('pasted-image-')) {
+              // For generated names, check by size and recent time
+              const timeMatch = img.name.match(/pasted-image-(.+)\./);
+              if (timeMatch) {
+                const imgTime = new Date(timeMatch[1].replace(/-/g, ':'));
+                return img.size === file.size && Math.abs(Date.now() - imgTime.getTime()) < 5000;
+              }
+              return img.size === file.size;
+            } else {
+              // For original filenames, check by exact name and size
+              return img.name === filename && img.size === file.size;
+            }
+          });
           
           if (existingImage) {
-            new Notice(`Similar image was already uploaded recently`);
+            new Notice(`Image "${filename}" has already been uploaded`);
             continue;
           }
           
@@ -891,9 +921,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         }
       }
     }
-    
-    // If we processed images, we still allow text to be pasted normally
-    // The default paste behavior for text will continue
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
