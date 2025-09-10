@@ -607,19 +607,34 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           setCurrentStreamingContent(prev => prev + chunk);
         },
         (toolCall: any) => {
-          // Handle tool call - save current content and create tool call message
+          // Handle tool call - accumulate tool calls into a single assistant message
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
           
-          const toolCallMessage: Message = {
-            id: generateId(),
-            role: 'assistant',
-            content: currentContent,
-            timestamp: new Date(),
-            tool_calls: [toolCall]
-          };
+          setMessages(prev => {
+            const newMessages = [...prev];
+            const lastMessage = newMessages[newMessages.length - 1];
+            
+            // If the last message is an assistant message with the same content, add this tool call to it
+            if (lastMessage && 
+                lastMessage.role === 'assistant' && 
+                lastMessage.content === currentContent &&
+                lastMessage.tool_calls) {
+              lastMessage.tool_calls.push(toolCall);
+              return newMessages;
+            } else {
+              // Create new assistant message with this tool call
+              const toolCallMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: currentContent,
+                timestamp: new Date(),
+                tool_calls: [toolCall]
+              };
+              return [...newMessages, toolCallMessage];
+            }
+          });
           
-          setMessages(prev => [...prev, toolCallMessage]);
           setCurrentStreamingContent(''); // Reset for new content after tool call
         },
         (finalContent: string) => {
