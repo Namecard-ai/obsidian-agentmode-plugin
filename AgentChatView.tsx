@@ -829,13 +829,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       e.preventDefault();
     }
     
-    // Process all clipboard items
+    // Collect all valid images first, then process them
+    const validImages: Array<{file: File, filename: string}> = [];
+    const processedFilenames = new Set<string>(); // Track filenames in current batch
+    
+    // Process all clipboard items to collect valid images
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       
       // Check if it's an image
       if (item.type.startsWith('image/')) {
-        
         try {
           const file = item.getAsFile();
           if (!file) continue;
@@ -871,13 +874,23 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           if (file.name && file.name.trim() !== '' && file.name !== 'image.png' && file.name !== 'image.jpg') {
             // Use original filename if available and not a generic name
             filename = file.name;
+            
+            // Handle duplicate filenames in current batch
+            let counter = 1;
+            let originalFilename = filename;
+            while (processedFilenames.has(filename)) {
+              const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
+              const ext = originalFilename.substring(originalFilename.lastIndexOf('.'));
+              filename = `${nameWithoutExt}_${counter}${ext}`;
+              counter++;
+            }
           } else {
             // Generate filename with timestamp as fallback
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            filename = `pasted-image-${timestamp}.${fileExtension}`;
+            filename = `pasted-image-${timestamp}-${i}.${fileExtension}`;
           }
           
-          // Check if already uploaded (by filename and size, or just size for generated names)
+          // Check if already uploaded in existing images
           const existingImage = uploadedImages.find(img => {
             if (filename.startsWith('pasted-image-')) {
               // For generated names, check by size and recent time
@@ -898,28 +911,47 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             continue;
           }
           
-          // Convert to base64
-          const base64Data = await fileToBase64(file);
-          
-          // Create new File object with proper name
-          const renamedFile = new File([file], filename, { type: file.type });
-          
-          const uploadedImage: UploadedImage = {
-            id: generateId(),
-            file: renamedFile,
-            name: filename,
-            base64Data: base64Data,
-            size: file.size
-          };
-          
-          setUploadedImages(prev => [...prev, uploadedImage]);
-          new Notice(`Image "${filename}" uploaded successfully`);
+          validImages.push({ file, filename });
+          processedFilenames.add(filename);
           
         } catch (error) {
           console.error('Error processing pasted image:', error);
           new Notice(`Error processing pasted image`);
         }
       }
+    }
+    
+    // Now process all valid images and convert them
+    const newUploadedImages: UploadedImage[] = [];
+    
+    for (const { file, filename } of validImages) {
+      try {
+        // Convert to base64
+        const base64Data = await fileToBase64(file);
+        
+        // Create new File object with proper name
+        const renamedFile = new File([file], filename, { type: file.type });
+        
+        const uploadedImage: UploadedImage = {
+          id: generateId(),
+          file: renamedFile,
+          name: filename,
+          base64Data: base64Data,
+          size: file.size
+        };
+        
+        newUploadedImages.push(uploadedImage);
+        new Notice(`Image "${filename}" uploaded successfully`);
+        
+      } catch (error) {
+        console.error('Error processing pasted image:', error);
+        new Notice(`Error processing image "${filename}"`);
+      }
+    }
+    
+    // Add all new images at once
+    if (newUploadedImages.length > 0) {
+      setUploadedImages(prev => [...prev, ...newUploadedImages]);
     }
   };
 
