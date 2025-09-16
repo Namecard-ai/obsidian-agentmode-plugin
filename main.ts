@@ -623,6 +623,10 @@ export default class AgentPlugin extends Plugin {
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 	
+	// Chat interruption control
+	private currentChatController: AbortController | null = null;
+	private shouldStopChat: boolean = false;
+	
 	// Embedding Queue for processing files
 	private embeddingQueue: Set<string> = new Set(); // Use Set to avoid duplicates
 	private queueDetails: Map<string, EmbeddingQueueItem> = new Map(); // Store detailed info
@@ -879,6 +883,14 @@ export default class AgentPlugin extends Plugin {
 		}
 	}
 
+	// Stop current chat
+	stopCurrentChat(): void {
+		this.shouldStopChat = true;
+		if (this.currentChatController) {
+			this.currentChatController.abort();
+		}
+	}
+
 	// Agent chat completion with streaming and tool use
 	async streamAgentChat(
 		messages: ChatMessage[], 
@@ -889,12 +901,17 @@ export default class AgentPlugin extends Plugin {
 		onToolCall: (toolCall: any) => void,
 		onComplete: (finalContent: string) => void,
 		onError: (error: string) => void,
-		onToolResult: (result: { toolCallId: string; result: string }) => void
+		onToolResult: (result: { toolCallId: string; result: string }) => void,
+		onInterrupted?: () => void
 	): Promise<void> {
 		if (!this.openaiClient) {
 			onError('OpenAI not configured');
 			return;
 		}
+
+		// Initialize interruption control
+		this.shouldStopChat = false;
+		this.currentChatController = new AbortController();
 
 		try {
 			// Get system prompt with context files
@@ -1144,11 +1161,18 @@ export default class AgentPlugin extends Plugin {
 					// Main conversation loop - continue until no more tool calls
 		let finalAssistantContent = '';
 		while (true) {
+			// Check for interruption
+			if (this.shouldStopChat) {
+				onInterrupted?.();
+				return;
+			}
+			
 			// Start streaming chat completion
 			let reqOptions: RequestOptions = {
 				headers: {
 					'Authorization': `Bearer ${this.settings.accessToken}`
-				}
+				},
+				signal: this.currentChatController.signal
 			}
 			if (this.settings.openaiApiKey) {
 				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
@@ -1166,6 +1190,12 @@ export default class AgentPlugin extends Plugin {
 			let currentMessage: any = {};
 			
 			for await (const chunk of stream) {
+				// Check for interruption
+				if (this.shouldStopChat) {
+					onInterrupted?.();
+					return;
+				}
+				
 				currentMessage = this.messageReducer(currentMessage, chunk);
 				
 				// Stream content to UI
@@ -1196,6 +1226,12 @@ export default class AgentPlugin extends Plugin {
 
 				// Execute tool calls and add results to conversation
 				for (const toolCall of currentMessage.tool_calls) {
+					// Check for interruption
+					if (this.shouldStopChat) {
+						onInterrupted?.();
+						return;
+					}
+					
 					try {
 						const args = JSON.parse(toolCall.function.arguments || '{}');
 
@@ -1269,6 +1305,13 @@ export default class AgentPlugin extends Plugin {
 
 		} catch (error: any) {
 			console.error('Error in agent chat:', error);
+			
+			// Handle abort error
+			if (error.name === 'AbortError' || this.shouldStopChat) {
+				onInterrupted?.();
+				return;
+			}
+			
 			if (error.status === 401) {
 				this.logout();
 			}
@@ -1278,6 +1321,10 @@ export default class AgentPlugin extends Plugin {
 				paymentModal.show();
 			}
 			onError(error.message || 'Unknown error occurred');
+		} finally {
+			// Clean up interruption control
+			this.currentChatController = null;
+			this.shouldStopChat = false;
 		}
 	}
 

@@ -40,6 +40,20 @@ const styles = `
     background-color: var(--background-modifier-hover);
     border-radius: 4px;
   }
+  
+  .loading-bar {
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, var(--interactive-accent), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 1px;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
 `;
 
 // Inject styles
@@ -692,6 +706,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
             // Show a subtle notification that editing was blocked
           }
+        },
+        () => {
+          // Handle interruption
+          const interruptedMessage: Message = {
+            id: generateId(),
+            role: 'assistant',
+            content: '❌ Chat interrupted',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, interruptedMessage]);
+          setIsLoading(false);
+          setStreamingMessageId(null);
+          setCurrentStreamingContent('');
         }
       );
     } catch (error) {
@@ -708,6 +735,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       setIsLoading(false);
       setStreamingMessageId(null);
       setCurrentStreamingContent('');
+    }
+  };
+
+  const handleStopChat = () => {
+    if (plugin && isLoading) {
+      plugin.stopCurrentChat();
     }
   };
 
@@ -2123,6 +2156,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           </div>
         )}
 
+        {/* Loading Bar */}
+        {isLoading && (
+          <div style={{
+            marginBottom: '8px'
+          }}>
+            <div className="loading-bar" />
+          </div>
+        )}
+
         {/* Input Row */}
         <div style={{
           display: 'flex',
@@ -2326,15 +2368,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   </div>
                 )}
                 <button
-                  onClick={handleSendMessage}
-                  disabled={!inputText.trim() || isLoading}
+                  onClick={isLoading ? handleStopChat : handleSendMessage}
+                  disabled={!isLoading && !inputText.trim()}
                   style={{
                     padding: '8px 12px',
                     borderRadius: '8px',
                     border: 'none',
-                    backgroundColor: inputText.trim() && !isLoading ? 'var(--interactive-accent)' : 'var(--background-modifier-border)',
+                    backgroundColor: isLoading ? 'var(--text-error)' : (inputText.trim() ? 'var(--interactive-accent)' : 'var(--background-modifier-border)'),
                     color: 'var(--text-on-accent)',
-                    cursor: inputText.trim() && !isLoading ? 'pointer' : 'not-allowed',
+                    cursor: (isLoading || inputText.trim()) ? 'pointer' : 'not-allowed',
                     fontSize: '14px',
                     fontWeight: '500',
                     display: 'flex',
@@ -2343,18 +2385,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     gap: '8px'
                   }}
                 >
-                  {isLoading ? (
-                    <div style={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2px solid var(--interactive-accent-border)',
-                      borderTop: '2px solid var(--text-on-accent)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }} />
-                  ) : (
-                    'Send'
-                  )}
+                  {isLoading ? 'Stop' : 'Send'}
                 </button>
               </div>
             </div>
