@@ -1178,6 +1178,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }
             // Check if file is supported by read_file tool
             else if (plugin.isFileSupportedByReadTool(abstractFile)) {
+              console.log('Adding context file 1');
               addContextFile(abstractFile);
             }
           }
@@ -1231,6 +1232,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
               // Check if file is supported by read_file tool
               else if (plugin.isFileSupportedByReadTool(abstractFile)) {
+                console.log('Adding context file 2');
                 addContextFile(abstractFile);
                 filesAdded++;
                 continue;
@@ -1261,6 +1263,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Check if file is supported by read_file tool
                 else if (plugin.isFileSupportedByReadTool(abstractFile)) {
+                  console.log('Adding context file 3');
                   addContextFile(abstractFile);
                   filesAdded++;
                   break;
@@ -1304,6 +1307,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
               // Otherwise add as context file
               else if (plugin.isFileSupportedByReadTool(foundFile)) {
+                console.log('Adding context file 4');
                 addContextFile(foundFile);
                 filesAdded++;
               }
@@ -1351,6 +1355,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     }
                     // Check if file is supported by read_file tool
                     else if (plugin.isFileSupportedByReadTool(file)) {
+                      console.log('Adding context file 5');
                       addContextFile(file);
                       return true;
                     }
@@ -1369,6 +1374,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Check if file is supported by read_file tool
                 else if (plugin.isFileSupportedByReadTool(obj)) {
+                  console.log('Adding context file 6');
                   addContextFile(obj);
                   filesAdded++;
                 }
@@ -1394,6 +1400,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   }
                   // Check if file is supported by read_file tool
                   else if (plugin.isFileSupportedByReadTool(dom.file)) {
+                    console.log('Adding context file 7');
                     addContextFile(dom.file);
                     return true;
                   }
@@ -1446,6 +1453,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Otherwise add as context file
                 else if (plugin.isFileSupportedByReadTool(matchingFile)) {
+                  console.log('Adding context file 8');
                   addContextFile(matchingFile);
                   filesAdded++;
                   break;
