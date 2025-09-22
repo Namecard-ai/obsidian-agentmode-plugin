@@ -1494,6 +1494,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       return;
     }
     
+    // Add wikilink to input text if this is a vault file
+    if (file && file.path) {
+      const wikilink = `[[${file.path}]]`;
+      setInputText(prev => {
+        // Add wikilink at the end, with a space before if text exists
+        const separator = prev.trim() ? ' ' : '';
+        return prev + separator + wikilink;
+      });
+    }
+    
     const contextFile: ContextFile = {
       id: generateId(),
       file: file,
