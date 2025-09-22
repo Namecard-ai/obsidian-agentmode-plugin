@@ -7,6 +7,15 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+/* TipTap Placeholder Styles */
+.tiptap p.is-editor-empty:first-child::before {
+  color: var(--text-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 .agent-chat-view {
   display: flex;
   flex-direction: column;

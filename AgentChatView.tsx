@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import TiptapEditor, { TiptapEditorRef } from './TiptapEditor';
 import { FuzzySuggestModal, TFile, App, Notice, setIcon } from 'obsidian';
 import MarkdownRenderer from './MarkdownRenderer';
 import AgentPlugin from './main';
@@ -354,7 +355,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   // Add login state monitoring
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(plugin.isLoggedIn());
   
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<TiptapEditorRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
@@ -396,17 +397,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     return () => observer.disconnect();
   }, []);
 
+  // TipTap editor handles auto-resizing internally, so we can remove this
   // Auto-resize textarea utility function
-  const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
-    textarea.style.height = 'auto'; // Reset height to recalculate
-    textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
-  };
+  // const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
+  //   textarea.style.height = 'auto'; // Reset height to recalculate
+  //   textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+  // };
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      autoResizeTextarea(textareaRef.current);
-    }
-  }, [inputText]);
+  // useEffect(() => {
+  //   if (textareaRef.current) {
+  //     autoResizeTextarea(textareaRef.current);
+  //   }
+  // }, [inputText]);
 
   // Listen for edit confirmation changes
   useEffect(() => {
@@ -769,7 +771,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       handleSendMessage();
     } else if (e.key === '[' && textareaRef.current) {
       // Check if this is the second [ to trigger wiki link input
-      const cursorPos = textareaRef.current.selectionStart || 0;
+      const cursorPos = textareaRef.current.getCursorPosition();
       const beforeCursor = inputText.slice(0, cursorPos);
       
       // Check if the previous character is also [
@@ -1774,7 +1776,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       setTimeout(() => {
         if (textareaRef.current) {
           const newCursorPos = beforeWithoutBrackets.length + `[[${relativePath}]]`.length;
-          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          textareaRef.current.setCursorPosition(newCursorPos);
           textareaRef.current.focus();
         }
       }, 0);
@@ -2141,11 +2143,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             flex: 1
           }}>
 
-            {/* Main Textarea */}
-            <textarea
+            {/* Main TipTap Editor */}
+            <TiptapEditor
               ref={textareaRef}
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(value) => setInputText(value)}
               onKeyPress={handleKeyPress}
               onPaste={handlePaste}
               placeholder={chatMode === 'Ask' 
@@ -2164,10 +2166,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 backgroundColor: 'var(--background-secondary)',
                 color: 'var(--text-normal)',
                 fontSize: '14px',
-                resize: 'none',
                 fontFamily: 'inherit',
                 width: '100%'
               }}
+              chatMode={chatMode}
             />
 
             {/* New Bottom Control Strip */}
