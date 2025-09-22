@@ -2,6 +2,7 @@ import React, { useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import Mention from '@tiptap/extension-mention'
 
 interface TiptapEditorProps {
   value: string
@@ -19,6 +20,7 @@ export interface TiptapEditorRef {
   getCursorPosition: () => number
   setCursorPosition: (position: number) => void
   insertText: (text: string, position?: number) => void
+  insertWikilink: (linkText: string, position?: number) => void
 }
 
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
@@ -45,6 +47,25 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       }),
       Placeholder.configure({
         placeholder: placeholder || 'Type something...',
+      }),
+      Mention.configure({
+        HTMLAttributes: {
+          class: 'wikilink-mention',
+        },
+        renderText({ options, node }) {
+          return `[[${node.attrs.label || node.attrs.id}]]`
+        },
+        // We'll manually create mention nodes for wikilinks, so disable auto-suggestion
+        suggestion: {
+          char: '\u0000', // Use a null character that won't be typed
+          items: () => [],
+          render: () => ({
+            onStart: () => {},
+            onUpdate: () => {},
+            onKeyDown: () => false,
+            onExit: () => {},
+          }),
+        },
       })
     ],
     content: value || '',
@@ -118,10 +139,33 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     },
   })
 
+  // Function to convert wikilinks in text to mention nodes
+  const convertWikilinksToMentions = (text: string) => {
+    if (!text) return text
+    
+    // Parse wikilinks and convert to HTML with mention nodes
+    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g
+    let html = text
+    let match
+    const mentions: Array<{ id: string, label: string }> = []
+    
+    while ((match = wikiLinkRegex.exec(text)) !== null) {
+      const fullMatch = match[0]
+      const linkText = match[1]
+      mentions.push({ id: linkText, label: linkText })
+      
+      // Replace with mention node HTML
+      html = html.replace(fullMatch, `<span data-type="mention" data-id="${linkText}" data-label="${linkText}">[[${linkText}]]</span>`)
+    }
+    
+    return html
+  }
+
   // Update editor content when value prop changes
   useEffect(() => {
     if (editor && value !== editor.getText()) {
-      editor.commands.setContent(value || '')
+      const htmlContent = convertWikilinksToMentions(value || '')
+      editor.commands.setContent(htmlContent)
     }
   }, [value, editor])
 
@@ -146,6 +190,21 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
         editor.commands.setTextSelection(position)
       }
       editor.commands.insertContent(text)
+    },
+    insertWikilink: (linkText: string, position?: number) => {
+      if (!editor) return
+      if (position !== undefined) {
+        editor.commands.focus()
+        editor.commands.setTextSelection(position)
+      }
+      // Insert as a mention node
+      editor.commands.insertContent({
+        type: 'mention',
+        attrs: {
+          id: linkText,
+          label: linkText,
+        },
+      })
     }
   }), [editor])
 

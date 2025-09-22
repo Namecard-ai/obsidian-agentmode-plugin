@@ -1761,25 +1761,27 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   // Handle [[ input detection and file selection
   const handleWikiLinkInput = (position: number) => {
     const modal = new FilePickerModal(app, (file: TFile) => {
-      // Insert the file path at the specified position
-      const beforeCursor = inputText.slice(0, position);
-      const afterCursor = inputText.slice(position);
       const relativePath = file.path;
       
-      // Remove the [[ that triggered this modal
-      const beforeWithoutBrackets = beforeCursor.slice(0, -2);
-      const newText = beforeWithoutBrackets + `[[${relativePath}]]` + afterCursor;
-      
-      setInputText(newText);
-      
-      // Set cursor position after the inserted link
-      setTimeout(() => {
-        if (textareaRef.current) {
-          const newCursorPos = beforeWithoutBrackets.length + `[[${relativePath}]]`.length;
-          textareaRef.current.setCursorPosition(newCursorPos);
-          textareaRef.current.focus();
-        }
-      }, 0);
+      if (textareaRef.current) {
+        // Remove the [[ that triggered this modal by setting cursor position back
+        const beforeCursor = inputText.slice(0, position);
+        const afterCursor = inputText.slice(position);
+        const beforeWithoutBrackets = beforeCursor.slice(0, -2);
+        
+        // Update the text without the [[
+        const newTextWithoutBrackets = beforeWithoutBrackets + afterCursor;
+        setInputText(newTextWithoutBrackets);
+        
+        // Insert the wikilink as a mention node
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.setCursorPosition(beforeWithoutBrackets.length);
+            textareaRef.current.insertWikilink(relativePath);
+            textareaRef.current.focus();
+          }
+        }, 0);
+      }
       
       setPendingWikiLinkPosition(null);
     });
