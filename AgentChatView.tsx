@@ -204,14 +204,6 @@ interface AgentChatViewProps {
   plugin: AgentPlugin;
 }
 
-// Add new interface for wiki link parsing
-interface WikiLink {
-  start: number;
-  end: number;
-  path: string;
-  isValid: boolean;
-  fullMatch: string;
-}
 
 // Reusable Icon Button Component
 interface IconButtonProps {
@@ -354,8 +346,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
   const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  // Add new states for wiki link functionality
-  const [wikiLinks, setWikiLinks] = useState<WikiLink[]>([]);
+  // Add state for wiki link input functionality
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
   const [isLightTheme, setIsLightTheme] = useState(document.body.classList.contains('theme-light'));
@@ -368,7 +359,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const highlightLayerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
 
   // Sync ref with state
@@ -1765,33 +1755,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     );
   };
 
-  // Add wiki link parsing functions
-  const parseWikiLinks = (text: string): WikiLink[] => {
-    const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
-    const matches: WikiLink[] = [];
-    let match;
-    
-    while ((match = wikiLinkRegex.exec(text)) !== null) {
-      const path = match[1];
-      const file = app.vault.getAbstractFileByPath(path);
-      
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        path: path,
-        isValid: !!(file && file instanceof TFile),
-        fullMatch: match[0]
-      });
-    }
-    
-    return matches;
-  };
-
-  // Update wiki links when input text changes
-  useEffect(() => {
-    const links = parseWikiLinks(inputText);
-    setWikiLinks(links);
-  }, [inputText, app.vault]);
 
   // Handle [[ input detection and file selection
   const handleWikiLinkInput = (position: number) => {
@@ -1821,24 +1784,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     modal.open();
   };
 
-  // Add scroll sync for syntax highlighting
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    const highlightLayer = highlightLayerRef.current;
-    
-    if (!textarea || !highlightLayer) return;
-    
-    const syncScroll = () => {
-      highlightLayer.scrollTop = textarea.scrollTop;
-      highlightLayer.scrollLeft = textarea.scrollLeft;
-    };
-    
-    textarea.addEventListener('scroll', syncScroll);
-    
-    return () => {
-      textarea.removeEventListener('scroll', syncScroll);
-    };
-  }, []);
 
   // If not logged in, show login prompt
   if (!isLoggedIn) {
@@ -2197,108 +2142,33 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           }}>
 
             {/* Main Textarea */}
-            <div style={{
-              position: 'relative',
-              width: '100%'
-            }}>
-              {/* Syntax highlight background layer can remain here */}
-              <div
-                ref={highlightLayerRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  minHeight: '44px',
-                  maxHeight: '120px',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid transparent',
-                  backgroundColor: 'transparent',
-                  color: 'transparent',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  lineHeight: '1.5',
-                  overflow: 'hidden',
-                  whiteSpace: 'pre-wrap',
-                  wordWrap: 'break-word',
-                  pointerEvents: 'none',
-                  zIndex: 1
-                }}
-              >
-                {/* Rendering logic for wiki links */}
-                {(() => {
-                  const chars = inputText.split('');
-                  const result = [];
-                  let currentHighlight = null;
-                  
-                  for (let i = 0; i < chars.length; i++) {
-                    const wikiLink = wikiLinks.find(link => 
-                      i >= link.start && i < link.end
-                    );
-                    
-                    if (wikiLink && wikiLink !== currentHighlight) {
-                      if (currentHighlight) {
-                        result.push('</span>');
-                      }
-                      result.push(
-                        `<span style="background-color: ${
-                          wikiLink.isValid 
-                            ? 'var(--background-modifier-success-hover)' 
-                            : 'var(--background-modifier-error-hover)'
-                        }; color: ${
-                          wikiLink.isValid ? 'var(--text-success)' : 'var(--text-error)'
-                        }; border-radius: 3px; padding: 1px 2px;">`
-                      );
-                      currentHighlight = wikiLink;
-                    } else if (!wikiLink && currentHighlight) {
-                      result.push('</span>');
-                      currentHighlight = null;
-                    }
-                    
-                    result.push(chars[i]);
-                  }
-                  
-                  if (currentHighlight) {
-                    result.push('</span>');
-                  }
-                  
-                  return <div dangerouslySetInnerHTML={{ __html: result.join('') }} />;
-                })()}
-              </div>
-              
-              {/* Actual textarea */}
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                onPaste={handlePaste}
-                placeholder={chatMode === 'Ask' 
-                  ? "Ask something... Use [[]] to link notes" 
-                  : "Give instructions to the agent... Use [[]] to link notes"
-                }
-                className="chat-textarea"
-                style={{
-                  position: 'relative',
-                  boxSizing: 'border-box',
-                  minHeight: '44px',
-                  maxHeight: '250px',
-                  overflowY: 'auto',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--background-modifier-border)',
-                  backgroundColor: 'var(--background-secondary)',
-                  color: 'var(--text-normal)',
-                  fontSize: '14px',
-                  resize: 'none',
-                  fontFamily: 'inherit',
-                  width: '100%',
-                  zIndex: 2
-                }}
-              />
-            </div>
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              onPaste={handlePaste}
+              placeholder={chatMode === 'Ask' 
+                ? "Ask something... Use [[]] to link notes" 
+                : "Give instructions to the agent... Use [[]] to link notes"
+              }
+              className="chat-textarea"
+              style={{
+                boxSizing: 'border-box',
+                minHeight: '44px',
+                maxHeight: '250px',
+                overflowY: 'auto',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid var(--background-modifier-border)',
+                backgroundColor: 'var(--background-secondary)',
+                color: 'var(--text-normal)',
+                fontSize: '14px',
+                resize: 'none',
+                fontFamily: 'inherit',
+                width: '100%'
+              }}
+            />
 
             {/* New Bottom Control Strip */}
             <div style={{
