@@ -110,6 +110,11 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
             persist: () => {},
           } as unknown as React.KeyboardEvent
           onKeyPress(reactEvent)
+          
+          // If Enter key without Shift was pressed, prevent TipTap from handling it
+          if (event.key === 'Enter' && !event.shiftKey) {
+            return true // Prevent TipTap from handling the event
+          }
         }
         return false // Let TipTap handle the event
       },
