@@ -30,6 +30,21 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-modifier-success);
 }
 
+/* TipTap Editor - Disable drag and drop visual effects */
+.tiptap-editor {
+  /* Disable drag and drop cursor */
+  pointer-events: auto;
+}
+
+.tiptap-editor * {
+  /* Disable drag and drop on all child elements */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
 .agent-chat-view {
   display: flex;
   flex-direction: column;

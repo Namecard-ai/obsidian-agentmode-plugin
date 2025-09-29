@@ -92,6 +92,8 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           ${style ? Object.entries(style).map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value};`).join(' ') : ''}
         `.trim()
       },
+      // Disable drag and drop handling
+      handleDrop: () => true, // Return true to prevent TipTap from handling drop events
       handleKeyDown: (view, event) => {
         if (onKeyPress) {
           // Create a simplified event object that matches the expected interface
