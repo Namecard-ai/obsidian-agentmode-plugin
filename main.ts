@@ -2859,12 +2859,20 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	// Add debouncing for file processing - now adds to queue instead of direct processing
 	private debouncedProcessFileForEmbedding(file: TFile) {
+		// Check if user is logged in before processing
+		if (!this.isLoggedIn()) {
+			return;
+		}
+
 		const fileKey = file.path;
 		if (this.fileProcessingTimeouts.has(fileKey)) {
 			clearTimeout(this.fileProcessingTimeouts.get(fileKey));
 		}
 		this.fileProcessingTimeouts.set(fileKey, setTimeout(() => {
-			this.addToEmbeddingQueue(file.path, 'file_modify');
+			// Double-check login status when timer fires (in case user logged out during debounce period)
+			if (this.isLoggedIn()) {
+				this.addToEmbeddingQueue(file.path, 'file_modify');
+			}
 			this.fileProcessingTimeouts.delete(fileKey);
 		}, this.DEBOUNCE_DELAY));
 	}
