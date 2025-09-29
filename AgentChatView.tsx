@@ -776,19 +776,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       handleSendMessage();
     } else if (e.key === '[' && textareaRef.current) {
       // Check if this is the second [ to trigger wiki link input
-      const cursorPos = textareaRef.current.getCursorPosition();
-      const beforeCursor = inputText.slice(0, cursorPos);
+      // Get the character immediately before the cursor from the TipTap editor
+      const charBeforeCursor = textareaRef.current.getTextBeforeCursor(1);
       
       // Check if the previous character is also [
-      if (beforeCursor.endsWith('[')) {
-        // This will be the second [, trigger file selection after the keystroke is processed
-        // We need to let the keystroke complete first, then handle the wiki link
-        setTimeout(() => {
-          // After the keystroke, the text should have "[[" at the end of beforeCursor
-          const bracketStartPos = cursorPos - 1; // Position of the first [
-          setPendingWikiLinkPosition(bracketStartPos);
-          handleWikiLinkInput(bracketStartPos);
-        }, 0);
+      if (charBeforeCursor === '[') {
+        // This will be the second [, prevent it from being inserted and trigger file selection
+        e.preventDefault(); // Prevent the second [ from being inserted
+        
+        const cursorPos = textareaRef.current.getCursorPosition();
+        // The first [ should be at cursorPos - 1
+        const bracketStartPos = cursorPos - 1;
+        setPendingWikiLinkPosition(bracketStartPos);
+        handleWikiLinkInput(bracketStartPos);
       }
     }
   };
@@ -1771,13 +1771,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       const relativePath = file.path;
       
       if (textareaRef.current) {
-        // Replace the [[ with the wikilink mention
-        // The [[ occupies positions bracketStartPosition to bracketStartPosition + 2
+        // Replace the single [ with the wikilink mention
+        // Since we prevented the second [ from being inserted, we only need to replace 1 character
         setTimeout(() => {
           if (textareaRef.current) {
             textareaRef.current.replaceRangeWithWikilink(
               bracketStartPosition, 
-              bracketStartPosition + 2, 
+              bracketStartPosition + 1, // Only replace 1 character now
               relativePath
             );
           }

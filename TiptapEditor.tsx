@@ -22,6 +22,7 @@ export interface TiptapEditorRef {
   insertText: (text: string, position?: number) => void
   insertWikilink: (linkText: string, position?: number) => void
   replaceRangeWithWikilink: (startPos: number, endPos: number, linkText: string) => void
+  getTextBeforeCursor: (length?: number) => string
   clear: () => void
 }
 
@@ -244,6 +245,21 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           text: ' ',
         }
       ])
+    },
+    getTextBeforeCursor: (length?: number) => {
+      if (!editor) return ''
+      
+      const { from } = editor.state.selection
+      const doc = editor.state.doc
+      
+      if (length !== undefined) {
+        // Get specific number of characters before cursor
+        const startPos = Math.max(0, from - length)
+        return doc.textBetween(startPos, from, ' ', ' ')
+      } else {
+        // Get all text before cursor
+        return doc.textBetween(0, from, ' ', ' ')
+      }
     },
     clear: () => {
       if (!editor) return
