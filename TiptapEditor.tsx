@@ -21,6 +21,7 @@ export interface TiptapEditorRef {
   setCursorPosition: (position: number) => void
   insertText: (text: string, position?: number) => void
   insertWikilink: (linkText: string, position?: number) => void
+  clear: () => void
 }
 
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
@@ -205,8 +206,13 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           label: linkText,
         },
       })
+    },
+    clear: () => {
+      if (!editor) return
+      editor.commands.clearContent()
+      onChange('')
     }
-  }), [editor])
+  }), [editor, onChange])
 
   if (!editor) {
     return null

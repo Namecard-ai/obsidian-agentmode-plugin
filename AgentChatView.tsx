@@ -555,7 +555,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInputText('');
+    // Clear the TiptapEditor content
+    if (textareaRef.current) {
+      textareaRef.current.clear();
+    }
     setIsLoading(true);
 
     // Both Ask and Agent modes now use the same streamAgentChat function
