@@ -26,8 +26,10 @@ If your plugin does not need CSS, delete this file.
   font-weight: 500;
 }
 
+/* Remove hover effect to prevent green color block issue */
 .wikilink-mention:hover {
-  background-color: var(--background-modifier-success);
+  background-color: var(--background-modifier-success-hover);
+  color: var(--text-success);
 }
 
 /* TipTap Editor - Disable drag and drop visual effects */
