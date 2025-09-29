@@ -782,10 +782,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       // Check if the previous character is also [
       if (beforeCursor.endsWith('[')) {
         // This will be the second [, trigger file selection after the keystroke is processed
+        // We need to let the keystroke complete first, then handle the wiki link
         setTimeout(() => {
-          const newCursorPos = cursorPos + 1; // +1 because the [ key will be added
-          setPendingWikiLinkPosition(newCursorPos);
-          handleWikiLinkInput(newCursorPos);
+          // After the keystroke, the text should have "[[" at the end of beforeCursor
+          const bracketStartPos = cursorPos - 1; // Position of the first [
+          setPendingWikiLinkPosition(bracketStartPos);
+          handleWikiLinkInput(bracketStartPos);
         }, 0);
       }
     }
@@ -1764,28 +1766,22 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
 
   // Handle [[ input detection and file selection
-  const handleWikiLinkInput = (position: number) => {
+  const handleWikiLinkInput = (bracketStartPosition: number) => {
     const modal = new FilePickerModal(app, (file: TFile) => {
       const relativePath = file.path;
       
       if (textareaRef.current) {
-        // Remove the [[ that triggered this modal by setting cursor position back
-        const beforeCursor = inputText.slice(0, position);
-        const afterCursor = inputText.slice(position);
-        const beforeWithoutBrackets = beforeCursor.slice(0, -2);
-        
-        // Update the text without the [[
-        const newTextWithoutBrackets = beforeWithoutBrackets + afterCursor;
-        setInputText(newTextWithoutBrackets);
-        
-        // Insert the wikilink as a mention node
+        // Replace the [[ with the wikilink mention
+        // The [[ occupies positions bracketStartPosition to bracketStartPosition + 2
         setTimeout(() => {
           if (textareaRef.current) {
-            textareaRef.current.setCursorPosition(beforeWithoutBrackets.length);
-            textareaRef.current.insertWikilink(relativePath);
-            textareaRef.current.focus();
+            textareaRef.current.replaceRangeWithWikilink(
+              bracketStartPosition, 
+              bracketStartPosition + 2, 
+              relativePath
+            );
           }
-        }, 0);
+        }, 10);
       }
       
       setPendingWikiLinkPosition(null);

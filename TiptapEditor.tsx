@@ -21,6 +21,7 @@ export interface TiptapEditorRef {
   setCursorPosition: (position: number) => void
   insertText: (text: string, position?: number) => void
   insertWikilink: (linkText: string, position?: number) => void
+  replaceRangeWithWikilink: (startPos: number, endPos: number, linkText: string) => void
   clear: () => void
 }
 
@@ -199,18 +200,50 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     },
     insertWikilink: (linkText: string, position?: number) => {
       if (!editor) return
+      editor.commands.focus()
+      
       if (position !== undefined) {
-        editor.commands.focus()
+        // Set cursor to the specific position
         editor.commands.setTextSelection(position)
       }
-      // Insert as a mention node
-      editor.commands.insertContent({
-        type: 'mention',
-        attrs: {
-          id: linkText,
-          label: linkText,
+      
+      // Insert as a mention node with a space after it for better UX
+      editor.commands.insertContent([
+        {
+          type: 'mention',
+          attrs: {
+            id: linkText,
+            label: linkText,
+          },
         },
-      })
+        {
+          type: 'text',
+          text: ' ', // Add a space after the mention for better typing experience
+        }
+      ])
+    },
+    replaceRangeWithWikilink: (startPos: number, endPos: number, linkText: string) => {
+      if (!editor) return
+      editor.commands.focus()
+      
+      // Select the range to be replaced
+      editor.commands.setTextSelection({ from: startPos, to: endPos })
+      
+      // Delete the selected content and insert the mention
+      editor.commands.deleteSelection()
+      editor.commands.insertContent([
+        {
+          type: 'mention',
+          attrs: {
+            id: linkText,
+            label: linkText,
+          },
+        },
+        {
+          type: 'text',
+          text: ' ',
+        }
+      ])
     },
     clear: () => {
       if (!editor) return
