@@ -1091,37 +1091,41 @@ export default class AgentPlugin extends Plugin {
 						}
 					}
 				},
-				{
-					type: 'function' as const,
-					function: {
-						name: 'vault_grep',
-						description: 'Perform keyword-based text search across vault files, similar to Linux grep command. Searches for exact text matches in plain text files only. Does NOT support regular expressions - use exact text patterns only.',
-						parameters: {
-							type: 'object',
-							properties: {
-								pattern: {
-									type: 'string',
-									description: 'The exact text pattern or keyword to search for. Case-sensitive matching only. Regular expressions are NOT supported.'
-								},
-								target_subpaths: {
-									type: 'array',
-									items: { type: 'string' },
-									description: 'Optional list of folders to scope the search to specific subdirectories.'
-								},
-								file_extensions: {
-									type: 'array',
-									items: { type: 'string' },
-									description: 'Optional file extension filter (e.g., ["md", "txt"]). Defaults to all supported plain text files.'
-								},
-								explanation: {
-									type: 'string',
-									description: 'One sentence explanation of why this keyword search is necessary for the user\'s task.'
-								}
+			{
+				type: 'function' as const,
+				function: {
+					name: 'vault_grep',
+					description: 'Perform text search across vault files using regular expressions, similar to Linux grep command. Supports regex patterns for flexible matching in plain text files. Use exact text for simple searches or regex patterns for advanced matching.',
+					parameters: {
+						type: 'object',
+						properties: {
+							pattern: {
+								type: 'string',
+								description: 'The text pattern or regular expression to search for. Supports JavaScript regex syntax. Simple text strings are also valid patterns.'
 							},
-							required: ['pattern', 'explanation']
-						}
+							case_insensitive: {
+								type: 'boolean',
+								description: 'Optional flag to perform case-insensitive matching (like grep -i). Defaults to false (case-sensitive).'
+							},
+							target_subpaths: {
+								type: 'array',
+								items: { type: 'string' },
+								description: 'Optional list of folders to scope the search to specific subdirectories.'
+							},
+							file_extensions: {
+								type: 'array',
+								items: { type: 'string' },
+								description: 'Optional file extension filter (e.g., ["md", "txt"]). Defaults to all supported plain text files.'
+							},
+							explanation: {
+								type: 'string',
+								description: 'One sentence explanation of why this search is necessary for the user\'s task.'
+							}
+						},
+						required: ['pattern', 'explanation']
 					}
-				},
+				}
+			},
 				{
 					type: 'function' as const,
 					function: {
@@ -2387,6 +2391,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private async toolVaultGrep(args: { 
 		pattern: string; 
+		case_insensitive?: boolean;
 		target_subpaths?: string[]; 
 		file_extensions?: string[]; 
 		explanation: string 
@@ -2397,6 +2402,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Create cache key
 			const cacheKey = JSON.stringify({
 				pattern: args.pattern,
+				case_insensitive: args.case_insensitive || false,
 				target_subpaths: args.target_subpaths || [],
 				file_extensions: args.file_extensions || []
 			});
@@ -2406,6 +2412,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
 				console.log('📋 [TOOL] vault_grep returning cached results');
 				return JSON.stringify(cached.results);
+			}
+
+			// Compile regex pattern with error handling
+			let regex: RegExp;
+			try {
+				const flags = args.case_insensitive ? 'i' : '';
+				regex = new RegExp(args.pattern, flags);
+			} catch (regexError: any) {
+				console.error('🔍 [TOOL] vault_grep invalid regex pattern:', regexError);
+				return `Error: Invalid regular expression pattern "${args.pattern}": ${regexError.message}`;
 			}
 
 			// Get all files in vault
@@ -2430,7 +2446,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				);
 			}
 
-			console.log(`🔍 [TOOL] vault_grep searching ${filteredFiles.length} files for pattern: "${args.pattern}"`);
+			console.log(`🔍 [TOOL] vault_grep searching ${filteredFiles.length} files for pattern: "${args.pattern}" (case_insensitive: ${args.case_insensitive || false})`);
 
 			const results: Array<{ path: string; line: number; content: string }> = [];
 
@@ -2440,9 +2456,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					const content = await this.app.vault.read(file);
 					const lines = content.split('\n');
 					
-					// Search each line for the pattern (case-sensitive)
+					// Search each line using regex pattern
 					for (let i = 0; i < lines.length; i++) {
-						if (lines[i].includes(args.pattern)) {
+						if (regex.test(lines[i])) {
 							results.push({
 								path: file.path,
 								line: i + 1, // 1-indexed line numbers
