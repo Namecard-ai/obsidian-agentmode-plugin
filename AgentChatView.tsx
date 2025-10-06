@@ -55,6 +55,11 @@ const styles = `
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
+  
+  /* Show edit button on message hover */
+  .message:hover .message-edit-button {
+    opacity: 1 !important;
+  }
 `;
 
 // Inject styles
@@ -348,6 +353,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const currentStreamingContentRef = useRef<string>('');
   const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>('');
   const [pendingEditConfirmation, setPendingEditConfirmation] = useState<PendingEditConfirmation | null>(null);
   const [pendingCreateNoteConfirmation, setPendingCreateNoteConfirmation] = useState<PendingCreateNoteConfirmation | null>(null);
   const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
@@ -551,6 +558,150 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       }
       return newSet;
     });
+  };
+
+  // Handle starting edit mode for a message
+  const handleStartEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditingContent(message.content);
+  };
+
+  // Handle canceling edit
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent('');
+  };
+
+  // Handle saving edited message and re-sending
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editingContent.trim()) return;
+
+    // Find the index of the message being edited
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    // Truncate all messages after this one
+    const truncatedMessages = messages.slice(0, messageIndex);
+
+    // Create updated message with new content
+    const updatedMessage: Message = {
+      ...messages[messageIndex],
+      content: editingContent.trim(),
+      timestamp: new Date()
+    };
+
+    // Update messages with truncated list + updated message
+    const newMessages = [...truncatedMessages, updatedMessage];
+    setMessages(newMessages);
+
+    // Clear editing state
+    setEditingMessageId(null);
+    setEditingContent('');
+
+    // Re-send from this point
+    setIsLoading(true);
+
+    const toolSessionId = generateId();
+    setStreamingMessageId(toolSessionId);
+    let lastToolCallContent = '';
+
+    // Convert messages to plugin format
+    const chatMessages = newMessages
+      .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
+      .map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+        ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+        ...(msg.name && { name: msg.name })
+      }));
+
+    try {
+      await plugin.streamAgentChat(
+        chatMessages,
+        contextFiles.map(cf => cf.file),
+        selectedModel,
+        chatMode,
+        (chunk: string) => {
+          setCurrentStreamingContent(prev => prev + chunk);
+        },
+        async (toolCall: any) => {
+          const currentContent = currentStreamingContentRef.current;
+          lastToolCallContent = currentContent;
+          
+          const currentMessages = messagesRef.current;
+          const newMessages = [...currentMessages];
+          const lastMessage = newMessages[newMessages.length - 1];
+          
+          let updatedMessages: Message[];
+          
+          if (lastMessage && 
+              lastMessage.role === 'assistant' && 
+              lastMessage.content === currentContent &&
+              lastMessage.tool_calls) {
+            lastMessage.tool_calls.push(toolCall);
+            updatedMessages = newMessages;
+          } else {
+            const toolCallMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentContent,
+              timestamp: new Date(),
+              tool_calls: [toolCall]
+            };
+            updatedMessages = [...newMessages, toolCallMessage];
+          }
+          
+          setMessages(updatedMessages);
+          await persistCurrentChat(updatedMessages);
+          setCurrentStreamingContent('');
+        },
+        async (finalContent: string) => {
+          if (finalContent) {
+            const finalMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: finalContent,
+              timestamp: new Date()
+            };
+            await appendMessage(finalMessage);
+          }
+          setStreamingMessageId(null);
+          setCurrentStreamingContent('');
+          setIsLoading(false);
+        },
+        async (error: string) => {
+          const errorMessage: Message = {
+            id: generateId(),
+            role: 'assistant',
+            content: `Error: ${error}`,
+            timestamp: new Date()
+          };
+          await appendMessage(errorMessage);
+          setStreamingMessageId(null);
+          setCurrentStreamingContent('');
+          setIsLoading(false);
+        },
+        async (toolResult: any) => {
+          const toolResultMessage: Message = {
+            id: generateId(),
+            role: 'tool',
+            content: typeof toolResult.content === 'string' 
+              ? toolResult.content 
+              : JSON.stringify(toolResult.content, null, 2),
+            timestamp: new Date(),
+            tool_call_id: toolResult.tool_call_id,
+            name: toolResult.name
+          };
+          await appendMessage(toolResultMessage);
+        }
+      );
+    } catch (error) {
+      console.error('Error re-sending message:', error);
+      new Notice('Failed to re-send message');
+      setIsLoading(false);
+      setStreamingMessageId(null);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -1729,11 +1880,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const isStreaming = streamingMessageId === message.id;
     const isToolResult = message.role === 'tool';
     const isToolResultExpanded = expandedToolResults.has(message.id);
+    const isEditing = editingMessageId === message.id;
+    
+    // Calculate how many messages will be deleted if this message is edited
+    const messageIndex = messages.findIndex(msg => msg.id === message.id);
+    const messagesAfterCount = messageIndex >= 0 ? messages.length - messageIndex - 1 : 0;
     
     return (
       <div
         key={message.id}
-        className={`message ${isUser ? 'user' : 'assistant'}`}
+        className={`message ${isUser ? 'user' : 'assistant'} ${isEditing ? 'editing' : ''}`}
         style={{
           width: '100%',
           // marginBottom is removed for a more document-like flow
@@ -1847,6 +2003,103 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 </div>
               )}
             </div>
+          ) : isEditing ? (
+            // Edit mode for user messages
+            <div>
+              <textarea
+                value={editingContent}
+                onChange={(e) => setEditingContent(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
+                  padding: '8px',
+                  backgroundColor: 'var(--background-secondary)',
+                  border: '1px solid var(--background-modifier-border)',
+                  borderRadius: '6px',
+                  color: 'var(--text-normal)',
+                  fontFamily: 'inherit',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                  resize: 'vertical',
+                  outline: 'none',
+                }}
+                onFocus={(e) => {
+                  e.target.style.border = '1px solid var(--interactive-accent)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.border = '1px solid var(--background-modifier-border)';
+                }}
+              />
+              
+              {/* Warning about deleted messages */}
+              {messagesAfterCount > 0 && (
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--text-warning)',
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}>
+                  <span>⚠️</span>
+                  <span>Will delete {messagesAfterCount} message{messagesAfterCount > 1 ? 's' : ''} below</span>
+                </div>
+              )}
+              
+              {/* Action buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                marginTop: '12px',
+              }}>
+                <button
+                  onClick={() => handleSaveEdit(message.id)}
+                  disabled={!editingContent.trim()}
+                  style={{
+                    padding: '6px 16px',
+                    backgroundColor: editingContent.trim() ? 'var(--interactive-accent)' : 'var(--background-modifier-border)',
+                    color: editingContent.trim() ? 'var(--text-on-accent)' : 'var(--text-muted)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: editingContent.trim() ? 'pointer' : 'not-allowed',
+                    fontWeight: '500',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <span>📤</span>
+                  <span>Send</span>
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  style={{
+                    padding: '6px 16px',
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-muted)',
+                    border: '1px solid var(--background-modifier-border)',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    fontSize: '13px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span>❌</span>
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
           ) : (
             <div style={{
               userSelect: 'text',
@@ -1884,16 +2137,50 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             </div>
           )}
 
-          {/* Timestamp */}
-          <div style={{
-            fontSize: '11px',
-            color: 'var(--text-muted)',
-            opacity: 0.7,
-            marginTop: '4px',
-            textAlign: isUser ? 'right' : 'left',
-          }}>
-            {message.timestamp.toLocaleTimeString()}
-          </div>
+          {/* Timestamp and Edit Button */}
+          {!isEditing && (
+            <div style={{
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              opacity: 0.7,
+              marginTop: '4px',
+              textAlign: isUser ? 'right' : 'left',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isUser ? 'flex-end' : 'flex-start',
+              gap: '8px',
+            }}>
+              <span>{message.timestamp.toLocaleTimeString()}</span>
+              
+              {/* Edit button for user messages */}
+              {isUser && !isLoading && !streamingMessageId && (
+                <button
+                  onClick={() => handleStartEdit(message)}
+                  className="message-edit-button"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    opacity: 0,
+                    transition: 'opacity 0.2s ease, background-color 0.2s ease',
+                    color: 'var(--text-muted)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  title="Edit message"
+                >
+                  ✏️
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
