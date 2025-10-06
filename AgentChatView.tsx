@@ -367,6 +367,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<Message[]>([]);
+  const historySidebarRef = useRef<HTMLDivElement>(null);
+  const historyButtonRef = useRef<HTMLDivElement>(null);
 
   // Sync ref with state
   useEffect(() => {
@@ -377,6 +379,29 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // Handle click outside to close history sidebar
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showHistory &&
+        historySidebarRef.current &&
+        historyButtonRef.current &&
+        !historySidebarRef.current.contains(event.target as Node) &&
+        !historyButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowHistory(false);
+      }
+    };
+
+    if (showHistory) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showHistory]);
 
   useEffect(() => {
     // Set background color based on theme
@@ -1940,11 +1965,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             tooltip="New Chat"
             onClick={handleNewChat}
           />
-          <IconButton
-            icon="history"
-            tooltip="History"
-            onClick={() => setShowHistory(!showHistory)}
-          />
+          <div ref={historyButtonRef}>
+            <IconButton
+              icon="history"
+              tooltip="History"
+              onClick={() => setShowHistory(!showHistory)}
+            />
+          </div>
           <IconButton
             icon="image"
             tooltip="Upload Image"
@@ -1965,7 +1992,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       {/* History Sidebar */}
       {showHistory && (
-        <div className="chat-history-sidebar">
+        <div ref={historySidebarRef} className="chat-history-sidebar">
           <div className="chat-history-header">
             <h3 className="chat-history-title">Chat History</h3>
             {chatHistory.length > 0 && (
