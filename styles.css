@@ -1257,3 +1257,111 @@ If your plugin does not need CSS, delete this file.
 .modal-button-container button.mod-cta:hover {
   background-color: var(--interactive-accent-hover);
 }
+
+/* Chat History Sidebar Styles */
+.chat-history-sidebar {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  width: 300px;
+  max-height: 400px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.chat-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.chat-history-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.chat-history-clear-btn {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.chat-history-clear-btn:hover {
+  background-color: var(--background-modifier-error-hover);
+}
+
+.chat-history-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.chat-history-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  background-color: var(--background-primary);
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.chat-history-entry:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.chat-history-entry-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-history-entry-title {
+  font-weight: 500;
+  color: var(--text-normal);
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-history-entry-date {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.chat-history-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.chat-history-delete-btn:hover {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+}

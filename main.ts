@@ -93,6 +93,24 @@ export interface ChatMessage {
 	}[];
 }
 
+// Chat history interfaces
+export interface HistoryMessage {
+	id: string;
+	role: 'user' | 'assistant' | 'tool';
+	content: string;
+	timestamp: Date;
+	tool_calls?: any[];
+	tool_call_id?: string;
+	name?: string;
+}
+
+export interface ChatHistory {
+	id: string;
+	title: string;
+	messages: HistoryMessage[];
+	timestamp: Date;
+}
+
 
 // New interfaces for precise line-by-line editing
 export interface EditOperation {
@@ -616,9 +634,13 @@ export class LoginModal extends Modal {
 	}
 }
 
+// Constants
+const HISTORY_LIMIT = 500;
+
 export default class AgentPlugin extends Plugin {
 	settings: AgentPluginSettings;
 	vectorDbPath: string = '';
+	historyDbPath: string = '';
 	// Add debouncing for file processing
 	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
@@ -665,6 +687,7 @@ export default class AgentPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		await this.initializeVectorDB();
+		await this.initializeHistoryDB();
 		this.initializeOpenAI();
 		this.initializeAuth0Config();
 		this.initializeAuth0Service();
@@ -880,6 +903,174 @@ export default class AgentPlugin extends Plugin {
 			await this.app.vault.adapter.mkdir(dirPath);
 		} catch (error) {
 			// Directory might already exist, which is fine
+		}
+	}
+
+	async initializeHistoryDB() {
+		try {
+			// Create chat history directory in the vault's config folder
+			this.historyDbPath = `${this.app.vault.configDir}/chat-history`;
+			
+			// Ensure the directory exists
+			await this.ensureDirectoryExists(this.historyDbPath);
+		} catch (error) {
+			console.error('Error initializing chat history database:', error);
+			new Notice('Failed to initialize chat history database');
+		}
+	}
+
+	async saveHistoryEntry(entry: ChatHistory, isNewChat: boolean = false): Promise<void> {
+		try {
+			// Serialize the entry with ISO string timestamps
+			const serializedEntry = {
+				...entry,
+				timestamp: entry.timestamp.toISOString(),
+				messages: entry.messages.map(msg => ({
+					...msg,
+					timestamp: msg.timestamp.toISOString()
+				}))
+			};
+
+			// Create filename: <chat_id>.json (simple and ensures one file per chat)
+			const filename = `${entry.id}.json`;
+			const filepath = `${this.historyDbPath}/${filename}`;
+
+			console.log('[saveHistoryEntry] Saving to:', filepath);
+			console.log('[saveHistoryEntry] Entry:', {
+				id: entry.id,
+				title: entry.title,
+				messageCount: entry.messages.length,
+				isNewChat
+			});
+
+			// Save to disk
+			await this.app.vault.adapter.write(filepath, JSON.stringify(serializedEntry, null, 2));
+			console.log('[saveHistoryEntry] File written successfully');
+
+			// Implement rotation: only on new chat creation
+			if (isNewChat) {
+				console.log('[saveHistoryEntry] Running rotation check');
+				await this.rotateHistory();
+			}
+		} catch (error) {
+			console.error('Error saving history entry:', error);
+			new Notice('Failed to save chat history');
+		}
+	}
+
+	async rotateHistory(): Promise<void> {
+		try {
+			const files = await this.app.vault.adapter.list(this.historyDbPath);
+			const historyFiles = files.files.filter(f => f.endsWith('.json'));
+
+			// Read all files to get their timestamps
+			const filesWithTimestamps: { path: string; timestamp: number }[] = [];
+			
+			for (const filepath of historyFiles) {
+				try {
+					const content = await this.app.vault.adapter.read(filepath);
+					const parsed = JSON.parse(content);
+					const timestamp = new Date(parsed.timestamp).getTime();
+					filesWithTimestamps.push({ path: filepath, timestamp });
+				} catch (error) {
+					// If file is corrupted, mark it for deletion with timestamp 0
+					filesWithTimestamps.push({ path: filepath, timestamp: 0 });
+				}
+			}
+
+			// Sort by timestamp descending (newest first)
+			filesWithTimestamps.sort((a, b) => b.timestamp - a.timestamp);
+
+			// If we have more than HISTORY_LIMIT, delete the oldest ones
+			if (filesWithTimestamps.length > HISTORY_LIMIT) {
+				const filesToDelete = filesWithTimestamps.slice(HISTORY_LIMIT);
+				for (const fileInfo of filesToDelete) {
+					await this.app.vault.adapter.remove(fileInfo.path);
+					console.log('[rotateHistory] Deleted old file:', fileInfo.path);
+				}
+			}
+		} catch (error) {
+			console.error('Error rotating history:', error);
+		}
+	}
+
+	async loadAllHistory(): Promise<ChatHistory[]> {
+		try {
+			const files = await this.app.vault.adapter.list(this.historyDbPath);
+			const historyFiles = files.files.filter(f => f.endsWith('.json'));
+
+			const historyEntries: ChatHistory[] = [];
+
+			for (const filepath of historyFiles) {
+				try {
+					const content = await this.app.vault.adapter.read(filepath);
+					const parsed = JSON.parse(content);
+
+					// Parse timestamps back to Date objects
+					const entry: ChatHistory = {
+						...parsed,
+						timestamp: new Date(parsed.timestamp),
+						messages: parsed.messages.map((msg: any) => ({
+							...msg,
+							timestamp: new Date(msg.timestamp)
+						}))
+					};
+
+					historyEntries.push(entry);
+				} catch (error) {
+					// If parsing fails, delete the corrupted file and skip
+					console.error(`Error parsing history file ${filepath}, deleting:`, error);
+					try {
+						await this.app.vault.adapter.remove(filepath);
+					} catch (deleteError) {
+						console.error(`Error deleting corrupted file ${filepath}:`, deleteError);
+					}
+				}
+			}
+
+			// Sort by timestamp descending (newest first)
+			historyEntries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+			return historyEntries;
+		} catch (error) {
+			console.error('Error loading history:', error);
+			new Notice('Failed to load chat history');
+			return [];
+		}
+	}
+
+	async deleteHistoryEntry(id: string): Promise<void> {
+		try {
+			// With new filename format, we can directly construct the path
+			const filename = `${id}.json`;
+			const filepath = `${this.historyDbPath}/${filename}`;
+			
+			// Check if file exists and delete
+			try {
+				await this.app.vault.adapter.remove(filepath);
+				console.log('[deleteHistoryEntry] Deleted:', filepath);
+			} catch (error) {
+				console.warn('[deleteHistoryEntry] File not found or already deleted:', filepath);
+			}
+		} catch (error) {
+			console.error('Error deleting history entry:', error);
+			new Notice('Failed to delete chat history entry');
+		}
+	}
+
+	async clearAllHistory(): Promise<void> {
+		try {
+			const files = await this.app.vault.adapter.list(this.historyDbPath);
+			const historyFiles = files.files.filter(f => f.endsWith('.json'));
+
+			for (const filepath of historyFiles) {
+				await this.app.vault.adapter.remove(filepath);
+			}
+
+			new Notice('All chat history cleared');
+		} catch (error) {
+			console.error('Error clearing history:', error);
+			new Notice('Failed to clear chat history');
 		}
 	}
 

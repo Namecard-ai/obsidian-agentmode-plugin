@@ -327,13 +327,16 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
 };
 
 export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [chatMode, setChatMode] = useState<'Ask' | 'Agent'>('Agent');
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string>(generateId());
+  const [chatCreatedTimestamp, setChatCreatedTimestamp] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
@@ -363,11 +366,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<Message[]>([]);
 
   // Sync ref with state
   useEffect(() => {
     currentStreamingContentRef.current = currentStreamingContent;
   }, [currentStreamingContent]);
+
+  // Sync messages ref with state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     // Set background color based on theme
@@ -398,6 +407,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     return () => observer.disconnect();
   }, []);
+
+  // Load chat history from disk on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      const history = await plugin.loadAllHistory();
+      setChatHistory(history);
+    };
+    loadHistory();
+  }, [plugin]);
 
   // TipTap editor handles auto-resizing internally, so we can remove this
   // Auto-resize textarea utility function
@@ -481,8 +499,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     return () => clearInterval(interval);
   }, [plugin]);
 
-  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
   // Monitor messages changes
   useEffect(() => {
     // Messages state updated
@@ -554,7 +570,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    await appendMessage(userMessage);
     // Clear the TiptapEditor content
     if (textareaRef.current) {
       textareaRef.current.clear();
@@ -617,38 +633,48 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Handle streaming for assistant response content
           setCurrentStreamingContent(prev => prev + chunk);
         },
-        (toolCall: any) => {
+        async (toolCall: any) => {
           // Handle tool call - accumulate tool calls into a single assistant message
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
           
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            
-            // If the last message is an assistant message with the same content, add this tool call to it
-            if (lastMessage && 
-                lastMessage.role === 'assistant' && 
-                lastMessage.content === currentContent &&
-                lastMessage.tool_calls) {
-              lastMessage.tool_calls.push(toolCall);
-              return newMessages;
-            } else {
-              // Create new assistant message with this tool call
-              const toolCallMessage: Message = {
-                id: generateId(),
-                role: 'assistant',
-                content: currentContent,
-                timestamp: new Date(),
-                tool_calls: [toolCall]
-              };
-              return [...newMessages, toolCallMessage];
-            }
-          });
+          // Use messagesRef to get current messages
+          const currentMessages = messagesRef.current;
+          const newMessages = [...currentMessages];
+          const lastMessage = newMessages[newMessages.length - 1];
+          
+          let updatedMessages: Message[];
+          
+          // If the last message is an assistant message with the same content, add this tool call to it
+          if (lastMessage && 
+              lastMessage.role === 'assistant' && 
+              lastMessage.content === currentContent &&
+              lastMessage.tool_calls) {
+            lastMessage.tool_calls.push(toolCall);
+            updatedMessages = newMessages;
+          } else {
+            // Create new assistant message with this tool call
+            const toolCallMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentContent,
+              timestamp: new Date(),
+              tool_calls: [toolCall]
+            };
+            updatedMessages = [...newMessages, toolCallMessage];
+          }
+          
+          console.log('[toolCall] Updated messages count:', updatedMessages.length);
+          
+          // Update state
+          setMessages(updatedMessages);
+          
+          // Persist after updating messages
+          await persistCurrentChat(updatedMessages);
           
           setCurrentStreamingContent(''); // Reset for new content after tool call
         },
-        (finalContent: string) => {
+        async (finalContent: string) => {
           // Handle completion - create final message with complete content from main.ts
           if (finalContent) {
             const finalMessage: Message = {
@@ -658,10 +684,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               timestamp: new Date()
             };
             
-            setMessages(prev => {
-              const newMessages = [...prev, finalMessage];
-              return newMessages;
-            });
+            await appendMessage(finalMessage);
           }
           
           // Use setTimeout to ensure the message is rendered before clearing states
@@ -671,7 +694,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             setCurrentStreamingContent('');
           }, 50); // Small delay to ensure rendering
         },
-        (error: string) => {
+        async (error: string) => {
           // Handle error
           console.error(`${chatMode} chat error:`, error);
           
@@ -681,13 +704,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
             timestamp: new Date()
           };
-          setMessages(prev => [...prev, errorMessage]);
+          await appendMessage(errorMessage);
           
           setIsLoading(false);
           setStreamingMessageId(null);
           setCurrentStreamingContent('');
         },
-        (toolResult: { toolCallId: string; result: string }) => {
+        async (toolResult: { toolCallId: string; result: string }) => {
           // Handle tool result - add as tool message
           const toolResultMessage: Message = {
             id: generateId(),
@@ -697,14 +720,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             tool_call_id: toolResult.toolCallId
           };
           
-          setMessages(prev => [...prev, toolResultMessage]);
+          await appendMessage(toolResultMessage);
           
           // Add UI notification for Ask Mode auto-rejection
           if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
             // Show a subtle notification that editing was blocked
           }
         },
-        () => {
+        async () => {
           // Handle interruption
           const interruptedMessage: Message = {
             id: generateId(),
@@ -712,7 +735,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             content: '❌ Chat interrupted',
             timestamp: new Date()
           };
-          setMessages(prev => [...prev, interruptedMessage]);
+          await appendMessage(interruptedMessage);
           setIsLoading(false);
           setStreamingMessageId(null);
           setCurrentStreamingContent('');
@@ -727,7 +750,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         content: `❌ Error: ${error.message || 'Unknown error occurred'}`,
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+      await appendMessage(errorMessage);
       
       setIsLoading(false);
       setStreamingMessageId(null);
@@ -742,32 +765,119 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   };
 
   const handleNewChat = () => {
-    if (messages.length > 0) {
-      // Save current chat to history
-      const chatTitle = messages[0]?.content.slice(0, 50) + (messages[0]?.content.length > 50 ? '...' : '');
-      const newChat: ChatHistory = {
-        id: currentChatId || generateId(),
-        title: chatTitle,
-        messages: [...messages],
-        timestamp: new Date()
-      };
-      setChatHistory(prev => [newChat, ...prev]);
-    }
-    
+    // Clear current chat and start new one
     setMessages([]);
     setContextFiles([]);
     setUploadedImages([]);
     setUploadedFiles([]);
     setCurrentChatId(generateId());
+    setChatCreatedTimestamp(null);
   };
 
   const loadChatFromHistory = (chat: ChatHistory) => {
     setMessages(chat.messages);
     setCurrentChatId(chat.id);
+    setChatCreatedTimestamp(chat.timestamp);
     setContextFiles([]);
     setUploadedImages([]);
     setUploadedFiles([]);
     setShowHistory(false);
+  };
+
+  const persistCurrentChat = async (messagesSnapshot?: Message[]) => {
+    const messagesToPersist = messagesSnapshot || messages;
+    
+    console.log('[persistCurrentChat] Called with:', {
+      messagesCount: messagesToPersist.length,
+      currentChatId,
+      isFirstPersist: chatCreatedTimestamp === null
+    });
+    
+    if (messagesToPersist.length === 0 || !currentChatId) {
+      console.log('[persistCurrentChat] Skipped - no messages or no chatId');
+      return;
+    }
+
+    const isFirstPersist = chatCreatedTimestamp === null;
+    const timestamp = isFirstPersist ? new Date() : chatCreatedTimestamp!;
+
+    if (isFirstPersist) {
+      setChatCreatedTimestamp(timestamp);
+      console.log('[persistCurrentChat] First persist - timestamp:', timestamp);
+    }
+
+    const chatTitle = messagesToPersist[0]?.content.slice(0, 50) + (messagesToPersist[0]?.content.length > 50 ? '...' : '');
+    const chatEntry: ChatHistory = {
+      id: currentChatId,
+      title: chatTitle,
+      messages: [...messagesToPersist],
+      timestamp: timestamp
+    };
+
+    console.log('[persistCurrentChat] Saving entry:', {
+      id: chatEntry.id,
+      title: chatEntry.title,
+      messageCount: chatEntry.messages.length,
+      timestamp: chatEntry.timestamp
+    });
+
+    // Save to disk
+    await plugin.saveHistoryEntry(chatEntry, isFirstPersist);
+    console.log('[persistCurrentChat] Saved successfully');
+
+    // Update chatHistory state
+    setChatHistory(prev => {
+      const existingIndex = prev.findIndex(chat => chat.id === currentChatId);
+      if (existingIndex !== -1) {
+        // Update existing entry
+        const newHistory = [...prev];
+        newHistory[existingIndex] = chatEntry;
+        return newHistory;
+      } else {
+        // Add new entry
+        return [chatEntry, ...prev];
+      }
+    });
+  };
+
+  const appendMessage = async (message: Message) => {
+    // Use ref to get the most current messages
+    const currentMessages = messagesRef.current;
+    const newMessages = [...currentMessages, message];
+    
+    console.log('[appendMessage] Current messages:', currentMessages.length, '-> New messages:', newMessages.length);
+    
+    // Update state
+    setMessages(newMessages);
+    
+    // Persist with the updated messages
+    await persistCurrentChat(newMessages);
+  };
+
+  const handleDeleteHistoryEntry = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent loading the chat when clicking delete
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to delete this chat from history?');
+    if (!confirmed) return;
+    
+    // Delete from disk
+    await plugin.deleteHistoryEntry(id);
+    
+    // Update local state
+    setChatHistory(prev => prev.filter(chat => chat.id !== id));
+  };
+
+  const handleClearAllHistory = async () => {
+    // Show confirmation dialog with warning
+    const confirmed = window.confirm('Are you sure you want to clear ALL chat history? This action cannot be undone.');
+    if (!confirmed) return;
+    
+    // Clear from disk
+    await plugin.clearAllHistory();
+    
+    // Update local state
+    setChatHistory([]);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -1855,40 +1965,42 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       {/* History Sidebar */}
       {showHistory && (
-        <div style={{
-          position: 'absolute',
-          top: '60px',
-          right: '16px',
-          width: '300px',
-          maxHeight: '400px',
-          backgroundColor: 'var(--background-secondary)',
-          border: '1px solid var(--background-modifier-border)',
-          borderRadius: '8px',
-          padding: '12px',
-          zIndex: 1000,
-          overflowY: 'auto'
-        }}>
-          <h3 style={{ margin: '0 0 12px 0', fontSize: '16px' }}>Chat History</h3>
+        <div className="chat-history-sidebar">
+          <div className="chat-history-header">
+            <h3 className="chat-history-title">Chat History</h3>
+            {chatHistory.length > 0 && (
+              <button
+                className="chat-history-clear-btn"
+                onClick={handleClearAllHistory}
+              >
+                Clear All
+              </button>
+            )}
+          </div>
           {chatHistory.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No chat history yet</p>
+            <p className="chat-history-empty">No chat history yet</p>
           ) : (
             chatHistory.map(chat => (
               <div
                 key={chat.id}
-                onClick={() => loadChatFromHistory(chat)}
-                style={{
-                  padding: '8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  marginBottom: '4px',
-                  backgroundColor: 'var(--background-primary)',
-                  fontSize: '14px'
-                }}
+                className="chat-history-entry"
               >
-                <div style={{ fontWeight: '500' }}>{chat.title}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                  {chat.timestamp.toLocaleDateString()}
+                <div 
+                  className="chat-history-entry-content"
+                  onClick={() => loadChatFromHistory(chat)}
+                >
+                  <div className="chat-history-entry-title">{chat.title}</div>
+                  <div className="chat-history-entry-date">
+                    {chat.timestamp.toLocaleDateString()}
+                  </div>
                 </div>
+                <button
+                  className="chat-history-delete-btn"
+                  onClick={(e) => handleDeleteHistoryEntry(chat.id, e)}
+                  title="Delete this chat"
+                >
+                  ×
+                </button>
               </div>
             ))
           )}
