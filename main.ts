@@ -304,16 +304,18 @@ export class Auth0Service {
 					} else if (data.error === 'authorization_pending') {
 						// Continue polling
 						return;
-				} else if (data.error === 'slow_down') {
-					// Auth0 requests to slow down polling frequency
-					if (this.pollingTimer) {
-						window.clearInterval(this.pollingTimer);
-					}
-					// Only set new timer if still polling
-					if (this.isPolling) {
-						this.pollingTimer = window.setInterval(poll, (interval + 5) * 1000);
-					}
-					return;
+			} else if (data.error === 'slow_down') {
+				// Auth0 requests to slow down polling frequency
+				if (this.pollingTimer) {
+					window.clearInterval(this.pollingTimer);
+				}
+				// Only set new timer if still polling
+				if (this.isPolling) {
+					this.pollingTimer = this.plugin.registerInterval(
+						window.setInterval(poll, (interval + 5) * 1000)
+					);
+				}
+				return;
 				} else {
 					if (this.pollingTimer) {
 						window.clearInterval(this.pollingTimer);
@@ -331,9 +333,11 @@ export class Auth0Service {
 				}
 			};
 
-		// Start polling
-		this.pollingTimer = window.setInterval(poll, interval * 1000);
-		poll(); // Execute first time immediately
+	// Start polling
+	this.pollingTimer = this.plugin.registerInterval(
+		window.setInterval(poll, interval * 1000)
+	);
+	poll(); // Execute first time immediately
 		});
 	}
 
@@ -416,17 +420,19 @@ export class Auth0Service {
 		}
 
 		// Check every 5 minutes
-		this.plugin.tokenRefreshTimer = window.setInterval(async () => {
-			if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
-				try {
-					await this.autoRefreshToken();
-				} catch (error: any) {
-					console.error('Automatic token refresh failed:', error);
-					new Notice('Login session expired, please log in again');
-					await this.logout();
+		this.plugin.tokenRefreshTimer = this.plugin.registerInterval(
+			window.setInterval(async () => {
+				if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
+					try {
+						await this.autoRefreshToken();
+					} catch (error: any) {
+						console.error('Automatic token refresh failed:', error);
+						new Notice('Login session expired, please log in again');
+						await this.logout();
+					}
 				}
-			}
-		}, 5 * 60 * 1000); // 5 minutes
+			}, 5 * 60 * 1000) // 5 minutes
+		);
 	}
 
 	// Automatically refresh Token
@@ -3125,18 +3131,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		this.fileProcessingTimeouts.clear();
 		
 		// Stop embedding queue consumer
+		// Note: The interval is automatically cleaned up by registerInterval(),
+		// but we call stopQueueConsumer() to set the timer reference to null
 		this.stopQueueConsumer();
 		
 		// Clear embedding queue
 		this.embeddingQueue.clear();
 		this.queueDetails.clear();
 		
-		// Clear Auth0 related timers
-		if (this.tokenRefreshTimer) {
-			window.clearInterval(this.tokenRefreshTimer);
-			this.tokenRefreshTimer = null;
-		}
-		
+		// Stop Auth0 polling
+		// Note: All intervals are automatically cleaned up by registerInterval()
 		if (this.auth0Service) {
 			this.auth0Service.stopPolling();
 		}
@@ -3354,9 +3358,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			window.clearInterval(this.queueConsumerTimer);
 		}
 		
-		this.queueConsumerTimer = window.setInterval(() => {
-			this.processEmbeddingQueue();
-		}, this.QUEUE_CONSUMER_INTERVAL);
+		this.queueConsumerTimer = this.registerInterval(
+			window.setInterval(() => {
+				this.processEmbeddingQueue();
+			}, this.QUEUE_CONSUMER_INTERVAL)
+		);
 	}
 
 	private stopQueueConsumer() {
