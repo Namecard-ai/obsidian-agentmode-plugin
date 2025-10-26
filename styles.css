@@ -8,7 +8,7 @@ If your plugin does not need CSS, delete this file.
 */
 
 /* TipTap Placeholder Styles */
-.tiptap p.is-editor-empty:first-child::before {
+.agentmode-tiptap p.is-editor-empty:first-child::before {
   color: var(--text-muted);
   content: attr(data-placeholder);
   float: left;
@@ -17,7 +17,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* TipTap Wikilink Mention Styles */
-.wikilink-mention {
+.agentmode-wikilink-mention {
   background-color: var(--background-modifier-success-hover);
   color: var(--text-success);
   border-radius: 3px;
@@ -27,18 +27,18 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Remove hover effect to prevent green color block issue */
-.wikilink-mention:hover {
+.agentmode-wikilink-mention:hover {
   background-color: var(--background-modifier-success-hover);
   color: var(--text-success);
 }
 
 /* TipTap Editor - Disable drag and drop visual effects */
-.tiptap-editor {
+.agentmode-tiptap-editor {
   /* Disable drag and drop cursor */
   pointer-events: auto;
 }
 
-.tiptap-editor * {
+.agentmode-tiptap-editor * {
   /* Disable drag and drop on all child elements */
   -webkit-user-drag: none;
   -khtml-user-drag: none;
@@ -47,7 +47,7 @@ If your plugin does not need CSS, delete this file.
   user-drag: none;
 }
 
-.agent-chat-view {
+.agentmode-agent-chat-view {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -55,7 +55,7 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-normal);
 }
 
-.chat-header {
+.agentmode-chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -64,18 +64,18 @@ If your plugin does not need CSS, delete this file.
   flex-shrink: 0;
 }
 
-.chat-header-title {
+.agentmode-chat-header-title {
   font-size: var(--font-ui-large);
   font-weight: 600;
   color: var(--text-normal);
 }
 
-.chat-header-actions {
+.agentmode-chat-header-actions {
   display: flex;
   gap: 4px;
 }
 
-.chat-messages {
+.agentmode-chat-messages {
   flex-grow: 1;
   padding: 10px;
   background-color: var(--background-primary);
@@ -91,11 +91,11 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-secondary);
 }
 
-.chat-input::placeholder {
+.agentmode-chat-input::placeholder {
   color: var(--text-faint);
 }
 
-.chat-input-controls {
+.agentmode-chat-input-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -104,7 +104,7 @@ If your plugin does not need CSS, delete this file.
   flex-shrink: 0;
 }
 
-.chat-input-controls button {
+.agentmode-chat-input-controls button {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: var(--font-ui-small);
@@ -113,20 +113,20 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.chat-input-controls button:hover {
+.agentmode-chat-input-controls button:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.chat-input-controls button:active {
+.agentmode-chat-input-controls button:active {
   background-color: var(--background-modifier-active);
 }
 
-.chat-input-controls button:disabled {
+.agentmode-chat-input-controls button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.tool-result details {
+.agentmode-tool-result details {
   background-color: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
@@ -134,24 +134,24 @@ If your plugin does not need CSS, delete this file.
   overflow: hidden;
 }
 
-.tool-result summary {
+.agentmode-tool-result summary {
   padding: 8px 12px;
   cursor: pointer;
   background-color: var(--background-secondary-alt);
   color: var(--text-normal);
 }
 
-.tool-result-content {
+.agentmode-tool-result-content {
   padding: 0;
   background-color: var(--background-secondary);
   color: var(--text-normal);
 }
 
-.tool-result-content .markdown-rendered {
+.agentmode-tool-result-content .markdown-rendered {
   padding: 0;
 }
 
-.edit-confirmation-container {
+.agentmode-edit-confirmation-container {
   padding: 16px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
@@ -159,18 +159,18 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-secondary);
 }
 
-.edit-confirmation-container h3 {
+.agentmode-edit-confirmation-container h3 {
   margin-top: 0;
   margin-bottom: 8px;
   font-size: 1.1em;
   font-weight: bold;
 }
 
-.edit-confirmation-container p {
+.agentmode-edit-confirmation-container p {
   margin-bottom: 16px;
 }
 
-.edit-preview {
+.agentmode-edit-preview {
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   padding: 4px;
@@ -179,14 +179,14 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-primary);
 }
 
-.edit-confirmation-buttons {
+.agentmode-edit-confirmation-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
 }
 
-.edit-confirmation-buttons button {
+.agentmode-edit-confirmation-buttons button {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: var(--font-ui-small);
@@ -195,21 +195,21 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.edit-confirmation-buttons button:hover {
+.agentmode-edit-confirmation-buttons button:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.edit-confirmation-buttons button:active {
+.agentmode-edit-confirmation-buttons button:active {
   background-color: var(--background-modifier-active);
 }
 
-.edit-confirmation-buttons button:disabled {
+.agentmode-edit-confirmation-buttons button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 確保聊天訊息可以被選取 */
-.message {
+/* Ensure chat messages can be selected */
+.agentmode-message {
   user-select: text !important;
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -220,8 +220,8 @@ If your plugin does not need CSS, delete this file.
   overflow-wrap: break-word !important;
 }
 
-/* 確保訊息內容可以被選取 */
-.message div {
+/* Ensure message content can be selected */
+.agentmode-message div {
   user-select: text !important;
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
@@ -233,7 +233,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Ensure proper table overflow handling */
-.message table {
+.agentmode-message table {
   display: block !important;
   max-width: 100% !important;
   overflow-x: auto !important;
@@ -241,13 +241,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Ensure table cells don't break layout */
-.message td, .message th {
+.agentmode-message td, .agentmode-message th {
   white-space: nowrap !important;
   padding: 8px 12px !important;
 }
 
 /* Handle pre-formatted and code blocks properly */
-.message pre {
+.agentmode-message pre {
   max-width: 100% !important;
   overflow-x: auto !important;
   white-space: pre !important;
@@ -256,13 +256,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Handle inline code */
-.message code {
+.agentmode-message code {
   word-break: break-word !important;
   overflow-wrap: break-word !important;
 }
 
 /* Handle code blocks with proper scrolling */
-.message pre code {
+.agentmode-message pre code {
   display: block !important;
   overflow-x: auto !important;
   white-space: pre !important;
@@ -271,57 +271,57 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Prevent horizontal scroll on main chat container */
-.chat-messages {
+.agentmode-chat-messages {
   overflow-x: hidden !important;
 }
 
 /* Ensure paragraphs wrap properly */
-.message p {
+.agentmode-message p {
   word-wrap: break-word !important;
   word-break: break-word !important;
   overflow-wrap: break-word !important;
   white-space: pre-wrap !important;
 }
 
-/* 確保工具步驟內容也可以被選取 */
-.tool-step {
+/* Ensure tool step content can also be selected */
+.agentmode-tool-step {
   user-select: text !important;
   -webkit-user-select: text !important;
   -moz-user-select: text !important;
   -ms-user-select: text !important;
 }
 
-/* 保持工具會話標題不可選取（這是正確的行為） */
-.tool-session-header {
+/* Keep tool session header non-selectable (this is correct behavior) */
+.agentmode-tool-session-header {
   user-select: none !important;
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
 }
 
-/* 添加選取樣式的視覺回饋 */
-.message ::selection {
+/* Add visual feedback for selection style */
+.agentmode-message ::selection {
   background-color: rgba(0, 122, 204, 0.3);
   color: inherit;
 }
 
-.message ::-moz-selection {
+.agentmode-message ::-moz-selection {
   background-color: rgba(0, 122, 204, 0.3);
   color: inherit;
 }
 
-/* 動畫效果 */
-@keyframes blink {
+/* Animation effects */
+@keyframes agentmode-blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
 
-.streaming-cursor {
-  animation: blink 1s infinite;
+.agentmode-streaming-cursor {
+  animation: agentmode-blink 1s infinite;
 }
 
-/* Login Component 樣式 */
-.login-component {
+/* Login Component Styles */
+.agentmode-login-component {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -330,21 +330,21 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-normal);
 }
 
-.login-header {
+.agentmode-login-header {
   text-align: center;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--background-modifier-border);
   padding-bottom: 15px;
 }
 
-.login-header h2 {
+.agentmode-login-header h2 {
   margin: 0;
   color: var(--text-normal);
   font-size: var(--font-ui-large);
   font-weight: 600;
 }
 
-.login-content {
+.agentmode-login-content {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
@@ -355,40 +355,40 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Loading State */
-.loading-state, .polling-state {
+.agentmode-loading-state, .agentmode-polling-state {
   text-align: center;
   padding: 40px 20px;
 }
 
-.spinner {
+.agentmode-spinner {
   width: 32px;
   height: 32px;
   border: 3px solid var(--background-modifier-border);
   border-top: 3px solid var(--text-accent);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: agentmode-spin 1s linear infinite;
   margin: 0 auto 16px auto;
 }
 
-@keyframes spin {
+@keyframes agentmode-spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
 /* Device Code State */
-.device-code-state {
+.agentmode-device-code-state {
   width: 100%;
   max-width: 400px;
 }
 
 /* Login Options */
-.login-options {
+.agentmode-login-options {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.login-options h3 {
+.agentmode-login-options h3 {
   text-align: center;
   margin: 0 0 16px 0;
   font-size: var(--font-ui-large);
@@ -397,7 +397,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Primary Login Option */
-.primary-login-option {
+.agentmode-primary-login-option {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -408,7 +408,7 @@ If your plugin does not need CSS, delete this file.
   border-radius: 8px;
 }
 
-.primary-login-btn {
+.agentmode-primary-login-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -427,15 +427,15 @@ If your plugin does not need CSS, delete this file.
   line-height: 1;
 }
 
-.primary-login-btn:hover {
+.agentmode-primary-login-btn:hover {
   background-color: var(--interactive-accent-hover);
 }
 
-.primary-login-btn:active {
+.agentmode-primary-login-btn:active {
   background-color: var(--interactive-accent-hover);
 }
 
-.primary-login-desc {
+.agentmode-primary-login-desc {
   margin: 0;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
@@ -445,13 +445,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Manual Login Section */
-.manual-login-section {
+.agentmode-manual-login-section {
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   background-color: var(--background-secondary);
 }
 
-.manual-login-toggle {
+.agentmode-manual-login-toggle {
   width: 100%;
   padding: 12px 16px;
   background: transparent;
@@ -464,25 +464,25 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-muted);
 }
 
-.manual-login-toggle:hover {
+.agentmode-manual-login-toggle:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.toggle-arrow {
+.agentmode-toggle-arrow {
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.toggle-arrow.expanded {
+.agentmode-toggle-arrow.expanded {
   transform: rotate(180deg);
 }
 
-.manual-login-content {
+.agentmode-manual-login-content {
   padding: 0 16px 16px 16px;
   border-top: 1px solid var(--background-modifier-border);
 }
 
-.manual-instruction {
+.agentmode-manual-instruction {
   margin: 16px 0 12px 0;
   font-size: var(--font-ui-small);
   color: var(--text-normal);
@@ -490,20 +490,20 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Override verification-info styles when inside manual login */
-.manual-login-content .verification-info {
+.agentmode-manual-login-content .agentmode-verification-info {
   background-color: var(--background-primary);
   margin-bottom: 0;
   padding: 16px;
   border-radius: 6px;
 }
 
-.instruction {
+.agentmode-instruction {
   margin-bottom: 20px;
   text-align: center;
   font-size: var(--font-ui-medium);
 }
 
-.verification-info {
+.agentmode-verification-info {
   background-color: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
@@ -511,15 +511,15 @@ If your plugin does not need CSS, delete this file.
   margin-bottom: 16px;
 }
 
-.url-section, .code-section {
+.agentmode-url-section, .agentmode-code-section {
   margin-bottom: 12px;
 }
 
-.url-section:last-child, .code-section:last-child {
+.agentmode-url-section:last-child, .agentmode-code-section:last-child {
   margin-bottom: 0;
 }
 
-.verification-info label {
+.agentmode-verification-info label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
@@ -527,13 +527,13 @@ If your plugin does not need CSS, delete this file.
   font-size: var(--font-ui-small);
 }
 
-.copy-field {
+.agentmode-copy-field {
   display: flex;
   align-items: stretch;
   gap: 8px;
 }
 
-.copy-field code {
+.agentmode-copy-field code {
   flex: 1;
   padding: 8px 12px;
   background-color: var(--background-primary);
@@ -547,7 +547,7 @@ If your plugin does not need CSS, delete this file.
   align-items: center;
 }
 
-.copy-field code.device-code {
+.agentmode-copy-field code.agentmode-device-code {
   font-size: var(--font-ui-medium);
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -555,7 +555,7 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-accent);
 }
 
-.copy-btn {
+.agentmode-copy-btn {
   padding: 8px 12px;
   background-color: var(--interactive-normal);
   color: var(--text-on-accent);
@@ -567,15 +567,15 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
 }
 
-.copy-btn:hover {
+.agentmode-copy-btn:hover {
   background-color: var(--interactive-hover);
 }
 
-.copy-btn:active {
+.agentmode-copy-btn:active {
   background-color: var(--interactive-active);
 }
 
-.direct-link {
+.agentmode-direct-link {
   text-align: center;
   margin-bottom: 20px;
   padding: 16px;
@@ -583,12 +583,12 @@ If your plugin does not need CSS, delete this file.
   border-radius: 6px;
 }
 
-.direct-link p {
+.agentmode-direct-link p {
   margin-bottom: 12px;
   color: var(--text-muted);
 }
 
-.verification-link {
+.agentmode-verification-link {
   display: inline-block;
   padding: 10px 20px;
   background-color: var(--interactive-accent);
@@ -599,12 +599,12 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.verification-link:hover {
+.agentmode-verification-link:hover {
   background-color: var(--interactive-accent-hover);
   text-decoration: none;
 }
 
-.countdown {
+.agentmode-countdown {
   text-align: center;
   padding: 12px 16px;
   background-color: var(--background-secondary);
@@ -613,7 +613,7 @@ If your plugin does not need CSS, delete this file.
   margin-top: 16px;
 }
 
-.countdown p {
+.agentmode-countdown p {
   margin: 0;
   font-weight: 500;
   color: var(--text-accent);
@@ -621,35 +621,35 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Error and Timeout States */
-.timeout-state, .error-state {
+.agentmode-timeout-state, .agentmode-error-state {
   text-align: center;
   padding: 40px 20px;
 }
 
-.error-icon {
+.agentmode-error-icon {
   font-size: 48px;
   margin-bottom: 16px;
 }
 
-.timeout-state h3, .error-state h3 {
+.agentmode-timeout-state h3, .agentmode-error-state h3 {
   margin: 0 0 12px 0;
   color: var(--text-error);
   font-size: var(--font-ui-large);
 }
 
-.timeout-state p, .error-state p {
+.agentmode-timeout-state p, .agentmode-error-state p {
   margin-bottom: 24px;
   color: var(--text-muted);
   line-height: 1.5;
 }
 
-.timeout-actions, .error-actions {
+.agentmode-timeout-actions, .agentmode-error-actions {
   display: flex;
   justify-content: center;
   gap: 12px;
 }
 
-.retry-btn {
+.agentmode-retry-btn {
   padding: 10px 20px;
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -660,11 +660,11 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.retry-btn:hover {
+.agentmode-retry-btn:hover {
   background-color: var(--interactive-accent-hover);
 }
 
-.cancel-btn {
+.agentmode-cancel-btn {
   padding: 10px 20px;
   background-color: var(--background-modifier-border);
   color: var(--text-normal);
@@ -675,34 +675,34 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.cancel-btn:hover {
+.agentmode-cancel-btn:hover {
   background-color: var(--background-modifier-hover);
 }
 
 /* Success State */
-.success-state {
+.agentmode-success-state {
   text-align: center;
   padding: 40px 20px;
 }
 
-.success-icon {
+.agentmode-success-icon {
   font-size: 48px;
   margin-bottom: 16px;
 }
 
-.success-state h3 {
+.agentmode-success-state h3 {
   margin: 0 0 12px 0;
   color: var(--text-success);
   font-size: var(--font-ui-large);
 }
 
-.success-state p {
+.agentmode-success-state p {
   margin: 0;
   color: var(--text-muted);
 }
 
-/* Status Bar 樣式 */
-.auth-status-bar {
+/* Status Bar Styles */
+.agentmode-auth-status-bar {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -712,24 +712,24 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.auth-status-bar:hover {
+.agentmode-auth-status-bar:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.auth-status-icon {
+.agentmode-auth-status-icon {
   font-size: 12px;
   line-height: 1;
 }
 
-.auth-status-icon.logged-in {
+.agentmode-auth-status-icon.logged-in {
   color: var(--text-success);
 }
 
-.auth-status-icon.logged-out {
+.agentmode-auth-status-icon.logged-out {
   color: var(--text-muted);
 }
 
-.auth-status-text {
+.agentmode-auth-status-text {
   font-size: var(--font-ui-smaller);
   color: var(--text-normal);
   max-width: 100px;
@@ -738,12 +738,12 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
 }
 
-/* Plugin Settings 樣式 */
-.auth-settings-container {
+/* Plugin Settings Styles */
+.agentmode-auth-settings-container {
   margin-bottom: 20px;
 }
 
-.auth-status-info {
+.agentmode-auth-status-info {
   padding: 12px;
   border-radius: 6px;
   background-color: var(--background-secondary);
@@ -751,91 +751,91 @@ If your plugin does not need CSS, delete this file.
   margin-bottom: 16px;
 }
 
-.auth-status-logged-in {
+.agentmode-auth-status-logged-in {
   font-weight: 600;
   color: var(--text-success);
   margin-bottom: 8px;
 }
 
-.auth-status-logged-out {
+.agentmode-auth-status-logged-out {
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
 
-.auth-user-info {
+.agentmode-auth-user-info {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.auth-user-info:last-child {
+.agentmode-auth-user-info:last-child {
   margin-bottom: 0;
 }
 
-.auth-status-desc {
+.agentmode-auth-status-desc {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   font-style: italic;
 }
 
-.auth-settings-separator {
+.agentmode-auth-settings-separator {
   margin: 24px 0;
   border: none;
   border-top: 1px solid var(--background-modifier-border);
 }
 
-/* Subscription Info 樣式 */
-.subscription-info {
+/* Subscription Info Styles */
+.agentmode-subscription-info {
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--background-modifier-border);
 }
 
-.subscription-header {
+.agentmode-subscription-header {
   font-weight: 600;
   color: var(--text-normal);
   margin-bottom: 8px;
   font-size: var(--font-ui-medium);
 }
 
-.subscription-details {
+.agentmode-subscription-details {
   margin-left: 8px;
 }
 
-.subscription-plan {
+.agentmode-subscription-plan {
   color: var(--text-accent);
   font-weight: 600;
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.subscription-plan-free {
+.agentmode-subscription-plan-free {
   color: var(--text-muted);
   font-weight: 600;
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.subscription-status-active {
+.agentmode-subscription-status-active {
   color: var(--text-success);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.subscription-status-free {
+.agentmode-subscription-status-free {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.subscription-period {
+.agentmode-subscription-period {
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-.subscription-trial {
+.agentmode-subscription-trial {
   color: var(--text-warning);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
@@ -845,29 +845,29 @@ If your plugin does not need CSS, delete this file.
   display: inline-block;
 }
 
-.subscription-loading {
+.agentmode-subscription-loading {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   font-style: italic;
   margin-bottom: 4px;
 }
 
-.subscription-error {
+.agentmode-subscription-error {
   color: var(--text-error);
   font-size: var(--font-ui-small);
   margin-bottom: 4px;
 }
 
-/* Payment Required Modal 樣式 */
-.payment-required-modal .modal {
+/* Payment Required Modal Styles */
+.agentmode-payment-required-modal .modal {
   max-width: 500px;
 }
 
-.payment-modal-content {
+.agentmode-payment-modal-content {
   padding: 20px;
 }
 
-.payment-modal-explanation {
+.agentmode-payment-modal-explanation {
   margin-bottom: 24px;
   font-size: var(--font-ui-medium);
   line-height: 1.5;
@@ -875,35 +875,35 @@ If your plugin does not need CSS, delete this file.
   text-align: center;
 }
 
-.payment-modal-options {
+.agentmode-payment-modal-options {
   display: flex;
   flex-direction: column;
   gap: 20px;
   margin-bottom: 24px;
 }
 
-.payment-modal-option {
+.agentmode-payment-modal-option {
   padding: 20px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   background-color: var(--background-secondary);
 }
 
-.payment-modal-option h4 {
+.agentmode-payment-modal-option h4 {
   margin: 0 0 8px 0;
   font-size: var(--font-ui-large);
   font-weight: 600;
   color: var(--text-normal);
 }
 
-.payment-modal-option p {
+.agentmode-payment-modal-option p {
   margin: 0 0 16px 0;
   font-size: var(--font-ui-small);
   color: var(--text-muted);
   line-height: 1.4;
 }
 
-.payment-modal-button {
+.agentmode-payment-modal-button {
   width: 100%;
   padding: 12px 16px;
   border: none;
@@ -914,43 +914,43 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.payment-modal-button.primary {
+.agentmode-payment-modal-button.primary {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
-.payment-modal-button.primary:hover {
+.agentmode-payment-modal-button.primary:hover {
   background-color: var(--interactive-accent-hover);
 }
 
-.payment-modal-button.secondary {
+.agentmode-payment-modal-button.secondary {
   background-color: var(--interactive-normal);
   color: var(--text-normal);
 }
 
-.payment-modal-button.secondary:hover {
+.agentmode-payment-modal-button.secondary:hover {
   background-color: var(--interactive-hover);
 }
 
-.payment-modal-buttons {
+.agentmode-payment-modal-buttons {
   display: flex;
   justify-content: center;
   margin-top: 16px;
 }
 
-.payment-modal-button.cancel {
+.agentmode-payment-modal-button.cancel {
   background-color: var(--background-modifier-border);
   color: var(--text-normal);
   padding: 8px 20px;
   width: auto;
 }
 
-.payment-modal-button.cancel:hover {
+.agentmode-payment-modal-button.cancel:hover {
   background-color: var(--background-modifier-hover);
 }
 
 /* BYOK (Bring Your Own Key) Info Styles */
-.byok-info {
+.agentmode-byok-info {
   padding: 12px;
   background-color: var(--background-secondary);
   border-radius: 6px;
@@ -960,7 +960,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Billing Portal Button Styles */
-.billing-portal-button {
+.agentmode-billing-portal-button {
   background-color: #667eea;
   color: white;
   border: none;
@@ -974,16 +974,16 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
-.billing-portal-button:hover {
+.agentmode-billing-portal-button:hover {
   background-color: #5a6fd8;
 }
 
-.billing-portal-button:disabled {
+.agentmode-billing-portal-button:disabled {
   opacity: 0.7;
 }
 
 /* Subscription Header Container Styles */
-.subscription-header-container {
+.agentmode-subscription-header-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -991,7 +991,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Subscription Refresh Button Styles */
-.subscription-refresh-button {
+.agentmode-subscription-refresh-button {
   background-color: transparent;
   border: none;
   cursor: pointer;
@@ -1002,17 +1002,17 @@ If your plugin does not need CSS, delete this file.
   transition: opacity 0.2s ease, background-color 0.2s ease;
 }
 
-.subscription-refresh-button:hover {
+.agentmode-subscription-refresh-button:hover {
   opacity: 1;
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-.subscription-refresh-button:disabled {
+.agentmode-subscription-refresh-button:disabled {
   opacity: 0.5;
 }
 
 /* Interactive Button Styles */
-.interactive-button {
+.agentmode-interactive-button {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
   border: none;
@@ -1023,12 +1023,12 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.interactive-button:hover {
+.agentmode-interactive-button:hover {
   background-color: var(--interactive-accent-hover);
 }
 
 /* Close Button Styles */
-.close-button {
+.agentmode-close-button {
   background: transparent;
   border: none;
   cursor: pointer;
@@ -1041,19 +1041,19 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-muted);
 }
 
-.close-button:hover {
+.agentmode-close-button:hover {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
 /* Auto-resizing Textarea */
-.auto-resize-textarea {
+.agentmode-auto-resize-textarea {
   resize: none;
   overflow: hidden;
 }
 
 /* Action Button Base Styles */
-.action-button {
+.agentmode-action-button {
   border: none;
   border-radius: 4px;
   padding: 6px 12px;
@@ -1064,48 +1064,48 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Success Action Button */
-.action-button-success {
+.agentmode-action-button-success {
   background-color: var(--background-modifier-success);
   color: var(--text-normal);
 }
 
-.action-button-success:hover {
+.agentmode-action-button-success:hover {
   background-color: var(--background-modifier-success-hover);
 }
 
 /* Error Action Button */
-.action-button-error {
+.agentmode-action-button-error {
   background-color: transparent;
   color: var(--text-muted);
 }
 
-.action-button-error:hover {
+.agentmode-action-button-error:hover {
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
 }
 
 /* Info Action Button */
-.action-button-info {
+.agentmode-action-button-info {
   background-color: var(--background-modifier-info);
   color: var(--text-normal);
 }
 
-.action-button-info:hover {
+.agentmode-action-button-info:hover {
   background-color: var(--background-modifier-info-hover);
 }
 
 /* Secondary Action Button */
-.action-button-secondary {
+.agentmode-action-button-secondary {
   background-color: var(--background-secondary);
   color: var(--text-normal);
 }
 
-.action-button-secondary:hover {
+.agentmode-action-button-secondary:hover {
   background-color: var(--background-modifier-hover);
 }
 
 /* Copy Button Styles */
-.copy-button-styled {
+.agentmode-copy-button-styled {
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   padding: 6px 10px;
@@ -1116,13 +1116,13 @@ If your plugin does not need CSS, delete this file.
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 
-.copy-button-styled:hover {
+.agentmode-copy-button-styled:hover {
   border-color: var(--background-modifier-border-hover);
   color: var(--text-normal);
 }
 
 /* File/Image Tag Styles */
-.file-tag {
+.agentmode-file-tag {
   display: flex;
   align-items: center;
   border-radius: 12px;
@@ -1132,38 +1132,38 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.file-tag-success {
+.agentmode-file-tag-success {
   background-color: var(--background-modifier-success);
   color: var(--text-on-accent);
   border: 1px solid var(--background-modifier-success-border);
 }
 
-.file-tag-success:hover {
+.agentmode-file-tag-success:hover {
   background-color: var(--background-modifier-success-hover);
 }
 
-.file-tag-info {
+.agentmode-file-tag-info {
   background-color: var(--background-modifier-info);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
 }
 
-.file-tag-info:hover {
+.agentmode-file-tag-info:hover {
   background-color: var(--background-modifier-info-hover);
 }
 
-.file-tag-secondary {
+.agentmode-file-tag-secondary {
   background-color: var(--background-secondary);
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
 }
 
-.file-tag-secondary:hover {
+.agentmode-file-tag-secondary:hover {
   background-color: var(--background-modifier-hover);
 }
 
 /* Remove Button (X) Styles */
-.remove-button {
+.agentmode-remove-button {
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1178,24 +1178,24 @@ If your plugin does not need CSS, delete this file.
   transition: all 0.2s ease;
 }
 
-.remove-button:hover {
+.agentmode-remove-button:hover {
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
 }
 
 /* Vault File Indexing Styles */
-.vault-indexing-header {
+.agentmode-vault-indexing-header {
   color: var(--text-normal);
   margin-bottom: 12px;
   font-size: var(--font-ui-large);
   font-weight: 600;
 }
 
-.vault-indexing-container {
+.agentmode-vault-indexing-container {
   margin-bottom: 16px;
 }
 
-.vault-indexing-status {
+.agentmode-vault-indexing-status {
   padding: 12px;
   border-radius: 6px;
   background-color: var(--background-secondary);
@@ -1203,34 +1203,34 @@ If your plugin does not need CSS, delete this file.
   margin-bottom: 12px;
 }
 
-.indexing-status-synced {
+.agentmode-indexing-status-synced {
   color: var(--text-success);
   font-weight: 600;
   font-size: var(--font-ui-medium);
   margin-bottom: 6px;
 }
 
-.indexing-status-indexing {
+.agentmode-indexing-status-indexing {
   color: var(--text-warning);
   font-weight: 600;
   font-size: var(--font-ui-medium);
   margin-bottom: 6px;
 }
 
-.last-indexing-time {
+.agentmode-last-indexing-time {
   color: var(--text-muted);
   font-size: var(--font-ui-small);
   margin-top: 4px;
 }
 
-.modal-button-container {
+.agentmode-modal-button-container {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
 }
 
-.modal-button-container button {
+.agentmode-modal-button-container button {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
@@ -1240,26 +1240,26 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.modal-button-container button:first-child {
+.agentmode-modal-button-container button:first-child {
   background-color: var(--interactive-normal);
   color: var(--text-normal);
 }
 
-.modal-button-container button:first-child:hover {
+.agentmode-modal-button-container button:first-child:hover {
   background-color: var(--interactive-hover);
 }
 
-.modal-button-container button.mod-cta {
+.agentmode-modal-button-container button.mod-cta {
   background-color: var(--interactive-accent);
   color: var(--text-on-accent);
 }
 
-.modal-button-container button.mod-cta:hover {
+.agentmode-modal-button-container button.mod-cta:hover {
   background-color: var(--interactive-accent-hover);
 }
 
 /* Chat History Sidebar Styles */
-.chat-history-sidebar {
+.agentmode-chat-history-sidebar {
   position: absolute;
   top: 60px;
   right: 16px;
@@ -1273,21 +1273,21 @@ If your plugin does not need CSS, delete this file.
   overflow-y: auto;
 }
 
-.chat-history-header {
+.agentmode-chat-history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
-.chat-history-title {
+.agentmode-chat-history-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   color: var(--text-normal);
 }
 
-.chat-history-clear-btn {
+.agentmode-chat-history-clear-btn {
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
   border: none;
@@ -1299,18 +1299,18 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.chat-history-clear-btn:hover {
+.agentmode-chat-history-clear-btn:hover {
   background-color: var(--background-modifier-error-hover);
 }
 
-.chat-history-empty {
+.agentmode-chat-history-empty {
   color: var(--text-muted);
   font-size: 14px;
   text-align: center;
   padding: 20px 0;
 }
 
-.chat-history-entry {
+.agentmode-chat-history-entry {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1323,16 +1323,16 @@ If your plugin does not need CSS, delete this file.
   transition: background-color 0.2s ease;
 }
 
-.chat-history-entry:hover {
+.agentmode-chat-history-entry:hover {
   background-color: var(--background-modifier-hover);
 }
 
-.chat-history-entry-content {
+.agentmode-chat-history-entry-content {
   flex: 1;
   min-width: 0;
 }
 
-.chat-history-entry-title {
+.agentmode-chat-history-entry-title {
   font-weight: 500;
   color: var(--text-normal);
   margin-bottom: 2px;
@@ -1341,12 +1341,12 @@ If your plugin does not need CSS, delete this file.
   white-space: nowrap;
 }
 
-.chat-history-entry-date {
+.agentmode-chat-history-entry-date {
   color: var(--text-muted);
   font-size: 12px;
 }
 
-.chat-history-delete-btn {
+.agentmode-chat-history-delete-btn {
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1361,7 +1361,7 @@ If your plugin does not need CSS, delete this file.
   margin-left: 8px;
 }
 
-.chat-history-delete-btn:hover {
+.agentmode-chat-history-delete-btn:hover {
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
 }

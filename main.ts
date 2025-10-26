@@ -485,29 +485,29 @@ export class PaymentRequiredModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.addClass('payment-required-modal');
+		contentEl.addClass('agentmode-payment-required-modal');
 
 		// Set Modal title
 		this.titleEl.setText('Agentmode Upgrade Required');
 
 		// Main content container
-		const container = contentEl.createDiv('payment-modal-content');
+		const container = contentEl.createDiv('agentmode-payment-modal-content');
 
 		// Error explanation
-		const explanationEl = container.createEl('p', { cls: 'payment-modal-explanation' });
+		const explanationEl = container.createEl('p', { cls: 'agentmode-payment-modal-explanation' });
 		explanationEl.setText('You are currently on the Free plan and no OpenAI API key is configured. To continue using AI features, please choose one of the following options:');
 
 		// Options container
-		const optionsContainer = container.createDiv('payment-modal-options');
+		const optionsContainer = container.createDiv('agentmode-payment-modal-options');
 
 		// Option 1: Upgrade to Pro
-		const proOption = optionsContainer.createDiv('payment-modal-option');
+		const proOption = optionsContainer.createDiv('agentmode-payment-modal-option');
 		proOption.createEl('h4', { text: '1. Upgrade to Agentmode PRO' });
 		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
 		
 		const proButton = proOption.createEl('button', { 
 			text: 'Open Billing Portal',
-			cls: 'payment-modal-button primary' 
+			cls: 'agentmode-payment-modal-button primary' 
 		});
 		proButton.onclick = async () => {
 			await this.plugin.openBillingPortal();
@@ -515,13 +515,13 @@ export class PaymentRequiredModal extends Modal {
 		};
 
 		// Option 2: Set up BYOK
-		const byokOption = optionsContainer.createDiv('payment-modal-option');
+		const byokOption = optionsContainer.createDiv('agentmode-payment-modal-option');
 		byokOption.createEl('h4', { text: '2. Bring Your Own OpenAI Key' });
 		byokOption.createEl('p', { text: 'Configure your own OpenAI API key to use AI features.' });
 		
 		const byokButton = byokOption.createEl('button', { 
 			text: 'Open Settings',
-			cls: 'payment-modal-button secondary' 
+			cls: 'agentmode-payment-modal-button secondary' 
 		});
 		byokButton.onclick = () => {
 			this.plugin.openPluginSettings();
@@ -529,10 +529,10 @@ export class PaymentRequiredModal extends Modal {
 		};
 
 		// Cancel button
-		const buttonContainer = container.createDiv('payment-modal-buttons');
+		const buttonContainer = container.createDiv('agentmode-payment-modal-buttons');
 		const cancelButton = buttonContainer.createEl('button', { 
 			text: 'Cancel',
-			cls: 'payment-modal-button cancel' 
+			cls: 'agentmode-payment-modal-button cancel' 
 		});
 		cancelButton.onclick = () => {
 			this.close();
@@ -542,7 +542,7 @@ export class PaymentRequiredModal extends Modal {
 	onClose() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.removeClass('payment-required-modal');
+		contentEl.removeClass('agentmode-payment-required-modal');
 	}
 
 	show() {
@@ -782,7 +782,7 @@ export default class AgentPlugin extends Plugin {
 	initializeStatusBar() {
 		// Create status bar element
 		this.statusBarElement = this.addStatusBarItem();
-		this.statusBarElement.addClass('auth-status-bar');
+		this.statusBarElement.addClass('agentmode-auth-status-bar');
 		
 		// Add click event
 		this.statusBarElement.addEventListener('click', () => {
@@ -804,20 +804,20 @@ export default class AgentPlugin extends Plugin {
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			
 			// Add icon
-			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-in' });
+			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-in' });
 			icon.textContent = '✅';
 			
 			// Add user name
-			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
+			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
 			text.textContent = 'Agent Mode';
 			
 			this.statusBarElement.title = `Logged in: ${userName}\nClick to view options`;
 		} else {
 			// Not logged in status
-			const icon = this.statusBarElement.createSpan({ cls: 'auth-status-icon logged-out' });
+			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-out' });
 			icon.textContent = '⚫';
 			
-			const text = this.statusBarElement.createSpan({ cls: 'auth-status-text' });
+			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
 			text.textContent = 'Agent Mode';
 			
 			this.statusBarElement.title = 'Not logged in (Click to log in)';
@@ -3776,7 +3776,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		// Auth0 login status section
 		containerEl.createEl('h3', { text: 'Login Status' });
 		
-		const authContainer = containerEl.createDiv('auth-settings-container');
+		const authContainer = containerEl.createDiv('agentmode-auth-settings-container');
 		
 		if (this.plugin.isLoggedIn()) {
 			// Show logged in status
@@ -3784,16 +3784,16 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
 			
-			const statusDiv = authContainer.createDiv('auth-status-info');
-			statusDiv.createEl('div', { text: '✅ Logged in', cls: 'auth-status-logged-in' });
-			statusDiv.createEl('div', { text: `User: ${userName}`, cls: 'auth-user-info' });
+			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
+			statusDiv.createEl('div', { text: '✅ Logged in', cls: 'agentmode-auth-status-logged-in' });
+			statusDiv.createEl('div', { text: `User: ${userName}`, cls: 'agentmode-auth-user-info' });
 			if (userEmail && userEmail !== userName) {
-				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'auth-user-info' });
+				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'agentmode-auth-user-info' });
 			}
 			
 			// Add subscription information
-			const subscriptionDiv = statusDiv.createDiv('subscription-info');
-			subscriptionDiv.createEl('div', { text: 'Loading subscription...', cls: 'subscription-loading' });
+			const subscriptionDiv = statusDiv.createDiv('agentmode-subscription-info');
+			subscriptionDiv.createEl('div', { text: 'Loading subscription...', cls: 'agentmode-subscription-loading' });
 			
 							// Asynchronously get user profile
 				this.plugin.getUserProfile().then(profileData => {
@@ -3808,14 +3808,14 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					
 					if (subscription) {
 						// Show valid subscription information
-						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
+						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
 						subscriptionDetails.createEl('div', { 
 							text: `Plan: ${subscription.product_name}`, 
-							cls: 'subscription-plan' 
+							cls: 'agentmode-subscription-plan' 
 						});
 						subscriptionDetails.createEl('div', { 
 							text: `Status: ${subscription.status.toUpperCase()}`,
-							cls: 'subscription-status-active' 
+							cls: 'agentmode-subscription-status-active' 
 						});
 						
 						// Show subscription period
@@ -3823,7 +3823,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							const periodEnd = new Date(subscription.current_period_end);
 							subscriptionDetails.createEl('div', { 
 								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-								cls: 'subscription-period' 
+								cls: 'agentmode-subscription-period' 
 							});
 						}
 						
@@ -3833,7 +3833,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							if (trialEnd > new Date()) {
 								subscriptionDetails.createEl('div', { 
 									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
-									cls: 'subscription-trial' 
+									cls: 'agentmode-subscription-trial' 
 								});
 							}
 						}
@@ -3846,7 +3846,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
-						cls: 'subscription-error' 
+						cls: 'agentmode-subscription-error' 
 					});
 					
 					// Show Billing Portal button even if loading fails
@@ -3862,7 +3862,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
-						cls: 'subscription-error' 
+						cls: 'agentmode-subscription-error' 
 					});
 					console.error('Failed to load user profile:', error);
 					
@@ -3885,9 +3885,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					}));
 		} else {
 			// Show not logged in status
-			const statusDiv = authContainer.createDiv('auth-status-info');
-			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'auth-status-logged-out' });
-			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'auth-status-desc' });
+			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
+			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'agentmode-auth-status-logged-out' });
+			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'agentmode-auth-status-desc' });
 			
 			// Login button
 			new Setting(authContainer)
@@ -3903,13 +3903,13 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		}
 		
 		// Separator line
-		containerEl.createEl('hr', { cls: 'auth-settings-separator' });
+		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
 		
 		// OpenAI API Key settings
 		containerEl.createEl('h3', { text: 'Bring Your Own Key' });
 
 		// Add important notice
-		const keyInfoEl = containerEl.createEl('p', { cls: 'byok-info' });
+		const keyInfoEl = containerEl.createEl('p', { cls: 'agentmode-byok-info' });
 		const strongEl = keyInfoEl.createEl('strong');
 		strongEl.textContent = 'How this works:';
 		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key and Firecrawl API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
@@ -3939,7 +3939,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		// Add Vault File Indexing section (only for logged-in users)
 		if (this.plugin.isLoggedIn()) {
 			// Add separator
-			containerEl.createEl('hr', { cls: 'auth-settings-separator' });
+			containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
 			
 			this.createVaultIndexingSection(containerEl);
 		}
@@ -3969,9 +3969,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 	private createVaultIndexingSection(containerEl: HTMLElement) {
 		// Create Vault File Indexing section
-		containerEl.createEl('h4', { text: 'Vault File Indexing', cls: 'vault-indexing-header' });
+		containerEl.createEl('h4', { text: 'Vault File Indexing', cls: 'agentmode-vault-indexing-header' });
 		
-		this.vaultIndexingContainer = containerEl.createDiv('vault-indexing-container');
+		this.vaultIndexingContainer = containerEl.createDiv('agentmode-vault-indexing-container');
 		this.updateVaultIndexingStatus();
 		
 		// Add Reindex button
@@ -4000,9 +4000,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		if (!this.vaultIndexingContainer) return;
 		
 		// Find or create status container
-		let statusContainer = this.vaultIndexingContainer.querySelector('.vault-indexing-status') as HTMLElement;
+		let statusContainer = this.vaultIndexingContainer.querySelector('.agentmode-vault-indexing-status') as HTMLElement;
 		if (!statusContainer) {
-			statusContainer = this.vaultIndexingContainer.createDiv('vault-indexing-status');
+			statusContainer = this.vaultIndexingContainer.createDiv('agentmode-vault-indexing-status');
 		} else {
 			statusContainer.empty();
 		}
@@ -4050,7 +4050,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				text: 'This will reindex all markdown files in your vault and may take some time. Are you sure you want to continue?' 
 			});
 			
-			const buttonContainer = content.createDiv('modal-button-container');
+			const buttonContainer = content.createDiv('agentmode-modal-button-container');
 			buttonContainer.style.display = 'flex';
 			buttonContainer.style.justifyContent = 'flex-end';
 			buttonContainer.style.gap = '10px';
@@ -4083,7 +4083,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		// Create button directly, no need for separate bright container
 		const billingButton = containerDiv.createEl('button', {
 			text: 'Open Billing Portal',
-			cls: 'billing-portal-button'
+			cls: 'agentmode-billing-portal-button'
 		});
 
 		// Click event
@@ -4110,18 +4110,18 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 	// Create subscription header with refresh button
 	private createSubscriptionHeaderWithRefresh(containerDiv: HTMLElement, subscriptionDiv: HTMLElement): HTMLElement {
-		const headerContainer = containerDiv.createEl('div', { cls: 'subscription-header-container' });
+		const headerContainer = containerDiv.createEl('div', { cls: 'agentmode-subscription-header-container' });
 
 		// Title text
 		const titleEl = headerContainer.createEl('div', { 
 			text: 'Current Subscription', 
-			cls: 'subscription-header' 
+			cls: 'agentmode-subscription-header' 
 		});
 
 		// Refresh button
 		const refreshButton = headerContainer.createEl('button', {
 			text: '🔄',
-			cls: 'subscription-refresh-button'
+			cls: 'agentmode-subscription-refresh-button'
 		});
 
 		// Click event - refresh subscription information
@@ -4134,7 +4134,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			try {
 				// Show loading
 				subscriptionDiv.empty();
-				subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'subscription-loading' });
+				subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'agentmode-subscription-loading' });
 
 				// Re-fetch user profile
 				const profileData = await this.plugin.getUserProfile();
@@ -4150,14 +4150,14 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					
 					if (subscription) {
 						// Show valid subscription information
-						const subscriptionDetails = subscriptionDiv.createDiv('subscription-details');
+						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
 						subscriptionDetails.createEl('div', { 
 							text: `Plan: ${subscription.product_name}`, 
-							cls: 'subscription-plan' 
+							cls: 'agentmode-subscription-plan' 
 						});
 						subscriptionDetails.createEl('div', { 
 							text: `Status: ${subscription.status.toUpperCase()}`,
-							cls: 'subscription-status-active' 
+							cls: 'agentmode-subscription-status-active' 
 						});
 						
 						// Show subscription period
@@ -4165,7 +4165,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							const periodEnd = new Date(subscription.current_period_end);
 							subscriptionDetails.createEl('div', { 
 								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-								cls: 'subscription-period' 
+								cls: 'agentmode-subscription-period' 
 							});
 						}
 						
@@ -4176,7 +4176,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 							if (trialEnd > new Date()) {
 								subscriptionDetails.createEl('div', { 
 									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
-									cls: 'subscription-trial' 
+									cls: 'agentmode-subscription-trial' 
 								});
 							}
 						}
@@ -4188,7 +4188,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					// Show error information
 					subscriptionDiv.createEl('div', { 
 						text: 'Unable to load subscription info', 
-						cls: 'subscription-error' 
+						cls: 'agentmode-subscription-error' 
 					});
 					
 					// Show Billing Portal button even if loading fails
@@ -4206,7 +4206,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', { 
 						text: 'Failed to refresh subscription info', 
-						cls: 'subscription-error' 
+						cls: 'agentmode-subscription-error' 
 					});
 					this.addBillingPortalButton(subscriptionDiv);
 				}

@@ -53,7 +53,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       }),
       Mention.configure({
         HTMLAttributes: {
-          class: 'wikilink-mention',
+          class: 'agentmode-wikilink-mention',
         },
         renderText({ options, node }) {
           return `[[${node.attrs.label || node.attrs.id}]]`
@@ -74,7 +74,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     content: value || '',
     editorProps: {
       attributes: {
-        class: className || 'tiptap-editor',
+        class: className || 'agentmode-tiptap-editor',
         style: `
           min-height: 44px;
           max-height: 250px;

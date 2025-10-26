@@ -24,25 +24,25 @@ const styles = `
     100% { opacity: 1; }
   }
   
-  .tool-session-header:hover {
+  .agentmode-tool-session-header:hover {
     background-color: var(--background-modifier-hover);
     border-radius: 4px;
   }
   
-  .tool-step {
+  .agentmode-tool-step {
     transition: all 0.2s ease-in-out;
   }
   
-  .tool-step:hover {
+  .agentmode-tool-step:hover {
     transform: translateX(2px);
   }
   
-  .tool-result-header:hover {
+  .agentmode-tool-result-header:hover {
     background-color: var(--background-modifier-hover);
     border-radius: 4px;
   }
   
-  .loading-bar {
+  .agentmode-loading-bar {
     height: 2px;
     width: 100%;
     background: linear-gradient(90deg, transparent, var(--interactive-accent), transparent);
@@ -57,7 +57,7 @@ const styles = `
   }
   
   /* Show edit button on message hover */
-  .message:hover .message-edit-button {
+  .agentmode-message:hover .agentmode-message-edit-button {
     opacity: 1 !important;
   }
 `;
@@ -234,7 +234,7 @@ const IconButton: React.FC<IconButtonProps> = ({ icon, tooltip, onClick }) => {
       ref={buttonRef}
       title={tooltip}
       onClick={onClick}
-      className="close-button"
+      className="agentmode-close-button"
       style={{
         padding: '6px'
       }}
@@ -293,7 +293,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
         
         <button
           onClick={onLoginClick}
-          className="interactive-button"
+          className="agentmode-interactive-button"
           style={{
             padding: '12px 24px'
           }}
@@ -1907,7 +1907,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         >
           {/* Message type indicator */}
           <div 
-            className={isToolResult ? 'tool-result-header' : ''}
+            className={isToolResult ? 'agentmode-tool-result-header' : ''}
             style={{
               fontSize: '12px',
               color: 'var(--text-muted)',
@@ -2125,7 +2125,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 </div>
               )}
               {isStreaming && (
-                <span className="streaming-cursor" style={{
+                <span className="agentmode-streaming-cursor" style={{
                   display: 'inline-block',
                   width: '2px',
                   height: '20px',
@@ -2156,7 +2156,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               {isUser && !isLoading && !streamingMessageId && (
                 <button
                   onClick={() => handleStartEdit(message)}
-                  className="message-edit-button"
+                  className="agentmode-message-edit-button"
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -2279,12 +2279,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       {/* History Sidebar */}
       {showHistory && (
-        <div ref={historySidebarRef} className="chat-history-sidebar">
-          <div className="chat-history-header">
-            <h3 className="chat-history-title">Chat History</h3>
+        <div ref={historySidebarRef} className="agentmode-chat-history-sidebar">
+          <div className="agentmode-chat-history-header">
+            <h3 className="agentmode-chat-history-title">Chat History</h3>
             {chatHistory.length > 0 && (
               <button
-                className="chat-history-clear-btn"
+                className="agentmode-chat-history-clear-btn"
                 onClick={handleClearAllHistory}
               >
                 Clear All
@@ -2292,24 +2292,24 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             )}
           </div>
           {chatHistory.length === 0 ? (
-            <p className="chat-history-empty">No chat history yet</p>
+            <p className="agentmode-chat-history-empty">No chat history yet</p>
           ) : (
             chatHistory.map(chat => (
               <div
                 key={chat.id}
-                className="chat-history-entry"
+                className="agentmode-chat-history-entry"
               >
                 <div 
-                  className="chat-history-entry-content"
+                  className="agentmode-chat-history-entry-content"
                   onClick={() => loadChatFromHistory(chat)}
                 >
-                  <div className="chat-history-entry-title">{chat.title}</div>
-                  <div className="chat-history-entry-date">
+                  <div className="agentmode-chat-history-entry-title">{chat.title}</div>
+                  <div className="agentmode-chat-history-entry-date">
                     {chat.timestamp.toLocaleDateString()}
                   </div>
                 </div>
                 <button
-                  className="chat-history-delete-btn"
+                  className="agentmode-chat-history-delete-btn"
                   onClick={(e) => handleDeleteHistoryEntry(chat.id, e)}
                   title="Delete this chat"
                 >
@@ -2368,7 +2368,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   }}
                   plugin={plugin}
                 />
-                <span className="streaming-cursor" style={{
+                <span className="agentmode-streaming-cursor" style={{
                   display: 'inline-block',
                   width: '2px',
                   height: '20px',
@@ -2439,7 +2439,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={image.id}
                 title={`${image.name} (${(image.size / 1024 / 1024).toFixed(1)}MB)`}
-                className="file-tag file-tag-success"
+                className="agentmode-file-tag agentmode-file-tag-success"
               >
                 <span>🖼️ {image.name}</span>
                 <button
@@ -2447,7 +2447,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeUploadedImage(image.id);
                   }}
-                  className="remove-button"
+                  className="agentmode-remove-button"
                   style={{
                     padding: '2px',
                     fontSize: '14px',
@@ -2483,7 +2483,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={file.id}
                 title={`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`}
-                className="file-tag file-tag-info"
+                className="agentmode-file-tag agentmode-file-tag-info"
               >
                 <span>📎 {file.name}</span>
                 <button
@@ -2491,7 +2491,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeUploadedFile(file.id);
                   }}
-                  className="remove-button"
+                  className="agentmode-remove-button"
                   style={{
                     padding: '2px',
                     fontSize: '14px',
@@ -2527,7 +2527,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               <div
                 key={contextFile.id}
                 title={contextFile.file.path}
-                className="file-tag file-tag-secondary"
+                className="agentmode-file-tag agentmode-file-tag-secondary"
               >
                 <span>📄 {contextFile.displayName}</span>
                 <button
@@ -2535,7 +2535,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     e.stopPropagation();
                     removeContextFile(contextFile.id);
                   }}
-                  className="remove-button"
+                  className="agentmode-remove-button"
                   style={{
                     padding: '2px',
                     fontSize: '14px',
@@ -2555,7 +2555,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           <div style={{
             marginBottom: '8px'
           }}>
-            <div className="loading-bar" />
+            <div className="agentmode-loading-bar" />
           </div>
         )}
 
@@ -2583,7 +2583,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 ? "Ask something... Use [[]] to link notes" 
                 : "Give instructions to the agent... Use [[]] to link notes"
               }
-              className="chat-textarea"
+              className="agentmode-chat-textarea"
               style={{
                 boxSizing: 'border-box',
                 minHeight: '44px',

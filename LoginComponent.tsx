@@ -195,58 +195,58 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	};
 
 	return (
-		<div className="login-component">
-			<div className="login-header">
+		<div className="agentmode-login-component">
+			<div className="agentmode-login-header">
 				<h2>Log in to Agentmode</h2>
 			</div>
 
-			<div className="login-content">
+			<div className="agentmode-login-content">
 				{state.step === 'loading' && (
-					<div className="loading-state">
-						<div className="spinner"></div>
+					<div className="agentmode-loading-state">
+						<div className="agentmode-spinner"></div>
 						<p>Initializing login process...</p>
 					</div>
 				)}
 
 				{state.step === 'device-code' && state.deviceAuth && (
-					<div className="device-code-state">
-						<div className="login-options">
+					<div className="agentmode-device-code-state">
+						<div className="agentmode-login-options">
 							<h3>Choose Login Method</h3>
 							
 							{/* Primary option: One-click login */}
-							<div className="primary-login-option">
+							<div className="agentmode-primary-login-option">
 								<button 
-									className="primary-login-btn"
+									className="agentmode-primary-login-btn"
 									onClick={() => window.open(state.deviceAuth?.verification_uri_complete, '_blank')}
 								>
 									Open Login Page in Browser
 								</button>
-								<p className="primary-login-desc">Click to automatically open browser and complete login</p>
+								<p className="agentmode-primary-login-desc">Click to automatically open browser and complete login</p>
 							</div>
 
 							{/* Manual login option (collapsible) */}
-							<div className="manual-login-section">
+							<div className="agentmode-manual-login-section">
 								<button 
-									className="manual-login-toggle"
+									className="agentmode-manual-login-toggle"
 									onClick={() => setShowManualLogin(!showManualLogin)}
 								>
 									{showManualLogin ? 'Hide' : "Can't auto-open? Manual login"}
-									<span className={`toggle-arrow ${showManualLogin ? 'expanded' : ''}`}>▼</span>
+									<span className={`agentmode-toggle-arrow ${showManualLogin ? 'expanded' : ''}`}>▼</span>
 								</button>
 								
 								{showManualLogin && (
-									<div className="manual-login-content">
-										<p className="manual-instruction">
+									<div className="agentmode-manual-login-content">
+										<p className="agentmode-manual-instruction">
 											Please visit the following URL in your browser and enter the device code:
 										</p>
 										
-										<div className="verification-info">
-											<div className="url-section">
+										<div className="agentmode-verification-info">
+											<div className="agentmode-url-section">
 												<label>Verification URL:</label>
-												<div className="copy-field">
+												<div className="agentmode-copy-field">
 													<code>{state.deviceAuth.verification_uri}</code>
 													<button 
-														className="copy-btn"
+														className="agentmode-copy-btn"
 														onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
 													>
 														Copy
@@ -254,12 +254,12 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 												</div>
 											</div>
 
-											<div className="code-section">
+											<div className="agentmode-code-section">
 												<label>Device Code:</label>
-												<div className="copy-field">
-													<code className="device-code">{state.deviceAuth.user_code}</code>
+												<div className="agentmode-copy-field">
+													<code className="agentmode-device-code">{state.deviceAuth.user_code}</code>
 													<button 
-														className="copy-btn"
+														className="agentmode-copy-btn"
 														onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
 													>
 														Copy
@@ -273,7 +273,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 						</div>
 
 						{state.timeRemaining && (
-							<div className="countdown">
+							<div className="agentmode-countdown">
 								<p>Time remaining: {formatTime(state.timeRemaining)}</p>
 							</div>
 						)}
@@ -283,12 +283,12 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			
 
 				{state.step === 'polling' && (
-					<div className="polling-state">
-						<div className="spinner"></div>
+					<div className="agentmode-polling-state">
+						<div className="agentmode-spinner"></div>
 						<p>Waiting for authorization...</p>
 						<p>Please complete login in your browser</p>
 						{state.timeRemaining && (
-							<div className="countdown">
+							<div className="agentmode-countdown">
 								<p>Time remaining: {formatTime(state.timeRemaining)}</p>
 							</div>
 						)}
@@ -296,15 +296,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				)}
 
 				{state.step === 'timeout' && (
-					<div className="timeout-state">
-						<div className="error-icon">⏰</div>
+					<div className="agentmode-timeout-state">
+						<div className="agentmode-error-icon">⏰</div>
 						<h3>Login Timeout</h3>
 						<p>Login process has timed out, please try again.</p>
-						<div className="timeout-actions">
-							<button className="retry-btn" onClick={handleRetry}>
+						<div className="agentmode-timeout-actions">
+							<button className="agentmode-retry-btn" onClick={handleRetry}>
 								Retry Login
 							</button>
-							<button className="cancel-btn" onClick={onCancel}>
+							<button className="agentmode-cancel-btn" onClick={onCancel}>
 								Cancel
 							</button>
 						</div>
@@ -312,15 +312,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				)}
 
 				{state.step === 'error' && (
-					<div className="error-state">
-						<div className="error-icon">❌</div>
+					<div className="agentmode-error-state">
+						<div className="agentmode-error-icon">❌</div>
 						<h3>Login Failed</h3>
 						<p>{state.errorMessage}</p>
-						<div className="error-actions">
-							<button className="retry-btn" onClick={handleRetry}>
+						<div className="agentmode-error-actions">
+							<button className="agentmode-retry-btn" onClick={handleRetry}>
 								Retry
 							</button>
-							<button className="cancel-btn" onClick={onCancel}>
+							<button className="agentmode-cancel-btn" onClick={onCancel}>
 								Cancel
 							</button>
 						</div>
@@ -328,8 +328,8 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				)}
 
 				{state.step === 'success' && (
-					<div className="success-state">
-						<div className="success-icon">✅</div>
+					<div className="agentmode-success-state">
+						<div className="agentmode-success-icon">✅</div>
 						<h3>Login Successful</h3>
 						<p>Completing setup...</p>
 					</div>
