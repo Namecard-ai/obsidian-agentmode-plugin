@@ -14,6 +14,9 @@ This is an Obsidian plugin written in TypeScript/React. This document outlines d
 - Error messages should be in English
 - Button labels, tooltips, and notifications must be in English
 - Console logs and debug messages should be in English
+- Use sentence case in UI elements, where only the first word in a sentence, and proper nouns, should be capitalized
+  - Prefer "Template folder location" over "Template Folder Location"
+  - Prefer "Create new note" over "Create New Note"
 
 ### Code Comments
 - All code comments must be written in English
