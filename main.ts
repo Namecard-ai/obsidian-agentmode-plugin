@@ -1564,41 +1564,6 @@ export default class AgentPlugin extends Plugin {
 	}
 
 	private getSystemPrompt(contextFiles?: TFile[]): string {
-		// Get vault path correctly - try multiple methods
-		let vaultPath = '/Users/vault'; // fallback
-
-		try {
-			// Method 1: Try to get the actual vault path from adapter
-			if (this.app.vault.adapter && (this.app.vault.adapter as any).fs && (this.app.vault.adapter as any).fs.getBasePath) {
-				vaultPath = (this.app.vault.adapter as any).fs.getBasePath();
-			}
-			// Method 2: Try to get from vault adapter basePath property
-			else if (this.app.vault.adapter && (this.app.vault.adapter as any).basePath) {
-				vaultPath = (this.app.vault.adapter as any).basePath;
-			}
-			// Method 3: Try using the app's vault configDir
-			else if (this.app.vault.configDir) {
-				// Get parent directory of configDir to get vault path
-				const configPath = this.app.vault.configDir;
-				if (typeof configPath === 'string') {
-					// Use path manipulation to get parent directory instead of hardcoded replacement
-					const pathParts = configPath.split('/');
-					if (pathParts.length > 1) {
-						pathParts.pop(); // Remove the config directory name
-						vaultPath = pathParts.join('/') || '/';
-					}
-				}
-			}
-			// Method 4: Use vault name (fallback)
-			else if (this.app.vault.getName) {
-				const vaultName = this.app.vault.getName();
-				vaultPath = `Vault: ${vaultName}`;
-			}
-		} catch (error) {
-			console.warn('🔍 [SYSTEM] Could not determine vault path, using fallback:', error);
-		}
-		const osInfo = navigator.platform;
-
 		// Build context files section if any are provided
 		let contextFilesSection = '';
 		if (contextFiles && contextFiles.length > 0) {
@@ -1780,8 +1745,6 @@ This is the ONLY acceptable format for vault file citations.
 
 <user_info>
 The USER is working in Obsidian with various file types under a single vault directory. 
-The user's OS version is: \`${osInfo}\`
-The absolute path to the vault is: \`${vaultPath}\`
 Current date and time: \`${new Date().toLocaleString()}\`
 Current timezone: \`${Intl.DateTimeFormat().resolvedOptions().timeZone}\`
 Current UTC offset: \`${new Date().getTimezoneOffset() / -60} hours\`
