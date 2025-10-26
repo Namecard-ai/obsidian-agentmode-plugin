@@ -3,7 +3,7 @@
 	"name": "Agentmode",
 	"version": "1.0.27-beta",
 	"minAppVersion": "0.15.0",
-	"description": "An AI-powered assistant plugin that provides intelligent chat functionality with context-aware file integration.",
+	"description": "Chat with an AI agent that understands your vault files and notes.",
 	"author": "Namecard AI",
 	"authorUrl": "https://github.com/Namecard-ai",
 	"fundingUrl": "https://agentmode.io/",
