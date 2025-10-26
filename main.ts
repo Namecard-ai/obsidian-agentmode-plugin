@@ -940,26 +940,16 @@ export default class AgentPlugin extends Plugin {
 				}))
 			};
 
-			// Create filename: <chat_id>.json (simple and ensures one file per chat)
-			const filename = `${entry.id}.json`;
-			const filepath = `${this.historyDbPath}/${filename}`;
+		// Create filename: <chat_id>.json (simple and ensures one file per chat)
+		const filename = `${entry.id}.json`;
+		const filepath = `${this.historyDbPath}/${filename}`;
 
-			console.log('[saveHistoryEntry] Saving to:', filepath);
-			console.log('[saveHistoryEntry] Entry:', {
-				id: entry.id,
-				title: entry.title,
-				messageCount: entry.messages.length,
-				isNewChat
-			});
+		// Save to disk
+		await this.app.vault.adapter.write(filepath, JSON.stringify(serializedEntry, null, 2));
 
-			// Save to disk
-			await this.app.vault.adapter.write(filepath, JSON.stringify(serializedEntry, null, 2));
-			console.log('[saveHistoryEntry] File written successfully');
-
-			// Implement rotation: only on new chat creation
-			if (isNewChat) {
-				console.log('[saveHistoryEntry] Running rotation check');
-				await this.rotateHistory();
+		// Implement rotation: only on new chat creation
+		if (isNewChat) {
+			await this.rotateHistory();
 			}
 		} catch (error) {
 			console.error('Error saving history entry:', error);
@@ -990,14 +980,13 @@ export default class AgentPlugin extends Plugin {
 			// Sort by timestamp descending (newest first)
 			filesWithTimestamps.sort((a, b) => b.timestamp - a.timestamp);
 
-			// If we have more than HISTORY_LIMIT, delete the oldest ones
-			if (filesWithTimestamps.length > HISTORY_LIMIT) {
-				const filesToDelete = filesWithTimestamps.slice(HISTORY_LIMIT);
-				for (const fileInfo of filesToDelete) {
-					await this.app.vault.adapter.remove(fileInfo.path);
-					console.log('[rotateHistory] Deleted old file:', fileInfo.path);
-				}
+		// If we have more than HISTORY_LIMIT, delete the oldest ones
+		if (filesWithTimestamps.length > HISTORY_LIMIT) {
+			const filesToDelete = filesWithTimestamps.slice(HISTORY_LIMIT);
+			for (const fileInfo of filesToDelete) {
+				await this.app.vault.adapter.remove(fileInfo.path);
 			}
+		}
 		} catch (error) {
 			console.error('Error rotating history:', error);
 		}
@@ -1054,13 +1043,12 @@ export default class AgentPlugin extends Plugin {
 			const filename = `${id}.json`;
 			const filepath = `${this.historyDbPath}/${filename}`;
 			
-			// Check if file exists and delete
-			try {
-				await this.app.vault.adapter.remove(filepath);
-				console.log('[deleteHistoryEntry] Deleted:', filepath);
-			} catch (error) {
-				console.warn('[deleteHistoryEntry] File not found or already deleted:', filepath);
-			}
+		// Check if file exists and delete
+		try {
+			await this.app.vault.adapter.remove(filepath);
+		} catch (error) {
+			// File not found or already deleted - this is fine
+		}
 		} catch (error) {
 			console.error('Error deleting history entry:', error);
 			new Notice('Failed to delete chat history entry');
@@ -2599,22 +2587,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		explanation: string 
 	}) {
 		try {
-			console.log('🔍 [TOOL] vault_grep called with args:', args);
+		// Create cache key
+		const cacheKey = JSON.stringify({
+			pattern: args.pattern,
+			case_insensitive: args.case_insensitive || false,
+			target_subpaths: args.target_subpaths || [],
+			file_extensions: args.file_extensions || []
+		});
 
-			// Create cache key
-			const cacheKey = JSON.stringify({
-				pattern: args.pattern,
-				case_insensitive: args.case_insensitive || false,
-				target_subpaths: args.target_subpaths || [],
-				file_extensions: args.file_extensions || []
-			});
-
-			// Check cache
-			const cached = this.vaultGrepCache.get(cacheKey);
-			if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
-				console.log('📋 [TOOL] vault_grep returning cached results');
-				return JSON.stringify(cached.results);
-			}
+		// Check cache
+		const cached = this.vaultGrepCache.get(cacheKey);
+		if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+			return JSON.stringify(cached.results);
+		}
 
 			// Compile regex pattern with error handling
 			let regex: RegExp;
@@ -2646,11 +2631,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						file.path.startsWith(subpath.endsWith('/') ? subpath : subpath + '/')
 					)
 				);
-			}
+		}
 
-			console.log(`🔍 [TOOL] vault_grep searching ${filteredFiles.length} files for pattern: "${args.pattern}" (case_insensitive: ${args.case_insensitive || false})`);
-
-			const results: Array<{ path: string; line: number; content: string }> = [];
+		const results: Array<{ path: string; line: number; content: string }> = [];
 
 			// Search through each file
 			for (const file of filteredFiles) {
@@ -2667,20 +2650,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 								content: lines[i]
 							});
 						}
-					}
-				} catch (error) {
-					console.warn(`⚠️ [TOOL] vault_grep could not read file ${file.path}:`, error);
-					// Continue with other files
 				}
+			} catch (error) {
+				// Continue with other files if one fails
 			}
+		}
 
-			console.log(`✅ [TOOL] vault_grep found ${results.length} matches`);
-
-			// Cache the results
-			this.vaultGrepCache.set(cacheKey, {
-				results: results,
-				timestamp: Date.now()
-			});
+		// Cache the results
+		this.vaultGrepCache.set(cacheKey, {
+			results: results,
+			timestamp: Date.now()
+		});
 
 			// Clean up old cache entries (simple cleanup)
 			if (this.vaultGrepCache.size > 50) {
@@ -2744,59 +2724,58 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		const data = response.json;
 			
-			if (!data.success) {
-				console.error('🔍 [TOOL] web_search API error:', data);
-				return 'Error: Web search API returned unsuccessful response.';
-			}
+		if (!data.success) {
+			console.error('🔍 [TOOL] web_search API error:', data);
+			return 'Error: Web search API returned unsuccessful response.';
+		}
 
-			// Format the search results for display
-			const results = [];
-			
-			if (data.data?.web && Array.isArray(data.data.web)) {
-				results.push('🌐 Web Results:');
-				data.data.web.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.description) {
-						results.push(`   ${result.description}`);
-					}
-					if (result.url) {
-						results.push(`   🔗 ${result.url}`);
-					}
-					results.push('');
-				});
-			}
+		// Format the search results for display
+		const results = [];
+		
+		if (data.data?.web && Array.isArray(data.data.web)) {
+			results.push('🌐 Web Results:');
+			data.data.web.forEach((result: any, index: number) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.description) {
+					results.push(`   ${result.description}`);
+				}
+				if (result.url) {
+					results.push(`   🔗 ${result.url}`);
+				}
+				results.push('');
+			});
+		}
 
-			if (data.data?.images && Array.isArray(data.data.images)) {
-				results.push('🖼️ Image Results:');
-				data.data.images.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.imageUrl) {
-						results.push(`   🔗 ${result.imageUrl}`);
-					}
-					results.push('');
-				});
-			}
+		if (data.data?.images && Array.isArray(data.data.images)) {
+			results.push('🖼️ Image Results:');
+			data.data.images.forEach((result: any, index: number) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.imageUrl) {
+					results.push(`   🔗 ${result.imageUrl}`);
+				}
+				results.push('');
+			});
+		}
 
-			if (data.data?.news && Array.isArray(data.data.news)) {
-				results.push('📰 News Results:');
-				data.data.news.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.snippet) {
-						results.push(`   ${result.snippet}`);
-					}
-					if (result.url) {
-						results.push(`   🔗 ${result.url}`);
-					}
-					if (result.date) {
-						results.push(`   📅 ${result.date}`);
-					}
-					results.push('');
-				});
-			}
+		if (data.data?.news && Array.isArray(data.data.news)) {
+			results.push('📰 News Results:');
+			data.data.news.forEach((result: any, index: number) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.snippet) {
+					results.push(`   ${result.snippet}`);
+				}
+				if (result.url) {
+					results.push(`   🔗 ${result.url}`);
+				}
+				if (result.date) {
+					results.push(`   📅 ${result.date}`);
+				}
+				results.push('');
+			});
+		}
 
-			const resultText = results.join('\n');
-			console.log('🔍 [TOOL] web_search completed successfully');
-			return resultText || 'No search results found.';
+		const resultText = results.join('\n');
+		return resultText || 'No search results found.';
 
 		} catch (error: any) {
 			console.error('🔍 [TOOL] web_search error:', error);
@@ -2856,42 +2835,41 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		const data = response.json;
 			
-			if (!data.success) {
-				console.error('🕷️ [TOOL] web_scrape API error:', data);
-				return 'Error: Web scrape API returned unsuccessful response.';
-			}
+		if (!data.success) {
+			console.error('🕷️ [TOOL] web_scrape API error:', data);
+			return 'Error: Web scrape API returned unsuccessful response.';
+		}
 
-			// Format the scrape results for display
-			const results = [];
-			results.push(`🕷️ **Scraped Content from:** ${args.url}`);
+		// Format the scrape results for display
+		const results = [];
+		results.push(`🕷️ **Scraped Content from:** ${args.url}`);
+		results.push('');
+
+		if (data.data?.summary) {
+			results.push('📝 **Summary:**');
+			results.push(data.data.summary);
 			results.push('');
+		}
 
-			if (data.data?.summary) {
-				results.push('📝 **Summary:**');
-				results.push(data.data.summary);
-				results.push('');
-			}
+		if (data.data?.metadata?.title) {
+			results.push(`📄 **Title:** ${data.data.metadata.title}`);
+		}
 
-			if (data.data?.metadata?.title) {
-				results.push(`📄 **Title:** ${data.data.metadata.title}`);
-			}
+		if (data.data?.metadata?.description) {
+			results.push(`📋 **Description:** ${data.data.metadata.description}`);
+		}
 
-			if (data.data?.metadata?.description) {
-				results.push(`📋 **Description:** ${data.data.metadata.description}`);
-			}
+		if (data.data?.metadata?.language) {
+			results.push(`🌐 **Language:** ${data.data.metadata.language}`);
+		}
 
-			if (data.data?.metadata?.language) {
-				results.push(`🌐 **Language:** ${data.data.metadata.language}`);
-			}
+		if (data.warning) {
+			results.push('');
+			results.push(`⚠️ **Warning:** ${data.warning}`);
+		}
 
-			if (data.warning) {
-				results.push('');
-				results.push(`⚠️ **Warning:** ${data.warning}`);
-			}
-
-			const resultText = results.join('\n');
-			console.log('🕷️ [TOOL] web_scrape completed successfully');
-			return resultText || 'No content could be scraped from the URL.';
+		const resultText = results.join('\n');
+		return resultText || 'No content could be scraped from the URL.';
 
 		} catch (error: any) {
 			console.error('🕷️ [TOOL] web_scrape error:', error);
@@ -3207,13 +3185,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		if (!this.embeddingQueue.has(filePath)) {
 			this.embeddingQueue.add(filePath);
 			this.queueDetails.set(filePath, {
-				filePath,
-				addedAt: Date.now(),
+					filePath,
+					addedAt: Date.now(),
 				source
 			});
-			
-			console.log(`Added to embedding queue: ${filePath} (source: ${source})`);
-			
+		
 			// Notify UI update
 			this.notifySettingsUpdate();
 			
@@ -3264,7 +3240,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			// Check if file needs processing by comparing MD5 hash
 			if (await this.shouldSkipFileProcessing(file)) {
-				console.log(`Skipping file (no changes detected): ${filePath}`);
 				return;
 			}
 
@@ -3383,7 +3358,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		this.isProcessingQueue = false;
 		
 		if (queueSize > 0) {
-			console.log(`Cleared ${queueSize} items from embedding queue after logout`);
 			new Notice(`Cleared embedding queue (${queueSize} pending items)`);
 		}
 		
@@ -3438,7 +3412,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Check if index file exists
 			if (await this.app.vault.adapter.exists(indexFilePath)) {
 				await this.app.vault.adapter.remove(indexFilePath);
-				console.log(`Cleaned up index file for deleted file: ${filePath}`);
 			}
 		} catch (error) {
 			console.error(`Failed to cleanup index for deleted file ${filePath}:`, error);
@@ -3460,21 +3433,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						// Check if the corresponding vault file still exists
 						const fileExists = this.app.vault.getAbstractFileByPath(record.file_path) instanceof TFile;
 						
-						if (!fileExists) {
-							await this.app.vault.adapter.remove(indexFile);
-							cleanedCount++;
-							console.log(`Cleaned up orphaned index: ${indexFile} (original file: ${record.file_path})`);
-						}
+					if (!fileExists) {
+						await this.app.vault.adapter.remove(indexFile);
+						cleanedCount++;
+					}
 					} catch (error) {
 						console.error(`Failed to process index file ${indexFile}:`, error);
 					}
 				}
-			}
-			
-			if (cleanedCount > 0) {
-				console.log(`Batch cleanup completed: removed ${cleanedCount} orphaned index files`);
-				new Notice(`Cleaned up ${cleanedCount} orphaned index files`);
-			}
+		}
+		
+		if (cleanedCount > 0) {
+			new Notice(`Cleaned up ${cleanedCount} orphaned index files`);
+		}
 		} catch (error) {
 			console.error('Failed to cleanup orphaned index files:', error);
 		}
@@ -3486,13 +3457,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		for (const embedding of embeddings) {
 			const fileExists = this.app.vault.getAbstractFileByPath(embedding.file_path) instanceof TFile;
 			
-			if (fileExists) {
-				validEmbeddings.push(embedding);
-			} else {
-				// File doesn't exist, clean up its index
-				console.log(`Found deleted file in search results: ${embedding.file_path}, cleaning up index`);
-				await this.cleanupDeletedFileEmbedding(embedding.file_path);
-			}
+		if (fileExists) {
+			validEmbeddings.push(embedding);
+		} else {
+			// File doesn't exist, clean up its index
+			await this.cleanupDeletedFileEmbedding(embedding.file_path);
+		}
 		}
 		
 		return validEmbeddings;
@@ -3502,16 +3472,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			// Check if user is logged in before initializing batch processing
 			if (!this.isLoggedIn()) {
-				console.log('User not logged in, skipping batch embedding queue initialization');
 				return;
 			}
-
-			console.log('Initializing batch embedding queue for all markdown files...');
 			
 			// Get all markdown files in the vault
 			const allFiles = this.app.vault.getMarkdownFiles();
-			
-			console.log(`Found ${allFiles.length} markdown files in vault`);
 			
 			// Add all files to queue with batch_process source
 			for (const file of allFiles) {

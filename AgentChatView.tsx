@@ -840,8 +840,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             updatedMessages = [...newMessages, toolCallMessage];
           }
           
-          console.log('[toolCall] Updated messages count:', updatedMessages.length);
-          
           // Update state
           setMessages(updatedMessages);
           
@@ -963,14 +961,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const persistCurrentChat = async (messagesSnapshot?: Message[]) => {
     const messagesToPersist = messagesSnapshot || messages;
     
-    console.log('[persistCurrentChat] Called with:', {
-      messagesCount: messagesToPersist.length,
-      currentChatId,
-      isFirstPersist: chatCreatedTimestamp === null
-    });
-    
     if (messagesToPersist.length === 0 || !currentChatId) {
-      console.log('[persistCurrentChat] Skipped - no messages or no chatId');
       return;
     }
 
@@ -979,7 +970,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     if (isFirstPersist) {
       setChatCreatedTimestamp(timestamp);
-      console.log('[persistCurrentChat] First persist - timestamp:', timestamp);
     }
 
     const chatTitle = messagesToPersist[0]?.content.slice(0, 50) + (messagesToPersist[0]?.content.length > 50 ? '...' : '');
@@ -990,16 +980,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       timestamp: timestamp
     };
 
-    console.log('[persistCurrentChat] Saving entry:', {
-      id: chatEntry.id,
-      title: chatEntry.title,
-      messageCount: chatEntry.messages.length,
-      timestamp: chatEntry.timestamp
-    });
-
     // Save to disk
     await plugin.saveHistoryEntry(chatEntry, isFirstPersist);
-    console.log('[persistCurrentChat] Saved successfully');
 
     // Update chatHistory state
     setChatHistory(prev => {
@@ -1020,8 +1002,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Use ref to get the most current messages
     const currentMessages = messagesRef.current;
     const newMessages = [...currentMessages, message];
-    
-    console.log('[appendMessage] Current messages:', currentMessages.length, '-> New messages:', newMessages.length);
     
     // Update state
     setMessages(newMessages);
@@ -1463,7 +1443,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }
             // Check if file is supported by read_file tool
             else if (plugin.isFileSupportedByReadTool(abstractFile)) {
-              console.log('Adding context file 1');
               addContextFile(abstractFile);
             }
           }
@@ -1517,7 +1496,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
               // Check if file is supported by read_file tool
               else if (plugin.isFileSupportedByReadTool(abstractFile)) {
-                console.log('Adding context file 2');
                 addContextFile(abstractFile);
                 filesAdded++;
                 continue;
@@ -1548,7 +1526,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Check if file is supported by read_file tool
                 else if (plugin.isFileSupportedByReadTool(abstractFile)) {
-                  console.log('Adding context file 3');
                   addContextFile(abstractFile);
                   filesAdded++;
                   break;
@@ -1592,7 +1569,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
               // Otherwise add as context file
               else if (plugin.isFileSupportedByReadTool(foundFile)) {
-                console.log('Adding context file 4');
                 addContextFile(foundFile);
                 filesAdded++;
               }
@@ -1640,7 +1616,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     }
                     // Check if file is supported by read_file tool
                     else if (plugin.isFileSupportedByReadTool(file)) {
-                      console.log('Adding context file 5');
                       addContextFile(file);
                       return true;
                     }
@@ -1659,7 +1634,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Check if file is supported by read_file tool
                 else if (plugin.isFileSupportedByReadTool(obj)) {
-                  console.log('Adding context file 6');
                   addContextFile(obj);
                   filesAdded++;
                 }
@@ -1685,7 +1659,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   }
                   // Check if file is supported by read_file tool
                   else if (plugin.isFileSupportedByReadTool(dom.file)) {
-                    console.log('Adding context file 7');
                     addContextFile(dom.file);
                     return true;
                   }
@@ -1738,7 +1711,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 }
                 // Otherwise add as context file
                 else if (plugin.isFileSupportedByReadTool(matchingFile)) {
-                  console.log('Adding context file 8');
                   addContextFile(matchingFile);
                   filesAdded++;
                   break;
