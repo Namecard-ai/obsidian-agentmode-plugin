@@ -6,6 +6,5 @@
 	"description": "Chat with an AI agent that understands your vault files and notes.",
 	"author": "Namecard AI",
 	"authorUrl": "https://github.com/Namecard-ai",
-	"fundingUrl": "https://agentmode.io/",
 	"isDesktopOnly": true
 }
