@@ -40,27 +40,27 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	const startDeviceAuth = async () => {
 		try {
 			setState({ step: 'loading' });
-			
+
 			// Start Device Authorization Flow
 			const deviceAuth = await auth0Service.startDeviceAuth();
-			
-			setState({ 
-				step: 'device-code', 
+
+			setState({
+				step: 'device-code',
 				deviceAuth,
 				timeRemaining: deviceAuth.expires_in
 			});
 
 			// Start countdown timer
 			startCountdown(deviceAuth.expires_in);
-			
+
 			// Start polling
 			startPolling(deviceAuth);
-			
+
 		} catch (error: any) {
 			console.error('Device auth failed:', error);
-			setState({ 
-				step: 'error', 
-				errorMessage: error.message || 'Failed to start login process' 
+			setState({
+				step: 'error',
+				errorMessage: error.message || 'Failed to start login process'
 			});
 			onLoginError(error.message || 'Failed to start login process');
 		}
@@ -93,7 +93,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Don't immediately switch to polling state, let user see device-code state first
 			// Start polling for token
 			const tokenResponse = await auth0Service.pollForToken(
-				deviceAuth.device_code, 
+				deviceAuth.device_code,
 				deviceAuth.interval
 			);
 
@@ -102,16 +102,16 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 		} catch (error: any) {
 			console.error('Polling failed:', error);
-			
+
 			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
-			
+
 			if (error.message.includes('timeout')) {
 				setState({ step: 'timeout' });
 			} else {
-				setState({ 
-					step: 'error', 
-					errorMessage: error.message || 'Authorization failed' 
+				setState({
+					step: 'error',
+					errorMessage: error.message || 'Authorization failed'
 				});
 				onLoginError(error.message || 'Authorization failed');
 			}
@@ -155,13 +155,13 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 		} catch (error: any) {
 			console.error('Failed to save login state:', error);
-			
+
 			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
-			
-			setState({ 
-				step: 'error', 
-				errorMessage: 'Failed to save login state: ' + error.message 
+
+			setState({
+				step: 'error',
+				errorMessage: 'Failed to save login state: ' + error.message
 			});
 			onLoginError('Failed to save login state: ' + error.message);
 		}
@@ -169,15 +169,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const handleRetry = () => {
 		// Ensure previous polling operation is stopped
-	auth0Service.stopPolling();
-	
-	// Clean up countdown timer
-	if (countdownTimer) {
-		window.clearInterval(countdownTimer);
-		setCountdownTimer(null);
-	}
-	
-	startDeviceAuth();
+		auth0Service.stopPolling();
+
+		// Clean up countdown timer
+		if (countdownTimer) {
+			window.clearInterval(countdownTimer);
+			setCountdownTimer(null);
+		}
+
+		startDeviceAuth();
 	};
 
 	const formatTime = (seconds: number): string => {
@@ -212,10 +212,10 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 					<div className="agentmode-device-code-state">
 						<div className="agentmode-login-options">
 							<h3>Choose Login Method</h3>
-							
+
 							{/* Primary option: One-click login */}
 							<div className="agentmode-primary-login-option">
-								<button 
+								<button
 									className="agentmode-primary-login-btn"
 									onClick={() => window.open(state.deviceAuth?.verification_uri_complete, '_blank')}
 								>
@@ -226,26 +226,26 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 							{/* Manual login option (collapsible) */}
 							<div className="agentmode-manual-login-section">
-								<button 
+								<button
 									className="agentmode-manual-login-toggle"
 									onClick={() => setShowManualLogin(!showManualLogin)}
 								>
 									{showManualLogin ? 'Hide' : "Can't auto-open? Manual login"}
 									<span className={`agentmode-toggle-arrow ${showManualLogin ? 'expanded' : ''}`}>▼</span>
 								</button>
-								
+
 								{showManualLogin && (
 									<div className="agentmode-manual-login-content">
 										<p className="agentmode-manual-instruction">
 											Please visit the following URL in your browser and enter the device code:
 										</p>
-										
+
 										<div className="agentmode-verification-info">
 											<div className="agentmode-url-section">
 												<label>Verification URL:</label>
 												<div className="agentmode-copy-field">
 													<code>{state.deviceAuth.verification_uri}</code>
-													<button 
+													<button
 														className="agentmode-copy-btn"
 														onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
 													>
@@ -258,7 +258,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 												<label>Device Code:</label>
 												<div className="agentmode-copy-field">
 													<code className="agentmode-device-code">{state.deviceAuth.user_code}</code>
-													<button 
+													<button
 														className="agentmode-copy-btn"
 														onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
 													>
@@ -280,7 +280,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 					</div>
 				)}
 
-			
+
 
 				{state.step === 'polling' && (
 					<div className="agentmode-polling-state">

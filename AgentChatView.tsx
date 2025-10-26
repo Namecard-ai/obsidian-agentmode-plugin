@@ -271,7 +271,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
         }}>
           🔐
         </div>
-        
+
         <h2 style={{
           margin: '0 0 16px 0',
           color: 'var(--text-normal)',
@@ -280,7 +280,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
         }}>
           Login Required
         </h2>
-        
+
         <p style={{
           margin: '0 0 24px 0',
           color: 'var(--text-muted)',
@@ -290,7 +290,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
           You need to log in to your Agentmode account to start chatting with the AI assistant.
           After logging in, you'll have access to all AI features including note editing and search.
         </p>
-        
+
         <button
           onClick={onLoginClick}
           className="agentmode-interactive-button"
@@ -300,7 +300,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
         >
           Start Login
         </button>
-        
+
         <div style={{
           marginTop: '24px',
           padding: '16px',
@@ -333,7 +333,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
 
 export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
@@ -363,10 +363,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
   const [isLightTheme, setIsLightTheme] = useState(document.body.classList.contains('theme-light'));
-  
+
   // Add login state monitoring
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(plugin.isLoggedIn());
-  
+
   const textareaRef = useRef<TiptapEditorRef>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -525,10 +525,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Initial check
     checkLoginStatus();
 
-  // Check login status every 5 seconds (in case state changes aren't updated promptly)
-  const interval = window.setInterval(checkLoginStatus, 5000);
+    // Check login status every 5 seconds (in case state changes aren't updated promptly)
+    const interval = window.setInterval(checkLoginStatus, 5000);
 
-  return () => window.clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [plugin]);
 
   // Monitor messages changes
@@ -628,17 +628,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         async (toolCall: any) => {
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
-          
+
           const currentMessages = messagesRef.current;
           const newMessages = [...currentMessages];
           const lastMessage = newMessages[newMessages.length - 1];
-          
+
           let updatedMessages: Message[];
-          
-          if (lastMessage && 
-              lastMessage.role === 'assistant' && 
-              lastMessage.content === currentContent &&
-              lastMessage.tool_calls) {
+
+          if (lastMessage &&
+            lastMessage.role === 'assistant' &&
+            lastMessage.content === currentContent &&
+            lastMessage.tool_calls) {
             lastMessage.tool_calls.push(toolCall);
             updatedMessages = newMessages;
           } else {
@@ -651,7 +651,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             };
             updatedMessages = [...newMessages, toolCallMessage];
           }
-          
+
           setMessages(updatedMessages);
           await persistCurrentChat(updatedMessages);
           setCurrentStreamingContent('');
@@ -686,8 +686,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           const toolResultMessage: Message = {
             id: generateId(),
             role: 'tool',
-            content: typeof toolResult.content === 'string' 
-              ? toolResult.content 
+            content: typeof toolResult.content === 'string'
+              ? toolResult.content
               : JSON.stringify(toolResult.content, null, 2),
             timestamp: new Date(),
             tool_call_id: toolResult.tool_call_id,
@@ -720,7 +720,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
 
     let messageContent = inputText.trim();
-    
+
     // Add context files information if any are selected
     if (contextFiles.length > 0) {
       const contextInfo = contextFiles.map(cf => `[[${cf.file.path}]]`).join(' ');
@@ -758,7 +758,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const toolSessionId = generateId();
     setStreamingMessageId(toolSessionId);
     let lastToolCallContent = ''; // Track content before tool calls
-    
+
     // Convert messages to plugin format - now include tool messages too
     const chatMessages = messages
       .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
@@ -769,7 +769,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
         ...(msg.name && { name: msg.name })
       }));
-    
+
     // Add the current user message with images and files if any
     const currentUserMessage: any = {
       role: 'user' as const,
@@ -793,7 +793,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         }))
       ] : messageContent
     };
-    
+
     chatMessages.push(currentUserMessage);
 
     // Get context files as TFile objects
@@ -813,19 +813,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Handle tool call - accumulate tool calls into a single assistant message
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
-          
+
           // Use messagesRef to get current messages
           const currentMessages = messagesRef.current;
           const newMessages = [...currentMessages];
           const lastMessage = newMessages[newMessages.length - 1];
-          
+
           let updatedMessages: Message[];
-          
+
           // If the last message is an assistant message with the same content, add this tool call to it
-          if (lastMessage && 
-              lastMessage.role === 'assistant' && 
-              lastMessage.content === currentContent &&
-              lastMessage.tool_calls) {
+          if (lastMessage &&
+            lastMessage.role === 'assistant' &&
+            lastMessage.content === currentContent &&
+            lastMessage.tool_calls) {
             lastMessage.tool_calls.push(toolCall);
             updatedMessages = newMessages;
           } else {
@@ -839,13 +839,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             };
             updatedMessages = [...newMessages, toolCallMessage];
           }
-          
+
           // Update state
           setMessages(updatedMessages);
-          
+
           // Persist after updating messages
           await persistCurrentChat(updatedMessages);
-          
+
           setCurrentStreamingContent(''); // Reset for new content after tool call
         },
         async (finalContent: string) => {
@@ -857,21 +857,21 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               content: finalContent,
               timestamp: new Date()
             };
-            
+
             await appendMessage(finalMessage);
           }
-        
-        // Use setTimeout to ensure the message is rendered before clearing states
-        window.setTimeout(() => {
-          setIsLoading(false);
-          setStreamingMessageId(null);
-          setCurrentStreamingContent('');
-        }, 50); // Small delay to ensure rendering
+
+          // Use setTimeout to ensure the message is rendered before clearing states
+          window.setTimeout(() => {
+            setIsLoading(false);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+          }, 50); // Small delay to ensure rendering
         },
         async (error: string) => {
           // Handle error
           console.error(`${chatMode} chat error:`, error);
-          
+
           const errorMessage: Message = {
             id: generateId(),
             role: 'assistant',
@@ -879,7 +879,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             timestamp: new Date()
           };
           await appendMessage(errorMessage);
-          
+
           setIsLoading(false);
           setStreamingMessageId(null);
           setCurrentStreamingContent('');
@@ -893,9 +893,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             timestamp: new Date(),
             tool_call_id: toolResult.toolCallId
           };
-          
+
           await appendMessage(toolResultMessage);
-          
+
           // Add UI notification for Ask Mode auto-rejection
           if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
             // Show a subtle notification that editing was blocked
@@ -917,7 +917,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       );
     } catch (error) {
       console.error(`Error starting ${chatMode.toLowerCase()} chat:`, error);
-      
+
       const errorMessage: Message = {
         id: generateId(),
         role: 'assistant',
@@ -925,7 +925,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         timestamp: new Date()
       };
       await appendMessage(errorMessage);
-      
+
       setIsLoading(false);
       setStreamingMessageId(null);
       setCurrentStreamingContent('');
@@ -960,7 +960,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
   const persistCurrentChat = async (messagesSnapshot?: Message[]) => {
     const messagesToPersist = messagesSnapshot || messages;
-    
+
     if (messagesToPersist.length === 0 || !currentChatId) {
       return;
     }
@@ -1002,24 +1002,24 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Use ref to get the most current messages
     const currentMessages = messagesRef.current;
     const newMessages = [...currentMessages, message];
-    
+
     // Update state
     setMessages(newMessages);
-    
+
     // Persist with the updated messages
     await persistCurrentChat(newMessages);
   };
 
   const handleDeleteHistoryEntry = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent loading the chat when clicking delete
-    
+
     // Show confirmation dialog
     const confirmed = window.confirm('Are you sure you want to delete this chat from history?');
     if (!confirmed) return;
-    
+
     // Delete from disk
     await plugin.deleteHistoryEntry(id);
-    
+
     // Update local state
     setChatHistory(prev => prev.filter(chat => chat.id !== id));
   };
@@ -1028,10 +1028,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Show confirmation dialog with warning
     const confirmed = window.confirm('Are you sure you want to clear ALL chat history? This action cannot be undone.');
     if (!confirmed) return;
-    
+
     // Clear from disk
     await plugin.clearAllHistory();
-    
+
     // Update local state
     setChatHistory([]);
   };
@@ -1044,12 +1044,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       // Check if this is the second [ to trigger wiki link input
       // Get the character immediately before the cursor from the TipTap editor
       const charBeforeCursor = textareaRef.current.getTextBeforeCursor(1);
-      
+
       // Check if the previous character is also [
       if (charBeforeCursor === '[') {
         // This will be the second [, prevent it from being inserted and trigger file selection
         e.preventDefault(); // Prevent the second [ from being inserted
-        
+
         const cursorPos = textareaRef.current.getCursorPosition();
         // The first [ should be at cursorPos - 1
         const bracketStartPos = cursorPos - 1;
@@ -1075,7 +1075,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handleImageFileDrop = async (file: TFile) => {
     try {
       const maxSize = 50 * 1024 * 1024; // 50MB
-      
+
       // Check file size
       if (file.stat.size > maxSize) {
         new Notice(`File "${file.name}" exceeds 50MB size limit`);
@@ -1091,23 +1091,23 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       // Read file as binary and convert to base64
       const arrayBuffer = await app.vault.readBinary(file);
       const uint8Array = new Uint8Array(arrayBuffer);
-      
+
       // Convert to base64 safely (handle large files)
       let binaryString = '';
       const chunkSize = 8192;
-      
+
       for (let i = 0; i < uint8Array.length; i += chunkSize) {
         const chunk = uint8Array.slice(i, i + chunkSize);
         binaryString += String.fromCharCode(...chunk);
       }
-      
+
       const base64Data = btoa(binaryString);
       const fileExtension = file.extension.toLowerCase();
       const mimeType = (plugin as any).constructor.MIME_TYPES[fileExtension] || 'application/octet-stream';
 
       // Create File object for compatibility with existing upload logic
       const fileObj = new File([arrayBuffer], file.name, { type: mimeType });
-      
+
       const uploadedImage: UploadedImage = {
         id: generateId(),
         file: fileObj,
@@ -1127,7 +1127,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData.items;
     let hasImage = false;
-    
+
     // First, check if there are any images in the clipboard
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -1136,26 +1136,26 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         break;
       }
     }
-    
+
     // If there are images, prevent default paste behavior and only process images
     if (hasImage) {
       e.preventDefault();
     }
-    
+
     // Collect all valid images first, then process them
-    const validImages: Array<{file: File, filename: string}> = [];
+    const validImages: Array<{ file: File, filename: string }> = [];
     const processedFilenames = new Set<string>(); // Track filenames in current batch
-    
+
     // Process all clipboard items to collect valid images
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      
+
       // Check if it's an image
       if (item.type.startsWith('image/')) {
         try {
           const file = item.getAsFile();
           if (!file) continue;
-          
+
           // Get file extension from MIME type
           const mimeToExtension: Record<string, string> = {
             'image/jpeg': 'jpg',
@@ -1165,29 +1165,29 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             'image/webp': 'webp',
             'image/bmp': 'bmp'
           };
-          
+
           const fileExtension = mimeToExtension[item.type];
-          
+
           // Check if extension is supported
           if (!fileExtension || !(plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
             const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
             new Notice(`Pasted image format "${item.type}" is not supported. Supported formats: ${supportedFormats}`);
             continue;
           }
-          
+
           // Check file size (50MB limit)
           const maxSize = 50 * 1024 * 1024;
           if (file.size > maxSize) {
             new Notice(`Pasted image exceeds 50MB size limit`);
             continue;
           }
-          
+
           // Try to use original filename, fallback to generated name
           let filename: string;
           if (file.name && file.name.trim() !== '' && file.name !== 'image.png' && file.name !== 'image.jpg') {
             // Use original filename if available and not a generic name
             filename = file.name;
-            
+
             // Handle duplicate filenames in current batch
             let counter = 1;
             let originalFilename = filename;
@@ -1202,7 +1202,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             filename = `pasted-image-${timestamp}-${i}.${fileExtension}`;
           }
-          
+
           // Check if already uploaded in existing images
           const existingImage = uploadedImages.find(img => {
             if (filename.startsWith('pasted-image-')) {
@@ -1218,33 +1218,33 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               return img.name === filename && img.size === file.size;
             }
           });
-          
+
           if (existingImage) {
             new Notice(`Image "${filename}" has already been uploaded`);
             continue;
           }
-          
+
           validImages.push({ file, filename });
           processedFilenames.add(filename);
-          
+
         } catch (error) {
           console.error('Error processing pasted image:', error);
           new Notice(`Error processing pasted image`);
         }
       }
     }
-    
+
     // Now process all valid images and convert them
     const newUploadedImages: UploadedImage[] = [];
-    
+
     for (const { file, filename } of validImages) {
       try {
         // Convert to base64
         const base64Data = await fileToBase64(file);
-        
+
         // Create new File object with proper name
         const renamedFile = new File([file], filename, { type: file.type });
-        
+
         const uploadedImage: UploadedImage = {
           id: generateId(),
           file: renamedFile,
@@ -1252,16 +1252,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           base64Data: base64Data,
           size: file.size
         };
-        
+
         newUploadedImages.push(uploadedImage);
         new Notice(`Image "${filename}" uploaded successfully`);
-        
+
       } catch (error) {
         console.error('Error processing pasted image:', error);
         new Notice(`Error processing image "${filename}"`);
       }
     }
-    
+
     // Add all new images at once
     if (newUploadedImages.length > 0) {
       setUploadedImages(prev => [...prev, ...newUploadedImages]);
@@ -1276,11 +1276,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      
+
       // Check file type using IMAGE_EXTENSIONS from main.ts
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       const isImageSupported = fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
-      
+
       if (!isImageSupported) {
         const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
         new Notice(`File "${file.name}" is not a supported image format. Supported formats: ${supportedFormats}`);
@@ -1302,7 +1302,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       try {
         // Convert image to base64
         const base64Data = await fileToBase64(file);
-        
+
         const uploadedImage: UploadedImage = {
           id: generateId(),
           file: file,
@@ -1354,7 +1354,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      
+
       // Check file type
       if (!supportedTypes.includes(file.type)) {
         new Notice(`File "${file.name}" is not a supported file format. Supported formats: PDF`);
@@ -1376,7 +1376,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       try {
         // Convert file to base64
         const base64Data = await fileToBase64(file);
-        
+
         const uploadedFile: UploadedFile = {
           id: generateId(),
           file: file,
@@ -1436,7 +1436,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           const abstractFile = app.vault.getAbstractFileByPath(file.name);
           if (abstractFile && abstractFile instanceof TFile) {
             const fileExtension = abstractFile.extension.toLowerCase();
-            
+
             // Check if it's an image file
             if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
               await handleImageFileDrop(abstractFile);
@@ -1460,7 +1460,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         if (data) {
           // Parse multiple files from the data
           let filePaths: string[] = [];
-          
+
           if (type === 'text/plain' || type === 'text/uri-list') {
             // Handle Obsidian URI format: obsidian://open?vault=VaultName&file=FileName
             const obsidianUriRegex = /obsidian:\/\/open\?vault=[^&]+&file=([^\s\n]+)/g;
@@ -1468,7 +1468,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             while ((match = obsidianUriRegex.exec(data)) !== null) {
               filePaths.push(decodeURIComponent(match[1]));
             }
-            
+
             // If no Obsidian URIs found, try splitting by newlines or other separators
             if (filePaths.length === 0) {
               filePaths = data.split(/[\n\r]+/).filter(path => path.trim().length > 0);
@@ -1477,17 +1477,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             // For other types, try splitting by common separators
             filePaths = data.split(/[\n\r,;]+/).filter(path => path.trim().length > 0);
           }
-          
+
           // Process each file path
           for (const filePath of filePaths) {
             const cleanPath = filePath.trim();
             if (!cleanPath) continue;
-            
+
             // Try to find file by exact path
             let abstractFile = app.vault.getAbstractFileByPath(cleanPath);
             if (abstractFile && abstractFile instanceof TFile) {
               const fileExtension = abstractFile.extension.toLowerCase();
-              
+
               // Check if it's an image file
               if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                 await handleImageFileDrop(abstractFile);
@@ -1515,7 +1515,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               abstractFile = app.vault.getAbstractFileByPath(path);
               if (abstractFile && abstractFile instanceof TFile) {
                 const fileExtension = abstractFile.extension.toLowerCase();
-                
+
                 // Check if it's an image file
                 if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                   handleImageFileDrop(abstractFile).catch(error => {
@@ -1535,8 +1535,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             if (abstractFile && abstractFile instanceof TFile) {
               const fileExtension = abstractFile.extension.toLowerCase();
-              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension) || 
-                  plugin.isFileSupportedByReadTool(abstractFile)) {
+              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension) ||
+                plugin.isFileSupportedByReadTool(abstractFile)) {
                 continue;
               }
             }
@@ -1547,19 +1547,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               const fileExtension = f.extension.toLowerCase();
               const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
               const isReadable = plugin.isFileSupportedByReadTool(f);
-              
+
               if (!isImage && !isReadable) return false;
-              
-              return f.basename === cleanPath || 
-                     f.name === cleanPath ||
-                     f.path.endsWith('/' + cleanPath) ||
-                     f.path.endsWith('\\' + cleanPath) ||
-                     cleanPath.includes(f.basename);
+
+              return f.basename === cleanPath ||
+                f.name === cleanPath ||
+                f.path.endsWith('/' + cleanPath) ||
+                f.path.endsWith('\\' + cleanPath) ||
+                cleanPath.includes(f.basename);
             });
-            
+
             if (foundFile) {
               const fileExtension = foundFile.extension.toLowerCase();
-              
+
               // Check if it's an image file
               if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                 handleImageFileDrop(foundFile).catch(error => {
@@ -1574,7 +1574,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
             }
           }
-          
+
           // If we found files in this data type, we can stop trying other types
           if (filesAdded > 0) {
             break;
@@ -1586,7 +1586,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         // Try to access Obsidian's internal drag state
         try {
           const workspace = app.workspace as any;
-          
+
           // Try multiple ways to access dragged files
           const possiblePaths = [
             'dragManager.draggedFiles',
@@ -1595,20 +1595,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             'fileManager.draggedFiles',
             'vault.draggedFiles'
           ];
-          
+
           for (const path of possiblePaths) {
             const parts = path.split('.');
             let obj = workspace;
             for (const part of parts) {
               obj = obj?.[part];
             }
-            
+
             if (obj) {
               if (Array.isArray(obj)) {
                 const objPromises = obj.map(async (file: any) => {
                   if (file) {
                     const fileExtension = file.extension?.toLowerCase();
-                    
+
                     // Check if it's an image file
                     if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                       await handleImageFileDrop(file);
@@ -1626,7 +1626,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 filesAdded += results.filter(Boolean).length;
               } else if (obj) {
                 const fileExtension = obj.extension?.toLowerCase();
-                
+
                 // Check if it's an image file
                 if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                   await handleImageFileDrop(obj);
@@ -1640,18 +1640,18 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }
             }
           }
-          
+
           // Also try to get the currently selected files from file explorer
           const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
           if (fileExplorer && fileExplorer.view && filesAdded === 0) {
             const view = fileExplorer.view as any;
-            
+
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
               const domPromises = view.tree.selectedDoms.map(async (dom: any) => {
                 if (dom.file) {
                   const fileExtension = dom.file.extension?.toLowerCase();
-                  
+
                   // Check if it's an image file
                   if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                     await handleImageFileDrop(dom.file);
@@ -1677,7 +1677,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       if (filesAdded === 0) {
         // Final fallback: try to parse any text data as a file path
         const allDataTypes = Array.from(e.dataTransfer?.types || []);
-        
+
         for (const type of allDataTypes) {
           try {
             const data = e.dataTransfer?.getData(type);
@@ -1688,19 +1688,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 const fileExtension = file.extension.toLowerCase();
                 const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
                 const isReadable = plugin.isFileSupportedByReadTool(file);
-                
+
                 if (!isImage && !isReadable) return false;
-                
-                return data.includes(file.basename) || 
-                       data.includes(file.name) || 
-                       data.includes(file.path) ||
-                       file.path.includes(data) ||
-                       file.basename.includes(data);
+
+                return data.includes(file.basename) ||
+                  data.includes(file.name) ||
+                  data.includes(file.path) ||
+                  file.path.includes(data) ||
+                  file.basename.includes(data);
               });
-              
+
               if (matchingFile) {
                 const fileExtension = matchingFile.extension.toLowerCase();
-                
+
                 // Check if it's an image file
                 if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
                   handleImageFileDrop(matchingFile).catch(error => {
@@ -1750,7 +1750,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     if (contextFiles.some(cf => cf.file.path === file.path)) {
       return;
     }
-    
+
     // Add wikilink to input text if this is a vault file
     if (file && file.path) {
       const wikilink = `[[${file.path}]]`;
@@ -1760,13 +1760,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         return prev + separator + wikilink;
       });
     }
-    
+
     const contextFile: ContextFile = {
       id: generateId(),
       file: file,
       displayName: file.basename
     };
-    
+
     setContextFiles(prev => [...prev, contextFile]);
   };
 
@@ -1816,7 +1816,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
-    
+
     // Try to count markdown files being dragged
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
@@ -1853,11 +1853,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     const isToolResult = message.role === 'tool';
     const isToolResultExpanded = expandedToolResults.has(message.id);
     const isEditing = editingMessageId === message.id;
-    
+
     // Calculate how many messages will be deleted if this message is edited
     const messageIndex = messages.findIndex(msg => msg.id === message.id);
     const messagesAfterCount = messageIndex >= 0 ? messages.length - messageIndex - 1 : 0;
-    
+
     return (
       <div
         key={message.id}
@@ -1878,7 +1878,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           }}
         >
           {/* Message type indicator */}
-          <div 
+          <div
             className={isToolResult ? 'agentmode-tool-result-header' : ''}
             style={{
               fontSize: '12px',
@@ -1896,19 +1896,19 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }}
             onClick={isToolResult ? () => toggleToolResult(message.id) : undefined}
           >
-            <span style={{ 
+            <span style={{
               fontSize: '14px',
               minWidth: '20px'
             }}>
               {isUser ? '👤' : message.role === 'tool' ? '🔧' : '🤖'}
             </span>
             <span style={{ fontWeight: '500' }}>
-              {isUser 
-                ? 'You' 
-                : message.role === 'tool' 
-                  ? 'Tool Result' 
-                  : message.tool_calls 
-                    ? `Assistant (calling: ${message.tool_calls.map(tc => tc.function.name).join(', ')})` 
+              {isUser
+                ? 'You'
+                : message.role === 'tool'
+                  ? 'Tool Result'
+                  : message.tool_calls
+                    ? `Assistant (calling: ${message.tool_calls.map(tc => tc.function.name).join(', ')})`
                     : 'Assistant'
               }
             </span>
@@ -1927,7 +1927,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               </span>
             )}
             {isToolResult && (
-              <span style={{ 
+              <span style={{
                 fontSize: '12px',
                 marginLeft: 'auto',
                 transform: isToolResultExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -1950,7 +1950,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }}>
                 Click to expand detailed results ({message.content.length} characters)
               </div>
-              
+
               {/* Collapsible content */}
               {isToolResultExpanded && (
                 <div style={{
@@ -2003,7 +2003,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   e.target.style.border = '1px solid var(--background-modifier-border)';
                 }}
               />
-              
+
               {/* Warning about deleted messages */}
               {messagesAfterCount > 0 && (
                 <div style={{
@@ -2018,7 +2018,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   <span>Will delete {messagesAfterCount} message{messagesAfterCount > 1 ? 's' : ''} below</span>
                 </div>
               )}
-              
+
               {/* Action buttons */}
               <div style={{
                 display: 'flex',
@@ -2081,7 +2081,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }}>
               {/* Choose rendering method based on message type */}
               {message.role === 'assistant' ? (
-                <MarkdownRenderer 
+                <MarkdownRenderer
                   content={message.content}
                   style={{
                     lineHeight: '1.5'
@@ -2123,7 +2123,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               gap: '8px',
             }}>
               <span>{message.timestamp.toLocaleTimeString()}</span>
-              
+
               {/* Edit button for user messages */}
               {isUser && !isLoading && !streamingMessageId && (
                 <button
@@ -2163,21 +2163,21 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handleWikiLinkInput = (bracketStartPosition: number) => {
     const modal = new FilePickerModal(app, (file: TFile) => {
       const relativePath = file.path;
-      
+
       if (textareaRef.current) {
-      // Replace the single [ with the wikilink mention
-      // Since we prevented the second [ from being inserted, we only need to replace 1 character
-      window.setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.replaceRangeWithWikilink(
-            bracketStartPosition, 
-            bracketStartPosition + 1, // Only replace 1 character now
-            relativePath
-          );
-        }
+        // Replace the single [ with the wikilink mention
+        // Since we prevented the second [ from being inserted, we only need to replace 1 character
+        window.setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.replaceRangeWithWikilink(
+              bracketStartPosition,
+              bracketStartPosition + 1, // Only replace 1 character now
+              relativePath
+            );
+          }
         }, 10);
       }
-      
+
       setPendingWikiLinkPosition(null);
     });
     modal.open();
@@ -2187,7 +2187,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   // If not logged in, show login prompt
   if (!isLoggedIn) {
     return (
-      <LoginPrompt 
+      <LoginPrompt
         plugin={plugin}
         onLoginClick={handleLoginClick}
       />
@@ -2195,7 +2195,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   }
 
   return (
-    <div 
+    <div
       ref={chatContainerRef}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -2271,7 +2271,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 key={chat.id}
                 className="agentmode-chat-history-entry"
               >
-                <div 
+                <div
                   className="agentmode-chat-history-entry-content"
                   onClick={() => loadChatFromHistory(chat)}
                 >
@@ -2313,7 +2313,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             </div>
           ))
         )}
-        
+
         {/* Current streaming content */}
         {isLoading && currentStreamingContent && (
           <div style={{
@@ -2333,7 +2333,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 MozUserSelect: 'text',
                 msUserSelect: 'text',
               }}>
-                <MarkdownRenderer 
+                <MarkdownRenderer
                   content={currentStreamingContent}
                   style={{
                     lineHeight: '1.5'
@@ -2360,7 +2360,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -2551,8 +2551,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               onChange={(value) => setInputText(value)}
               onKeyPress={handleKeyPress}
               onPaste={handlePaste}
-              placeholder={chatMode === 'Ask' 
-                ? "Ask something... Use [[]] to link notes" 
+              placeholder={chatMode === 'Ask'
+                ? "Ask something... Use [[]] to link notes"
                 : "Give instructions to the agent... Use [[]] to link notes"
               }
               className="agentmode-chat-textarea"
@@ -2602,8 +2602,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   <option value="Agent">Agent</option>
                   <option value="Ask">Ask</option>
                 </select>
-                <span style={{ 
-                  fontSize: '12px', 
+                <span style={{
+                  fontSize: '12px',
                   color: 'var(--text-muted)',
                   fontWeight: '500'
                 }}>
@@ -2713,8 +2713,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           right: 0,
           bottom: 0,
           backgroundColor: 'var(--background-translucent)',
-              display: 'flex',
-              alignItems: 'center',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           zIndex: 2000,
           padding: '20px'
@@ -2731,8 +2731,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             boxShadow: 'var(--shadow-l)'
           }}>
             {/* Header */}
-              <div style={{
-                display: 'flex',
+            <div style={{
+              display: 'flex',
               alignItems: 'center',
               marginBottom: '20px',
               paddingBottom: '16px',
@@ -2755,9 +2755,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   fontSize: '14px',
                   color: 'var(--text-muted)'
                 }}>
-                  Path: <code style={{ 
+                  Path: <code style={{
                     backgroundColor: 'var(--background-secondary)',
-                    padding: '2px 6px', 
+                    padding: '2px 6px',
                     borderRadius: '4px',
                     fontSize: '13px'
                   }}>{pendingCreateNoteConfirmation.note_path}</code>
@@ -2798,7 +2798,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 backgroundColor: 'var(--background-primary)',
                 padding: '16px',
                 borderRadius: '6px',
-                    border: '1px solid var(--background-modifier-border)',
+                border: '1px solid var(--background-modifier-border)',
                 maxHeight: '400px',
                 overflow: 'auto',
                 fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
@@ -2857,10 +2857,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                       borderRadius: '6px',
                       border: '1px solid var(--background-modifier-border)',
                       backgroundColor: 'transparent',
-                  color: 'var(--text-muted)',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       fontSize: '14px',
-                  fontWeight: '500'
+                      fontWeight: '500'
                     }}
                   >
                     Cancel
@@ -2971,9 +2971,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   fontSize: '14px',
                   color: 'var(--text-muted)'
                 }}>
-                  File: <code style={{ 
-                    backgroundColor: 'var(--background-secondary)', 
-                    padding: '2px 6px', 
+                  File: <code style={{
+                    backgroundColor: 'var(--background-secondary)',
+                    padding: '2px 6px',
                     borderRadius: '4px',
                     fontSize: '13px'
                   }}>{pendingEditConfirmation.note_path}</code>
@@ -3026,15 +3026,15 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     borderRadius: '4px',
                     border: '1px solid var(--background-modifier-border)'
                   }}>
-                    <div style={{ 
-                      fontWeight: '600', 
+                    <div style={{
+                      fontWeight: '600',
                       marginBottom: '4px',
-                      color: edit.operation === 'insert' ? 'var(--text-success)' : 
-                             edit.operation === 'delete' ? 'var(--text-error)' : 'var(--text-warning)'
+                      color: edit.operation === 'insert' ? 'var(--text-success)' :
+                        edit.operation === 'delete' ? 'var(--text-error)' : 'var(--text-warning)'
                     }}>
-                      {edit.operation === 'insert' ? '➕ Insert' : 
-                       edit.operation === 'delete' ? '➖ Delete' : '🔄 Replace'} 
-                      {edit.operation === 'insert' 
+                      {edit.operation === 'insert' ? '➕ Insert' :
+                        edit.operation === 'delete' ? '➖ Delete' : '🔄 Replace'}
+                      {edit.operation === 'insert'
                         ? ` after line ${edit.start_line}`
                         : ` line ${edit.start_line}${edit.end_line && edit.end_line !== edit.start_line ? `-${edit.end_line}` : ''}`
                       }
@@ -3068,31 +3068,31 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               }}>
                 {pendingEditConfirmation.diff.map((line, index) => {
                   // Only show lines that are changed or context lines
-                  const showLine = line.type !== 'unchanged' || 
+                  const showLine = line.type !== 'unchanged' ||
                     (index > 0 && pendingEditConfirmation.diff[index - 1].type !== 'unchanged') ||
                     (index < pendingEditConfirmation.diff.length - 1 && pendingEditConfirmation.diff[index + 1].type !== 'unchanged');
-                  
+
                   if (!showLine) return null;
-                  
+
                   return (
                     <div key={index} style={{
-                      color: line.type === 'deleted' ? 'var(--text-error)' : 
-                             line.type === 'inserted' ? 'var(--text-success)' : 'var(--text-muted)',
-                      backgroundColor: line.type === 'deleted' ? 'var(--background-modifier-error-hover)' : 
-                                      line.type === 'inserted' ? 'var(--background-modifier-success-hover)' : 'transparent',
+                      color: line.type === 'deleted' ? 'var(--text-error)' :
+                        line.type === 'inserted' ? 'var(--text-success)' : 'var(--text-muted)',
+                      backgroundColor: line.type === 'deleted' ? 'var(--background-modifier-error-hover)' :
+                        line.type === 'inserted' ? 'var(--background-modifier-success-hover)' : 'transparent',
                       padding: '2px 8px',
                       margin: '1px 0',
                       borderRadius: '2px'
                     }}>
                       <span style={{ marginRight: '8px', opacity: 0.6 }}>
-                        {line.type === 'deleted' ? '-' : 
-                         line.type === 'inserted' ? '+' : ' '}
-                </span>
+                        {line.type === 'deleted' ? '-' :
+                          line.type === 'inserted' ? '+' : ' '}
+                      </span>
                       <span style={{ marginRight: '12px', opacity: 0.4, fontSize: '11px' }}>
                         {line.line_number}:
                       </span>
                       {line.content}
-              </div>
+                    </div>
                   );
                 })}
               </div>
@@ -3128,8 +3128,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             )}
 
             {/* Action Buttons */}
-                  <div style={{
-                    display: 'flex',
+            <div style={{
+              display: 'flex',
               gap: '12px',
               justifyContent: 'flex-end',
               paddingTop: '16px',
@@ -3137,9 +3137,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             }}>
               {showRejectReasonInput ? (
                 <>
-                <button
+                  <button
                     onClick={handleCancelReject}
-                  style={{
+                    style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
                       border: '1px solid var(--background-modifier-border)',
@@ -3157,11 +3157,11 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     style={{
                       padding: '10px 20px',
                       borderRadius: '6px',
-                    border: 'none',
+                      border: 'none',
                       backgroundColor: 'var(--interactive-error)',
-                    color: 'var(--text-on-accent)',
+                      color: 'var(--text-on-accent)',
                       cursor: 'pointer',
-                    fontSize: '14px',
+                      fontSize: '14px',
                       fontWeight: '500'
                     }}
                   >
@@ -3202,9 +3202,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                   </button>
                 </>
               )}
-              </div>
             </div>
           </div>
+        </div>
       )}
 
       {/* Drag overlay */}
@@ -3224,20 +3224,20 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           zIndex: 1000,
           pointerEvents: 'none'
         }}>
-                     <div style={{
-             backgroundColor: 'var(--interactive-accent-translucent)',
-             color: 'var(--text-on-accent)',
-             padding: '20px 40px',
-             borderRadius: '12px',
-             fontSize: '18px',
-             fontWeight: '600',
-             textAlign: 'center',
-             boxShadow: 'var(--shadow-l)'
-           }}>
-             <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
-             Drop {dragFileCount > 1 ? `${dragFileCount} files` : 'file'} here to add as context
+          <div style={{
+            backgroundColor: 'var(--interactive-accent-translucent)',
+            color: 'var(--text-on-accent)',
+            padding: '20px 40px',
+            borderRadius: '12px',
+            fontSize: '18px',
+            fontWeight: '600',
+            textAlign: 'center',
+            boxShadow: 'var(--shadow-l)'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
+            Drop {dragFileCount > 1 ? `${dragFileCount} files` : 'file'} here to add as context
+          </div>
         </div>
-      </div>
       )}
     </div>
   );

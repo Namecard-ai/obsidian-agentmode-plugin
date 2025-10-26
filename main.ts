@@ -15,7 +15,7 @@ import { getEncoding } from 'js-tiktoken';
 interface AgentPluginSettings {
 	openaiApiKey: string;
 	firecrawlApiKey: string;
-	
+
 	// Auth0 login status
 	isLoggedIn: boolean;
 	accessToken?: string;
@@ -82,7 +82,7 @@ export interface EmbeddingQueueItem {
 
 export interface ChatMessage {
 	role: 'system' | 'user' | 'assistant' | 'tool';
-	content: string | Array<{type: 'text', text: string} | {type: 'image_url', image_url: {url: string}}>;
+	content: string | Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }>;
 	tool_calls?: any[];
 	tool_call_id?: string;
 	name?: string;
@@ -131,14 +131,14 @@ export interface DiffLine {
 export interface EditConfirmationArgs {
 	description: string;
 	diff: string;
-  }
-  
-  // Interface for create note confirmation
-  export interface CreateNoteConfirmationArgs {
+}
+
+// Interface for create note confirmation
+export interface CreateNoteConfirmationArgs {
 	description: string;
 	content: string;
-  }
-  
+}
+
 
 // Interface for pending edit confirmation
 interface PendingEditConfirmation {
@@ -180,12 +180,12 @@ export enum Model {
 	GPT4o_mini = 'gpt-4o-mini',
 	GPT4o = 'gpt-4o',
 	Claude3_5_Sonnet = 'claude-3-5-sonnet-20240620',
-  }
-  
-  export enum AgentMode {
+}
+
+export enum AgentMode {
 	Standard = 'Standard',
 	Ask = 'Ask',
-  }
+}
 
 // Auth0 service class
 export class Auth0Service {
@@ -230,19 +230,19 @@ export class Auth0Service {
 		return new Promise((resolve, reject) => {
 			// Ensure previous polling is stopped
 			this.stopPolling();
-			
+
 			let attempts = 0;
 			const maxAttempts = 150; // 5 minute timeout (150 * 2 seconds)
-			
+
 			// Set polling flag
 			this.isPolling = true;
-			
+
 			// Wrap resolve and reject to ensure state cleanup
 			const wrappedResolve = (value: TokenResponse) => {
 				this.isPolling = false;
 				resolve(value);
 			};
-			
+
 			const wrappedReject = (reason: any) => {
 				this.isPolling = false;
 				reject(reason);
@@ -254,14 +254,14 @@ export class Auth0Service {
 					return;
 				}
 
-			if (attempts >= maxAttempts) {
-				if (this.pollingTimer) {
-					window.clearInterval(this.pollingTimer);
-					this.pollingTimer = null;
+				if (attempts >= maxAttempts) {
+					if (this.pollingTimer) {
+						window.clearInterval(this.pollingTimer);
+						this.pollingTimer = null;
+					}
+					wrappedReject(new Error('Authorization timeout, please try again'));
+					return;
 				}
-				wrappedReject(new Error('Authorization timeout, please try again'));
-				return;
-			}
 
 				attempts++;
 
@@ -295,34 +295,34 @@ export class Auth0Service {
 
 					const data = response.json;
 
-				if (response.status >= 200 && response.status < 300) {
-					if (this.pollingTimer) {
-						window.clearInterval(this.pollingTimer);
-						this.pollingTimer = null;
-					}
-					wrappedResolve(data as TokenResponse);
+					if (response.status >= 200 && response.status < 300) {
+						if (this.pollingTimer) {
+							window.clearInterval(this.pollingTimer);
+							this.pollingTimer = null;
+						}
+						wrappedResolve(data as TokenResponse);
 					} else if (data.error === 'authorization_pending') {
 						// Continue polling
 						return;
-			} else if (data.error === 'slow_down') {
-				// Auth0 requests to slow down polling frequency
-				if (this.pollingTimer) {
-					window.clearInterval(this.pollingTimer);
-				}
-				// Only set new timer if still polling
-				if (this.isPolling) {
-					this.pollingTimer = this.plugin.registerInterval(
-						window.setInterval(poll, (interval + 5) * 1000)
-					);
-				}
-				return;
-				} else {
-					if (this.pollingTimer) {
-						window.clearInterval(this.pollingTimer);
-						this.pollingTimer = null;
+					} else if (data.error === 'slow_down') {
+						// Auth0 requests to slow down polling frequency
+						if (this.pollingTimer) {
+							window.clearInterval(this.pollingTimer);
+						}
+						// Only set new timer if still polling
+						if (this.isPolling) {
+							this.pollingTimer = this.plugin.registerInterval(
+								window.setInterval(poll, (interval + 5) * 1000)
+							);
+						}
+						return;
+					} else {
+						if (this.pollingTimer) {
+							window.clearInterval(this.pollingTimer);
+							this.pollingTimer = null;
+						}
+						wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
 					}
-					wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
-				}
 				} catch (error: any) {
 					console.error('Polling error:', error);
 					// Check if polling has been stopped (after error occurred)
@@ -333,11 +333,11 @@ export class Auth0Service {
 				}
 			};
 
-	// Start polling
-	this.pollingTimer = this.plugin.registerInterval(
-		window.setInterval(poll, interval * 1000)
-	);
-	poll(); // Execute first time immediately
+			// Start polling
+			this.pollingTimer = this.plugin.registerInterval(
+				window.setInterval(poll, interval * 1000)
+			);
+			poll(); // Execute first time immediately
 		});
 	}
 
@@ -439,14 +439,14 @@ export class Auth0Service {
 	private async autoRefreshToken() {
 		try {
 			const tokenResponse = await this.refreshToken();
-			
+
 			// Update settings
 			this.plugin.settings.accessToken = tokenResponse.access_token;
 			if (tokenResponse.refresh_token) {
 				this.plugin.settings.refreshToken = tokenResponse.refresh_token;
 			}
 			this.plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
-			
+
 			await this.plugin.saveSettings();
 		} catch (error: any) {
 			console.error('Token refresh failed:', error);
@@ -456,16 +456,16 @@ export class Auth0Service {
 
 	// Logout
 	async logout() {
-	// Stop polling
-	this.stopPolling();
-	
-	// Clear timer
-	if (this.plugin.tokenRefreshTimer) {
-		window.clearInterval(this.plugin.tokenRefreshTimer);
-		this.plugin.tokenRefreshTimer = null;
-	}
+		// Stop polling
+		this.stopPolling();
 
-	// Clear login status
+		// Clear timer
+		if (this.plugin.tokenRefreshTimer) {
+			window.clearInterval(this.plugin.tokenRefreshTimer);
+			this.plugin.tokenRefreshTimer = null;
+		}
+
+		// Clear login status
 		this.plugin.settings.isLoggedIn = false;
 		this.plugin.settings.accessToken = undefined;
 		this.plugin.settings.refreshToken = undefined;
@@ -473,7 +473,7 @@ export class Auth0Service {
 		this.plugin.settings.userInfo = undefined;
 
 		await this.plugin.saveSettings();
-		
+
 		// Notify user
 		new Notice('Logged out');
 
@@ -513,10 +513,10 @@ export class PaymentRequiredModal extends Modal {
 		const proOption = optionsContainer.createDiv('agentmode-payment-modal-option');
 		proOption.createEl('h4', { text: '1. Upgrade to Agentmode PRO' });
 		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
-		
-		const proButton = proOption.createEl('button', { 
+
+		const proButton = proOption.createEl('button', {
 			text: 'Open billing portal',
-			cls: 'agentmode-payment-modal-button primary' 
+			cls: 'agentmode-payment-modal-button primary'
 		});
 		proButton.onclick = async () => {
 			await this.plugin.openBillingPortal();
@@ -527,10 +527,10 @@ export class PaymentRequiredModal extends Modal {
 		const byokOption = optionsContainer.createDiv('agentmode-payment-modal-option');
 		byokOption.createEl('h4', { text: '2. Bring your own OpenAI key' });
 		byokOption.createEl('p', { text: 'Configure your own OpenAI API key to use AI features.' });
-		
-		const byokButton = byokOption.createEl('button', { 
+
+		const byokButton = byokOption.createEl('button', {
 			text: 'Open settings',
-			cls: 'agentmode-payment-modal-button secondary' 
+			cls: 'agentmode-payment-modal-button secondary'
 		});
 		byokButton.onclick = () => {
 			this.plugin.openPluginSettings();
@@ -539,9 +539,9 @@ export class PaymentRequiredModal extends Modal {
 
 		// Cancel button
 		const buttonContainer = container.createDiv('agentmode-payment-modal-buttons');
-		const cancelButton = buttonContainer.createEl('button', { 
+		const cancelButton = buttonContainer.createEl('button', {
 			text: 'Cancel',
-			cls: 'agentmode-payment-modal-button cancel' 
+			cls: 'agentmode-payment-modal-button cancel'
 		});
 		cancelButton.onclick = () => {
 			this.close();
@@ -580,7 +580,7 @@ export class LoginModal extends Modal {
 
 		// Create React root node
 		this.root = createRoot(contentEl);
-		
+
 		// Render LoginComponent
 		this.root.render(
 			React.createElement(StrictMode, null,
@@ -609,7 +609,7 @@ export class LoginModal extends Modal {
 			this.root.unmount();
 			this.root = null;
 		}
-		
+
 		// Ensure Auth0Service polling is stopped
 		const auth0Service = this.plugin.getAuth0Service();
 		if (auth0Service) {
@@ -653,11 +653,11 @@ export default class AgentPlugin extends Plugin {
 	// Add debouncing for file processing
 	private fileProcessingTimeouts: Map<string, number> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
-	
+
 	// Chat interruption control
 	private currentChatController: AbortController | null = null;
 	private shouldStopChat: boolean = false;
-	
+
 	// Embedding Queue for processing files
 	private embeddingQueue: Set<string> = new Set(); // Use Set to avoid duplicates
 	private queueDetails: Map<string, EmbeddingQueueItem> = new Map(); // Store detailed info
@@ -666,29 +666,29 @@ export default class AgentPlugin extends Plugin {
 	private readonly QUEUE_CONSUMER_INTERVAL = 5000; // 5 seconds
 	private readonly RETRY_ATTEMPTS = 3;
 	private readonly RETRY_DELAY = 5000; // 5 seconds
-	
+
 	// Settings UI update callbacks
 	private settingsUpdateCallbacks: (() => void)[] = [];
 	private lastSuccessfulEmbeddingTime: number | null = null;
-	
+
 	private openaiClient: OpenAI | null = null;
-	
+
 	// Auth0 configuration
 	private auth0Config: Auth0Config;
 	public tokenRefreshTimer: number | null = null;
 	private auth0Service: Auth0Service | null = null;
-	
+
 	// Status Bar
 	private statusBarElement: HTMLElement | null = null;
-	
+
 	// Edit confirmation state
 	private pendingEditConfirmation: PendingEditConfirmation | null = null;
 	private editConfirmationCallbacks: EditConfirmationCallbacks | null = null;
-	
+
 	// Create note confirmation state
 	private pendingCreateNoteConfirmation: PendingCreateNoteConfirmation | null = null;
 	private createNoteConfirmationCallbacks: CreateNoteConfirmationCallbacks | null = null;
-	
+
 	// Event emitter for UI updates
 	private editConfirmationListeners: ((confirmation: PendingEditConfirmation | null) => void)[] = [];
 	private createNoteConfirmationListeners: ((confirmation: PendingCreateNoteConfirmation | null) => void)[] = [];
@@ -770,7 +770,7 @@ export default class AgentPlugin extends Plugin {
 			audience: process.env.AUTH0_AUDIENCE || ''
 		};
 
-		
+
 		// Validate if configuration is complete
 		if (!this.auth0Config.domain || !this.auth0Config.clientId || !this.auth0Config.audience) {
 			console.warn('Auth0 configuration incomplete. Some Auth0 features may not work.');
@@ -781,7 +781,7 @@ export default class AgentPlugin extends Plugin {
 	initializeAuth0Service() {
 		// Create Auth0Service instance
 		this.auth0Service = new Auth0Service(this, this.auth0Config);
-		
+
 		// If already logged in, set up token refresh timer
 		if (this.settings.isLoggedIn && this.settings.accessToken) {
 			this.auth0Service.setupTokenRefreshTimer();
@@ -792,62 +792,62 @@ export default class AgentPlugin extends Plugin {
 		// Create status bar element
 		this.statusBarElement = this.addStatusBarItem();
 		this.statusBarElement.addClass('agentmode-auth-status-bar');
-		
+
 		// Add click event
 		this.statusBarElement.addEventListener('click', () => {
 			this.showStatusBarMenu();
 		});
-		
+
 		// Update status bar display
 		this.updateStatusBar();
 	}
 
 	updateStatusBar() {
 		if (!this.statusBarElement) return;
-		
+
 		this.statusBarElement.empty();
-		
+
 		if (this.isLoggedIn()) {
 			// Logged in status
 			const userInfo = this.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
-			
+
 			// Add icon
 			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-in' });
 			icon.textContent = '✅';
-			
+
 			// Add user name
 			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
 			text.textContent = 'Agent Mode';
-			
+
 			this.statusBarElement.title = `Logged in: ${userName}\nClick to view options`;
 		} else {
 			// Not logged in status
 			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-out' });
 			icon.textContent = '⚫';
-			
+
 			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
 			text.textContent = 'Agent Mode';
-			
+
 			this.statusBarElement.title = 'Not logged in (Click to log in)';
 		}
 	}
 
 	showStatusBarMenu() {
 		const menu = new Menu();
-		
+
 		if (this.isLoggedIn()) {
 			// Logged in, show user info and logout option
 			const userInfo = this.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
-			
+
 			menu.addItem((item: any) => {
 				item.setTitle(`User: ${userName}`)
 					.setIcon('user')
 					.setDisabled(true);
 			});
-			
+
 			if (userEmail && userEmail !== userName) {
 				menu.addItem((item: any) => {
 					item.setTitle(`Email: ${userEmail}`)
@@ -855,9 +855,9 @@ export default class AgentPlugin extends Plugin {
 						.setDisabled(true);
 				});
 			}
-			
+
 			menu.addSeparator();
-			
+
 			menu.addItem((item: any) => {
 				item.setTitle('Log out')
 					.setIcon('log-out')
@@ -877,10 +877,10 @@ export default class AgentPlugin extends Plugin {
 					});
 			});
 		}
-		
+
 		// Add settings option
 		menu.addSeparator();
-		
+
 		menu.addItem((item: any) => {
 			item.setTitle('Settings')
 				.setIcon('settings')
@@ -888,7 +888,7 @@ export default class AgentPlugin extends Plugin {
 					this.openPluginSettings();
 				});
 		});
-		
+
 		// Show menu
 		menu.showAtMouseEvent(event as MouseEvent);
 	}
@@ -897,7 +897,7 @@ export default class AgentPlugin extends Plugin {
 		try {
 			// Create vector database directory in the plugin's folder
 			this.vectorDbPath = `${this.manifest.dir}/vectors`;
-			
+
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.vectorDbPath);
 		} catch (error) {
@@ -919,7 +919,7 @@ export default class AgentPlugin extends Plugin {
 		try {
 			// Create chat history directory in the plugin's folder
 			this.historyDbPath = `${this.manifest.dir}/chat-history`;
-			
+
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.historyDbPath);
 		} catch (error) {
@@ -940,16 +940,16 @@ export default class AgentPlugin extends Plugin {
 				}))
 			};
 
-		// Create filename: <chat_id>.json (simple and ensures one file per chat)
-		const filename = `${entry.id}.json`;
-		const filepath = `${this.historyDbPath}/${filename}`;
+			// Create filename: <chat_id>.json (simple and ensures one file per chat)
+			const filename = `${entry.id}.json`;
+			const filepath = `${this.historyDbPath}/${filename}`;
 
-		// Save to disk
-		await this.app.vault.adapter.write(filepath, JSON.stringify(serializedEntry, null, 2));
+			// Save to disk
+			await this.app.vault.adapter.write(filepath, JSON.stringify(serializedEntry, null, 2));
 
-		// Implement rotation: only on new chat creation
-		if (isNewChat) {
-			await this.rotateHistory();
+			// Implement rotation: only on new chat creation
+			if (isNewChat) {
+				await this.rotateHistory();
 			}
 		} catch (error) {
 			console.error('Error saving history entry:', error);
@@ -964,7 +964,7 @@ export default class AgentPlugin extends Plugin {
 
 			// Read all files to get their timestamps
 			const filesWithTimestamps: { path: string; timestamp: number }[] = [];
-			
+
 			for (const filepath of historyFiles) {
 				try {
 					const content = await this.app.vault.adapter.read(filepath);
@@ -980,13 +980,13 @@ export default class AgentPlugin extends Plugin {
 			// Sort by timestamp descending (newest first)
 			filesWithTimestamps.sort((a, b) => b.timestamp - a.timestamp);
 
-		// If we have more than HISTORY_LIMIT, delete the oldest ones
-		if (filesWithTimestamps.length > HISTORY_LIMIT) {
-			const filesToDelete = filesWithTimestamps.slice(HISTORY_LIMIT);
-			for (const fileInfo of filesToDelete) {
-				await this.app.vault.adapter.remove(fileInfo.path);
+			// If we have more than HISTORY_LIMIT, delete the oldest ones
+			if (filesWithTimestamps.length > HISTORY_LIMIT) {
+				const filesToDelete = filesWithTimestamps.slice(HISTORY_LIMIT);
+				for (const fileInfo of filesToDelete) {
+					await this.app.vault.adapter.remove(fileInfo.path);
+				}
 			}
-		}
 		} catch (error) {
 			console.error('Error rotating history:', error);
 		}
@@ -1042,13 +1042,13 @@ export default class AgentPlugin extends Plugin {
 			// With new filename format, we can directly construct the path
 			const filename = `${id}.json`;
 			const filepath = `${this.historyDbPath}/${filename}`;
-			
-		// Check if file exists and delete
-		try {
-			await this.app.vault.adapter.remove(filepath);
-		} catch (error) {
-			// File not found or already deleted - this is fine
-		}
+
+			// Check if file exists and delete
+			try {
+				await this.app.vault.adapter.remove(filepath);
+			} catch (error) {
+				// File not found or already deleted - this is fine
+			}
 		} catch (error) {
 			console.error('Error deleting history entry:', error);
 			new Notice('Failed to delete chat history entry');
@@ -1081,7 +1081,7 @@ export default class AgentPlugin extends Plugin {
 
 	// Agent chat completion with streaming and tool use
 	async streamAgentChat(
-		messages: ChatMessage[], 
+		messages: ChatMessage[],
 		contextFiles: TFile[],
 		model: string,
 		chatMode: 'Ask' | 'Agent',
@@ -1104,7 +1104,7 @@ export default class AgentPlugin extends Plugin {
 		try {
 			// Get system prompt with context files
 			const systemPrompt = this.getSystemPrompt(contextFiles);
-			
+
 			// Convert messages to OpenAI format and build conversation
 			const chatMessages: ChatCompletionMessageParam[] = [
 				{ role: 'system', content: systemPrompt },
@@ -1279,41 +1279,41 @@ export default class AgentPlugin extends Plugin {
 						}
 					}
 				},
-			{
-				type: 'function' as const,
-				function: {
-					name: 'vault_grep',
-					description: 'Perform text search across vault files using regular expressions, similar to Linux grep command. Supports regex patterns for flexible matching in plain text files. Use exact text for simple searches or regex patterns for advanced matching.',
-					parameters: {
-						type: 'object',
-						properties: {
-							pattern: {
-								type: 'string',
-								description: 'The text pattern or regular expression to search for. Supports JavaScript regex syntax. Simple text strings are also valid patterns.'
+				{
+					type: 'function' as const,
+					function: {
+						name: 'vault_grep',
+						description: 'Perform text search across vault files using regular expressions, similar to Linux grep command. Supports regex patterns for flexible matching in plain text files. Use exact text for simple searches or regex patterns for advanced matching.',
+						parameters: {
+							type: 'object',
+							properties: {
+								pattern: {
+									type: 'string',
+									description: 'The text pattern or regular expression to search for. Supports JavaScript regex syntax. Simple text strings are also valid patterns.'
+								},
+								case_insensitive: {
+									type: 'boolean',
+									description: 'Optional flag to perform case-insensitive matching (like grep -i). Defaults to false (case-sensitive).'
+								},
+								target_subpaths: {
+									type: 'array',
+									items: { type: 'string' },
+									description: 'Optional list of folders to scope the search to specific subdirectories.'
+								},
+								file_extensions: {
+									type: 'array',
+									items: { type: 'string' },
+									description: 'Optional file extension filter (e.g., ["md", "txt"]). Defaults to all supported plain text files.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'One sentence explanation of why this search is necessary for the user\'s task.'
+								}
 							},
-							case_insensitive: {
-								type: 'boolean',
-								description: 'Optional flag to perform case-insensitive matching (like grep -i). Defaults to false (case-sensitive).'
-							},
-							target_subpaths: {
-								type: 'array',
-								items: { type: 'string' },
-								description: 'Optional list of folders to scope the search to specific subdirectories.'
-							},
-							file_extensions: {
-								type: 'array',
-								items: { type: 'string' },
-								description: 'Optional file extension filter (e.g., ["md", "txt"]). Defaults to all supported plain text files.'
-							},
-							explanation: {
-								type: 'string',
-								description: 'One sentence explanation of why this search is necessary for the user\'s task.'
-							}
-						},
-						required: ['pattern', 'explanation']
+							required: ['pattern', 'explanation']
+						}
 					}
-				}
-			},
+				},
 				{
 					type: 'function' as const,
 					function: {
@@ -1350,71 +1350,71 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
-					// Main conversation loop - continue until no more tool calls
-		let finalAssistantContent = '';
-		while (true) {
-			// Check for interruption
-			if (this.shouldStopChat) {
-				onInterrupted?.();
-				return;
-			}
-			
-			// Start streaming chat completion
-			let reqOptions: RequestOptions = {
-				headers: {
-					'Authorization': `Bearer ${this.settings.accessToken}`
-				},
-				signal: this.currentChatController.signal
-			}
-			if (this.settings.openaiApiKey) {
-				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
-			}
-
-			const stream = await this.openaiClient.chat.completions.create({
-				model: model,
-				messages: chatMessages,
-				tools: tools,
-				stream: true,
-				// temperature: 0.7
-			}, reqOptions);
-
-			// Build up the message from streaming chunks
-			let currentMessage: any = {};
-			
-			for await (const chunk of stream) {
+			// Main conversation loop - continue until no more tool calls
+			let finalAssistantContent = '';
+			while (true) {
 				// Check for interruption
 				if (this.shouldStopChat) {
 					onInterrupted?.();
 					return;
 				}
-				
-				currentMessage = this.messageReducer(currentMessage, chunk);
-				
-				// Stream content to UI
-				const delta = chunk.choices[0]?.delta;
-				if (delta?.content) {
-					onChunk(delta.content);
-					// Accumulate final content
-					finalAssistantContent += delta.content;
+
+				// Start streaming chat completion
+				let reqOptions: RequestOptions = {
+					headers: {
+						'Authorization': `Bearer ${this.settings.accessToken}`
+					},
+					signal: this.currentChatController.signal
 				}
-				
-				// Handle tool call deltas
-				if (delta?.tool_calls) {
-					for (const toolCall of delta.tool_calls) {
-						if (toolCall.function?.name) {
-							onToolCall(toolCall);
+				if (this.settings.openaiApiKey) {
+					(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
+				}
+
+				const stream = await this.openaiClient.chat.completions.create({
+					model: model,
+					messages: chatMessages,
+					tools: tools,
+					stream: true,
+					// temperature: 0.7
+				}, reqOptions);
+
+				// Build up the message from streaming chunks
+				let currentMessage: any = {};
+
+				for await (const chunk of stream) {
+					// Check for interruption
+					if (this.shouldStopChat) {
+						onInterrupted?.();
+						return;
+					}
+
+					currentMessage = this.messageReducer(currentMessage, chunk);
+
+					// Stream content to UI
+					const delta = chunk.choices[0]?.delta;
+					if (delta?.content) {
+						onChunk(delta.content);
+						// Accumulate final content
+						finalAssistantContent += delta.content;
+					}
+
+					// Handle tool call deltas
+					if (delta?.tool_calls) {
+						for (const toolCall of delta.tool_calls) {
+							if (toolCall.function?.name) {
+								onToolCall(toolCall);
+							}
 						}
 					}
 				}
-			}
 
-			// Add the completed assistant message to conversation
-			chatMessages.push(currentMessage);
+				// Add the completed assistant message to conversation
+				chatMessages.push(currentMessage);
 
-			// If there are no tool calls, we're done
-			if (!currentMessage.tool_calls) {
-				break;
-			}
+				// If there are no tool calls, we're done
+				if (!currentMessage.tool_calls) {
+					break;
+				}
 
 				// Execute tool calls and add results to conversation
 				for (const toolCall of currentMessage.tool_calls) {
@@ -1423,13 +1423,13 @@ export default class AgentPlugin extends Plugin {
 						onInterrupted?.();
 						return;
 					}
-					
+
 					try {
 						const args = JSON.parse(toolCall.function.arguments || '{}');
 
-						
+
 						let result = '';
-						
+
 						switch (toolCall.function.name) {
 							case 'vault_search':
 								result = await this.toolVaultSearch(args);
@@ -1458,17 +1458,17 @@ export default class AgentPlugin extends Plugin {
 							default:
 								result = 'Unknown tool call';
 						}
-						
+
 						// Add tool result to conversation
 						const toolMessage: ChatCompletionMessageParam = {
 							tool_call_id: toolCall.id,
 							role: 'tool',
 							content: result
 						};
-						
+
 						chatMessages.push(toolMessage);
 						onToolResult({ toolCallId: toolCall.id, result });
-						
+
 					} catch (error: any) {
 						// Debug: Log tool call error
 						console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
@@ -1477,19 +1477,19 @@ export default class AgentPlugin extends Plugin {
 							error_stack: error.stack,
 							full_error: error
 						});
-						
+
 						// Handle tool execution error
 						const errorMessage: ChatCompletionMessageParam = {
 							tool_call_id: toolCall.id,
 							role: 'tool',
 							content: `Error: ${error.message || 'Unknown error'}`
 						};
-						
+
 						chatMessages.push(errorMessage);
 						onToolResult({ toolCallId: toolCall.id, result: `Error: ${error.message || 'Unknown error'}` });
 					}
 				}
-				
+
 				// Continue the loop for next round of chat completion
 			}
 
@@ -1497,13 +1497,13 @@ export default class AgentPlugin extends Plugin {
 
 		} catch (error: any) {
 			console.error('Error in agent chat:', error);
-			
+
 			// Handle abort error
 			if (error.name === 'AbortError' || this.shouldStopChat) {
 				onInterrupted?.();
 				return;
 			}
-			
+
 			if (error.status === 401) {
 				this.logout();
 			}
@@ -1566,7 +1566,7 @@ export default class AgentPlugin extends Plugin {
 	private getSystemPrompt(contextFiles?: TFile[]): string {
 		// Get vault path correctly - try multiple methods
 		let vaultPath = '/Users/vault'; // fallback
-		
+
 		try {
 			// Method 1: Try to get the actual vault path from adapter
 			if (this.app.vault.adapter && (this.app.vault.adapter as any).fs && (this.app.vault.adapter as any).fs.getBasePath) {
@@ -1598,7 +1598,7 @@ export default class AgentPlugin extends Plugin {
 			console.warn('🔍 [SYSTEM] Could not determine vault path, using fallback:', error);
 		}
 		const osInfo = navigator.platform;
-		
+
 		// Build context files section if any are provided
 		let contextFilesSection = '';
 		if (contextFiles && contextFiles.length > 0) {
@@ -1606,7 +1606,7 @@ export default class AgentPlugin extends Plugin {
 				const lastModified = new Date(file.stat.mtime).toISOString();
 				return `- ${file.path} (${file.name}) - Last modified: ${lastModified}`;
 			}).join('\n');
-			
+
 			contextFilesSection = `
 
 <context_files>
@@ -1616,7 +1616,7 @@ ${contextFilesList}
 These files represent the user's current focus and are most relevant to their immediate needs. ALWAYS prioritize examining and referencing these files when responding to the user's queries. When the user asks questions or requests actions, first consider how these context files relate to their request and use them as your primary source of information.
 </context_files>`;
 		}
-		
+
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
 
 You are collaborating with a USER to help them organize, write, and enhance their vault files.
@@ -1947,14 +1947,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}
 
 			const similarFiles = await this.searchSimilarFiles(embedding, 5);
-			
+
 			if (similarFiles.length === 0) {
 				return 'No relevant files found for your query.';
 			}
 
 			// Filter out deleted files and clean up their indexes
 			const validFiles = await this.filterAndCleanupResults(similarFiles);
-			
+
 			if (validFiles.length === 0) {
 				return 'No relevant files found for your query (some outdated results were cleaned up).';
 			}
@@ -1966,7 +1966,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}));
 
 			const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
-			
+
 			return resultText;
 		} catch (error: any) {
 			console.error('🔍 [TOOL] vault_search error:', error);
@@ -2018,7 +2018,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const file = abstractFile;
 
 			const fileType = this.getFileType(args.file_path);
-			
+
 			if (fileType === 'plain_text') {
 				return await this.readPlainTextFile(file, args);
 			} else if (fileType === 'convertible') {
@@ -2034,7 +2034,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private async readPlainTextFile(file: TFile, args: { start_line?: number; end_line?: number; read_entire_note?: boolean }): Promise<string> {
 		const content = await this.app.vault.read(file);
-		
+
 		if (args.read_entire_note || (!args.start_line && !args.end_line)) {
 			return content;
 		}
@@ -2042,7 +2042,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		const lines = content.split('\n');
 		const startIdx = (args.start_line || 1) - 1;
 		const endIdx = (args.end_line || lines.length) - 1;
-		
+
 		return lines.slice(startIdx, endIdx + 1).join('\n');
 	}
 
@@ -2054,26 +2054,26 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		// Read file as binary
 		const arrayBuffer = await this.app.vault.readBinary(file);
-		
+
 		// Convert to base64 (handle large files safely)
 		const uint8Array = new Uint8Array(arrayBuffer);
 		let binaryString = '';
 		const chunkSize = 8192; // Process in chunks to avoid stack overflow
-		
+
 		for (let i = 0; i < uint8Array.length; i += chunkSize) {
 			const chunk = uint8Array.slice(i, i + chunkSize);
 			binaryString += String.fromCharCode(...chunk);
 		}
-		
+
 		const base64 = btoa(binaryString);
-		
+
 		// Get MIME type
 		const ext = args.file_path.split('.').pop()?.toLowerCase() || '';
 		const mimeType = AgentPlugin.MIME_TYPES[ext] || 'application/octet-stream';
-		
+
 		// Construct data URI
 		const dataUri = `data:${mimeType};base64,${base64}`;
-		
+
 		// Call backend convert API
 		return await this.callConvertAPI(dataUri, args.file_path);
 	}
@@ -2110,7 +2110,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			if (response.status < 200 || response.status >= 300) {
 				const errorData = response.json || {};
 				console.error('📄 [TOOL] convert error:', response.status, errorData);
-				
+
 				if (response.status === 401) {
 					this.logout();
 					return 'Error: Authentication failed. Please log in again.';
@@ -2127,7 +2127,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}
 
 			const data = response.json;
-			
+
 			if (!data.success) {
 				console.error('📄 [TOOL] convert API error:', data);
 				return 'Error: File conversion failed.';
@@ -2147,11 +2147,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return "❌ I'm currently in Ask Mode, which prohibits file editing operations. If you need to create or edit files, please ask the user to switch to Agent Mode and try again.";
 			}
 
-					const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
-		if (!abstractFile || !(abstractFile instanceof TFile)) {
-			return `Note not found: ${args.file_path}`;
-		}
-		const file = abstractFile;
+			const abstractFile = this.app.vault.getAbstractFileByPath(args.file_path);
+			if (!abstractFile || !(abstractFile instanceof TFile)) {
+				return `Note not found: ${args.file_path}`;
+			}
+			const file = abstractFile;
 
 			// Read the current file content
 			const originalContent = await this.app.vault.read(file);
@@ -2172,10 +2172,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}
 
 			const modifiedContent = modifiedLines.join('\n');
-			
+
 			// Generate diff for preview
 			const diff = this.generateDiff(originalLines, modifiedLines, args.edits);
-			
+
 			// Return a Promise that will be resolved when user confirms or rejects
 			return new Promise<string>((resolve, reject) => {
 				// Create pending edit confirmation
@@ -2205,7 +2205,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						}
 					},
 					onReject: (reason?: string) => {
-						const message = reason 
+						const message = reason
 							? `❌ Edit rejected by user: ${reason}`
 							: `❌ Edit rejected by user. No changes were made to: ${args.file_path}`;
 						resolve(message);
@@ -2264,7 +2264,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		const ranges: Array<{ start: number; end: number }> = [];
 		for (const edit of edits) {
 			let start: number, end: number;
-			
+
 			if (edit.operation === 'insert') {
 				// Insert operations affect the line after start_line
 				start = edit.start_line + 1;
@@ -2321,21 +2321,21 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		// Use the diff library to compare the original and modified text
 		const originalText = originalLines.join('\n');
 		const modifiedText = modifiedLines.join('\n');
-		
+
 		// Get line-by-line diff using the diff library
 		const diffParts = Diff.diffLines(originalText, modifiedText);
-		
+
 		const result: DiffLine[] = [];
 		let originalLineNumber = 1;
 		let modifiedLineNumber = 1;
-		
+
 		for (const part of diffParts) {
 			const lines = part.value.split('\n');
 			// Remove the last empty line if it exists (split artifact)
 			if (lines[lines.length - 1] === '') {
 				lines.pop();
 			}
-			
+
 			if (part.added) {
 				// Added lines
 				for (const line of lines) {
@@ -2369,7 +2369,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				}
 			}
 		}
-		
+
 		return result;
 	}
 
@@ -2377,7 +2377,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private formatDiffForDisplay(diff: DiffLine[]): string {
 		const lines: string[] = [];
 		const contextLines = 2; // Show 2 lines of context around changes
-		
+
 		// Find lines with changes
 		const changedIndices = new Set<number>();
 		diff.forEach((line, index) => {
@@ -2388,16 +2388,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				}
 			}
 		});
-		
+
 		let lastShownIndex = -1;
-		
+
 		for (let i = 0; i < diff.length; i++) {
 			if (changedIndices.has(i)) {
 				// Show separator if there's a gap
 				if (lastShownIndex >= 0 && i > lastShownIndex + 1) {
 					lines.push('...');
 				}
-				
+
 				const line = diff[i];
 				switch (line.type) {
 					case 'deleted':
@@ -2452,7 +2452,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 							if (pathParts.length > 1) {
 								// Remove the filename to get the directory path
 								const directoryPath = pathParts.slice(0, -1).join('/');
-								
+
 								// Check if directory exists, if not create it
 								try {
 									const dirExists = await this.app.vault.adapter.exists(directoryPath);
@@ -2463,7 +2463,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 									// Directory might already exist or be created by another process
 								}
 							}
-							
+
 							// Create the file
 							await this.app.vault.create(args.file_path, args.content);
 							resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
@@ -2472,7 +2472,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						}
 					},
 					onReject: (reason?: string) => {
-						const message = reason 
+						const message = reason
 							? `❌ File creation rejected by user: ${reason}`
 							: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
 						resolve(message);
@@ -2493,14 +2493,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			// Convert absolute path to relative path if needed
 			let relativePath = args.vault_path;
-			
+
 			// If it's an absolute path, try to convert it to relative
 			if (relativePath.startsWith('/')) {
 				// Try to extract vault name and make relative path
 				const pathParts = relativePath.split('/');
 				const vaultName = this.app.vault.getName();
 				const vaultIndex = pathParts.findIndex(part => part === vaultName);
-				
+
 				if (vaultIndex !== -1 && vaultIndex < pathParts.length - 1) {
 					// Found vault name in path, use everything after it
 					relativePath = pathParts.slice(vaultIndex + 1).join('/');
@@ -2509,17 +2509,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					relativePath = '';
 				}
 			}
-			
+
 			// Handle root directory cases
 			if (!relativePath || relativePath === '/' || relativePath === '.') {
 				const files = this.app.vault.getAllLoadedFiles();
-				
+
 				// Filter to only show top-level items
 				const topLevelItems = files.filter(file => {
 					const pathDepth = file.path.split('/').length;
 					return pathDepth === 1; // Only files/folders directly in root
 				});
-				
+
 				const result = topLevelItems.map(f => {
 					if (f.path.endsWith('.md')) {
 						return `📄 ${f.path}`;
@@ -2527,17 +2527,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						return `📁 ${f.path}`;
 					}
 				}).slice(0, 20).join('\n');
-				
+
 				return result || 'No files found in vault root';
 			}
-			
+
 			// Check if the relative path exists as a folder
 			const folder = this.app.vault.getAbstractFileByPath(relativePath);
-			
+
 			if (folder && (folder as any).children) {
 				// It's a folder with children
 				const children = (folder as any).children;
-				
+
 				const listing = children.map((child: any) => {
 					if (child.children) {
 						return `📁 ${child.name}/`;
@@ -2545,25 +2545,25 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 						return `📄 ${child.name}`;
 					}
 				});
-				
+
 				const result = listing.slice(0, 20).join('\n');
 				return result || 'Empty folder';
 			}
-			
+
 			// Try using adapter.list directly with the path
 			const contents = await this.app.vault.adapter.list(relativePath);
-			
+
 			const listing = [
 				...contents.folders.map(f => `📁 ${f}/`),
 				...contents.files.map(f => `📄 ${f}`)
 			];
-			
+
 			const result = listing.slice(0, 20).join('\n');
 			return result || 'Empty directory';
-			
+
 		} catch (error: any) {
 			console.error('📂 [TOOL] list_vault error:', error);
-			
+
 			// Fallback: list all files in vault
 			try {
 				const files = this.app.vault.getAllLoadedFiles();
@@ -2579,27 +2579,27 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private vaultGrepCache: Map<string, { results: any[], timestamp: number }> = new Map();
 	private readonly CACHE_DURATION = 60000; // 1 minute in milliseconds
 
-	private async toolVaultGrep(args: { 
-		pattern: string; 
+	private async toolVaultGrep(args: {
+		pattern: string;
 		case_insensitive?: boolean;
-		target_subpaths?: string[]; 
-		file_extensions?: string[]; 
-		explanation: string 
+		target_subpaths?: string[];
+		file_extensions?: string[];
+		explanation: string
 	}) {
 		try {
-		// Create cache key
-		const cacheKey = JSON.stringify({
-			pattern: args.pattern,
-			case_insensitive: args.case_insensitive || false,
-			target_subpaths: args.target_subpaths || [],
-			file_extensions: args.file_extensions || []
-		});
+			// Create cache key
+			const cacheKey = JSON.stringify({
+				pattern: args.pattern,
+				case_insensitive: args.case_insensitive || false,
+				target_subpaths: args.target_subpaths || [],
+				file_extensions: args.file_extensions || []
+			});
 
-		// Check cache
-		const cached = this.vaultGrepCache.get(cacheKey);
-		if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
-			return JSON.stringify(cached.results);
-		}
+			// Check cache
+			const cached = this.vaultGrepCache.get(cacheKey);
+			if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+				return JSON.stringify(cached.results);
+			}
 
 			// Compile regex pattern with error handling
 			let regex: RegExp;
@@ -2613,34 +2613,34 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			// Get all files in vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
-			
+
 			// Filter files by type (only TFile, not folders)
 			const files = allFiles.filter(file => file.hasOwnProperty('extension')) as TFile[];
-			
+
 			// Apply file extension filter
 			const allowedExtensions = args.file_extensions || AgentPlugin.GREPPABLE_EXTENSIONS;
-			const filteredByExtension = files.filter(file => 
+			const filteredByExtension = files.filter(file =>
 				allowedExtensions.includes(file.extension.toLowerCase())
 			);
 
 			// Apply subpath filter if specified
 			let filteredFiles = filteredByExtension;
 			if (args.target_subpaths && args.target_subpaths.length > 0) {
-				filteredFiles = filteredByExtension.filter(file => 
-					args.target_subpaths!.some(subpath => 
+				filteredFiles = filteredByExtension.filter(file =>
+					args.target_subpaths!.some(subpath =>
 						file.path.startsWith(subpath.endsWith('/') ? subpath : subpath + '/')
 					)
 				);
-		}
+			}
 
-		const results: Array<{ path: string; line: number; content: string }> = [];
+			const results: Array<{ path: string; line: number; content: string }> = [];
 
 			// Search through each file
 			for (const file of filteredFiles) {
 				try {
 					const content = await this.app.vault.read(file);
 					const lines = content.split('\n');
-					
+
 					// Search each line using regex pattern
 					for (let i = 0; i < lines.length; i++) {
 						if (regex.test(lines[i])) {
@@ -2650,17 +2650,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 								content: lines[i]
 							});
 						}
+					}
+				} catch (error) {
+					// Continue with other files if one fails
 				}
-			} catch (error) {
-				// Continue with other files if one fails
 			}
-		}
 
-		// Cache the results
-		this.vaultGrepCache.set(cacheKey, {
-			results: results,
-			timestamp: Date.now()
-		});
+			// Cache the results
+			this.vaultGrepCache.set(cacheKey, {
+				results: results,
+				timestamp: Date.now()
+			});
 
 			// Clean up old cache entries (simple cleanup)
 			if (this.vaultGrepCache.size > 50) {
@@ -2686,96 +2686,96 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Not logged in. Please log in to use web search functionality.';
 			}
 
-		const backendUrl = process.env.BACKEND_BASE_URL;
-		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${this.settings.accessToken}`
-		};
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
 
-		// Add Firecrawl BYOK key if available
-		if (this.settings.firecrawlApiKey) {
-			headers['X-BYOK'] = this.settings.firecrawlApiKey;
-		}
-
-		const response = await requestUrl({
-			url: `${backendUrl}/search`,
-			method: 'POST',
-			headers: headers,
-			body: JSON.stringify({
-				query: args.query
-			}),
-			throw: false
-		});
-
-		if (response.status < 200 || response.status >= 300) {
-			const errorData = response.json || {};
-			console.error('🔍 [TOOL] web_search error:', response.status, errorData);
-			
-			if (response.status === 402) {
-				return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
-			} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
-				return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
-			} else if (response.status === 429) {
-				return 'Error: Search rate limit exceeded. Please try again later.';
-			} else {
-				return `Error: Web search failed (${response.status}). Please try again later.`;
+			// Add Firecrawl BYOK key if available
+			if (this.settings.firecrawlApiKey) {
+				headers['X-BYOK'] = this.settings.firecrawlApiKey;
 			}
-		}
 
-		const data = response.json;
-			
-		if (!data.success) {
-			console.error('🔍 [TOOL] web_search API error:', data);
-			return 'Error: Web search API returned unsuccessful response.';
-		}
-
-		// Format the search results for display
-		const results = [];
-		
-		if (data.data?.web && Array.isArray(data.data.web)) {
-			results.push('🌐 Web Results:');
-			data.data.web.forEach((result: any, index: number) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.description) {
-					results.push(`   ${result.description}`);
-				}
-				if (result.url) {
-					results.push(`   🔗 ${result.url}`);
-				}
-				results.push('');
+			const response = await requestUrl({
+				url: `${backendUrl}/search`,
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify({
+					query: args.query
+				}),
+				throw: false
 			});
-		}
 
-		if (data.data?.images && Array.isArray(data.data.images)) {
-			results.push('🖼️ Image Results:');
-			data.data.images.forEach((result: any, index: number) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.imageUrl) {
-					results.push(`   🔗 ${result.imageUrl}`);
-				}
-				results.push('');
-			});
-		}
+			if (response.status < 200 || response.status >= 300) {
+				const errorData = response.json || {};
+				console.error('🔍 [TOOL] web_search error:', response.status, errorData);
 
-		if (data.data?.news && Array.isArray(data.data.news)) {
-			results.push('📰 News Results:');
-			data.data.news.forEach((result: any, index: number) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.snippet) {
-					results.push(`   ${result.snippet}`);
+				if (response.status === 402) {
+					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+				} else if (response.status === 429) {
+					return 'Error: Search rate limit exceeded. Please try again later.';
+				} else {
+					return `Error: Web search failed (${response.status}). Please try again later.`;
 				}
-				if (result.url) {
-					results.push(`   🔗 ${result.url}`);
-				}
-				if (result.date) {
-					results.push(`   📅 ${result.date}`);
-				}
-				results.push('');
-			});
-		}
+			}
 
-		const resultText = results.join('\n');
-		return resultText || 'No search results found.';
+			const data = response.json;
+
+			if (!data.success) {
+				console.error('🔍 [TOOL] web_search API error:', data);
+				return 'Error: Web search API returned unsuccessful response.';
+			}
+
+			// Format the search results for display
+			const results = [];
+
+			if (data.data?.web && Array.isArray(data.data.web)) {
+				results.push('🌐 Web Results:');
+				data.data.web.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.description) {
+						results.push(`   ${result.description}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.images && Array.isArray(data.data.images)) {
+				results.push('🖼️ Image Results:');
+				data.data.images.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.imageUrl) {
+						results.push(`   🔗 ${result.imageUrl}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.news && Array.isArray(data.data.news)) {
+				results.push('📰 News Results:');
+				data.data.news.forEach((result: any, index: number) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.snippet) {
+						results.push(`   ${result.snippet}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					if (result.date) {
+						results.push(`   📅 ${result.date}`);
+					}
+					results.push('');
+				});
+			}
+
+			const resultText = results.join('\n');
+			return resultText || 'No search results found.';
 
 		} catch (error: any) {
 			console.error('🔍 [TOOL] web_search error:', error);
@@ -2796,80 +2796,80 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Invalid URL format. Please provide a valid URL.';
 			}
 
-		const backendUrl = process.env.BACKEND_BASE_URL;
-		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
-			'Authorization': `Bearer ${this.settings.accessToken}`
-		};
+			const backendUrl = process.env.BACKEND_BASE_URL;
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
 
-		// Add Firecrawl BYOK key if available
-		if (this.settings.firecrawlApiKey) {
-			headers['X-BYOK'] = this.settings.firecrawlApiKey;
-		}
-
-		const response = await requestUrl({
-			url: `${backendUrl}/scrape`,
-			method: 'POST',
-			headers: headers,
-			body: JSON.stringify({
-				url: args.url,
-				formats: ['summary'] // Always use summary format as requested
-			}),
-			throw: false
-		});
-
-		if (response.status < 200 || response.status >= 300) {
-			const errorData = response.json || {};
-			console.error('🕷️ [TOOL] web_scrape error:', response.status, errorData);
-			
-			if (response.status === 402) {
-				return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
-			} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
-				return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
-			} else if (response.status === 429) {
-				return 'Error: Scrape rate limit exceeded. Please try again later.';
-			} else {
-				return `Error: Web scrape failed (${response.status}). Please try again later.`;
+			// Add Firecrawl BYOK key if available
+			if (this.settings.firecrawlApiKey) {
+				headers['X-BYOK'] = this.settings.firecrawlApiKey;
 			}
-		}
 
-		const data = response.json;
-			
-		if (!data.success) {
-			console.error('🕷️ [TOOL] web_scrape API error:', data);
-			return 'Error: Web scrape API returned unsuccessful response.';
-		}
+			const response = await requestUrl({
+				url: `${backendUrl}/scrape`,
+				method: 'POST',
+				headers: headers,
+				body: JSON.stringify({
+					url: args.url,
+					formats: ['summary'] // Always use summary format as requested
+				}),
+				throw: false
+			});
 
-		// Format the scrape results for display
-		const results = [];
-		results.push(`🕷️ **Scraped Content from:** ${args.url}`);
-		results.push('');
+			if (response.status < 200 || response.status >= 300) {
+				const errorData = response.json || {};
+				console.error('🕷️ [TOOL] web_scrape error:', response.status, errorData);
 
-		if (data.data?.summary) {
-			results.push('📝 **Summary:**');
-			results.push(data.data.summary);
+				if (response.status === 402) {
+					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+				} else if (response.status === 429) {
+					return 'Error: Scrape rate limit exceeded. Please try again later.';
+				} else {
+					return `Error: Web scrape failed (${response.status}). Please try again later.`;
+				}
+			}
+
+			const data = response.json;
+
+			if (!data.success) {
+				console.error('🕷️ [TOOL] web_scrape API error:', data);
+				return 'Error: Web scrape API returned unsuccessful response.';
+			}
+
+			// Format the scrape results for display
+			const results = [];
+			results.push(`🕷️ **Scraped Content from:** ${args.url}`);
 			results.push('');
-		}
 
-		if (data.data?.metadata?.title) {
-			results.push(`📄 **Title:** ${data.data.metadata.title}`);
-		}
+			if (data.data?.summary) {
+				results.push('📝 **Summary:**');
+				results.push(data.data.summary);
+				results.push('');
+			}
 
-		if (data.data?.metadata?.description) {
-			results.push(`📋 **Description:** ${data.data.metadata.description}`);
-		}
+			if (data.data?.metadata?.title) {
+				results.push(`📄 **Title:** ${data.data.metadata.title}`);
+			}
 
-		if (data.data?.metadata?.language) {
-			results.push(`🌐 **Language:** ${data.data.metadata.language}`);
-		}
+			if (data.data?.metadata?.description) {
+				results.push(`📋 **Description:** ${data.data.metadata.description}`);
+			}
 
-		if (data.warning) {
-			results.push('');
-			results.push(`⚠️ **Warning:** ${data.warning}`);
-		}
+			if (data.data?.metadata?.language) {
+				results.push(`🌐 **Language:** ${data.data.metadata.language}`);
+			}
 
-		const resultText = results.join('\n');
-		return resultText || 'No content could be scraped from the URL.';
+			if (data.warning) {
+				results.push('');
+				results.push(`⚠️ **Warning:** ${data.warning}`);
+			}
+
+			const resultText = results.join('\n');
+			return resultText || 'No content could be scraped from the URL.';
 
 		} catch (error: any) {
 			console.error('🕷️ [TOOL] web_scrape error:', error);
@@ -2880,36 +2880,36 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	// Helper method to split text into chunks based on token count
 	splitTextIntoChunks(text: string, maxTokens: number = 8000, overlapTokens: number = 200): string[] {
 		const encoder = getEncoding('cl100k_base');
-		
+
 		const splitRecursively = (content: string): string[] => {
 			const tokens = encoder.encode(content);
-			
+
 			// If content is within token limit, return as single chunk
 			if (tokens.length <= maxTokens) {
 				return [content];
 			}
-			
+
 			// Split content in half
 			const midPoint = Math.floor(content.length / 2);
 			const firstHalf = content.substring(0, midPoint);
 			const secondHalf = content.substring(midPoint);
-			
+
 			// Recursively split each half
 			const firstChunks = splitRecursively(firstHalf);
 			const secondChunks = splitRecursively(secondHalf);
-			
+
 			return [...firstChunks, ...secondChunks];
 		};
-		
+
 		const chunks = splitRecursively(text);
-		
+
 		// Add overlap between chunks
 		if (chunks.length > 1 && overlapTokens > 0) {
 			const overlappedChunks: string[] = [];
-			
+
 			for (let i = 0; i < chunks.length; i++) {
 				let chunk = chunks[i];
-				
+
 				// Add overlap from previous chunk (except for first chunk)
 				if (i > 0) {
 					const prevChunk = chunks[i - 1];
@@ -2918,7 +2918,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					const overlapText = overlapWords.join(' ');
 					chunk = overlapText + '\n\n' + chunk;
 				}
-				
+
 				// Add overlap to next chunk (except for last chunk)
 				if (i < chunks.length - 1) {
 					const currentWords = chunk.split(' ');
@@ -2926,13 +2926,13 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					const overlapText = overlapWords.join(' ');
 					chunk = chunk + '\n\n' + overlapText;
 				}
-				
+
 				overlappedChunks.push(chunk);
 			}
-			
+
 			return overlappedChunks;
 		}
-		
+
 		return chunks;
 	}
 
@@ -2940,24 +2940,24 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			// Read file content
 			const content = await this.app.vault.read(file);
-			
+
 			// Generate MD5 hash for content
 			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
-			
+
 			// Generate MD5 hash for file path (used as ID)
 			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
-			
+
 			// Split content into chunks
 			const chunks = this.splitTextIntoChunks(content);
-			
+
 			// Generate embeddings for each chunk
 			const vectors: number[][] = [];
-			
+
 			for (let i = 0; i < chunks.length; i++) {
 				const chunk = chunks[i];
 				// Include metadata in the chunk for embedding
 				const embeddingContent = `File: ${file.name}\nPath: ${file.path}\nChunk ${i + 1}/${chunks.length}:\n${chunk}`;
-				
+
 				const embedding = await this.getOpenAIEmbedding(embeddingContent);
 				if (embedding) {
 					vectors.push(embedding);
@@ -2965,7 +2965,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					console.error(`Failed to generate embedding for chunk ${i + 1} of ${file.name}`);
 				}
 			}
-			
+
 			if (vectors.length > 0) {
 				// Create record for vector storage
 				const record: EmbeddingRecord = {
@@ -2980,7 +2980,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 				// Save the embedding to a JSON file
 				await this.saveEmbedding(record);
-				
+
 				// Update last successful embedding time
 				this.lastSuccessfulEmbeddingTime = Date.now();
 			} else {
@@ -2997,11 +2997,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Generate MD5 hash from the file path (which is relative to vault)
 			const pathHash = CryptoJS.MD5(record.file_path).toString(CryptoJS.enc.Hex);
 			const embeddingFilePath = this.vectorDbPath + '/' + pathHash + '.json';
-			
+
 			// Save the embedding record as JSON
 			const jsonData = JSON.stringify(record, null, 2);
 			await this.app.vault.adapter.write(embeddingFilePath, jsonData);
-			
+
 		} catch (error) {
 			console.error('Error saving embedding:', error);
 			throw error;
@@ -3011,10 +3011,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	async loadAllEmbeddings(): Promise<EmbeddingRecord[]> {
 		try {
 			const embeddings: EmbeddingRecord[] = [];
-			
+
 			// List all JSON files in the vectors directory
 			const files = await this.app.vault.adapter.list(this.vectorDbPath);
-			
+
 			for (const file of files.files) {
 				if (file.endsWith('.json')) {
 					try {
@@ -3026,7 +3026,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					}
 				}
 			}
-			
+
 			return embeddings;
 		} catch (error) {
 			console.error('Error loading embeddings:', error);
@@ -3044,23 +3044,23 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	async searchSimilarFiles(queryEmbedding: number[], topK: number = 5): Promise<EmbeddingRecord[]> {
 		const allEmbeddings = await this.loadAllEmbeddings();
-		
+
 		// Calculate similarities and sort
 		const similarities = allEmbeddings.map(record => {
 			// For each file, calculate similarity with all its vectors and take the maximum
 			let maxSimilarity = -1;
-			
+
 			for (const vector of record.vectors) {
 				const similarity = this.cosineSimilarity(queryEmbedding, vector);
 				maxSimilarity = Math.max(maxSimilarity, similarity);
 			}
-			
+
 			return {
 				record,
 				similarity: maxSimilarity
 			};
 		});
-		
+
 		// Sort by similarity (highest first) and return top K
 		return similarities
 			.sort((a, b) => b.similarity - a.similarity)
@@ -3107,16 +3107,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			window.clearTimeout(timeout);
 		});
 		this.fileProcessingTimeouts.clear();
-		
+
 		// Stop embedding queue consumer
 		// Note: The interval is automatically cleaned up by registerInterval(),
 		// but we call stopQueueConsumer() to set the timer reference to null
 		this.stopQueueConsumer();
-		
+
 		// Clear embedding queue
 		this.embeddingQueue.clear();
 		this.queueDetails.clear();
-		
+
 		// Stop Auth0 polling
 		// Note: All intervals are automatically cleaned up by registerInterval()
 		if (this.auth0Service) {
@@ -3167,17 +3167,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			return;
 		}
 
-	const fileKey = file.path;
-	if (this.fileProcessingTimeouts.has(fileKey)) {
-		window.clearTimeout(this.fileProcessingTimeouts.get(fileKey));
-	}
-	this.fileProcessingTimeouts.set(fileKey, window.setTimeout(() => {
-		// Double-check login status when timer fires (in case user logged out during debounce period)
-		if (this.isLoggedIn()) {
-			this.addToEmbeddingQueue(file.path, 'file_modify');
+		const fileKey = file.path;
+		if (this.fileProcessingTimeouts.has(fileKey)) {
+			window.clearTimeout(this.fileProcessingTimeouts.get(fileKey));
 		}
-		this.fileProcessingTimeouts.delete(fileKey);
-	}, this.DEBOUNCE_DELAY));
+		this.fileProcessingTimeouts.set(fileKey, window.setTimeout(() => {
+			// Double-check login status when timer fires (in case user logged out during debounce period)
+			if (this.isLoggedIn()) {
+				this.addToEmbeddingQueue(file.path, 'file_modify');
+			}
+			this.fileProcessingTimeouts.delete(fileKey);
+		}, this.DEBOUNCE_DELAY));
 	}
 
 	// Embedding Queue Management Methods
@@ -3185,14 +3185,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		if (!this.embeddingQueue.has(filePath)) {
 			this.embeddingQueue.add(filePath);
 			this.queueDetails.set(filePath, {
-					filePath,
-					addedAt: Date.now(),
+				filePath,
+				addedAt: Date.now(),
 				source
 			});
-		
+
 			// Notify UI update
 			this.notifySettingsUpdate();
-			
+
 			// Trigger immediate processing if not already processing
 			this.processEmbeddingQueue();
 		}
@@ -3204,22 +3204,22 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 
 		this.isProcessingQueue = true;
-		
+
 		try {
 			// Process one file at a time
 			const filePath = this.embeddingQueue.values().next().value;
 			if (filePath) {
 				await this.processFileFromQueue(filePath);
-				
+
 				// Remove from queue after processing
 				this.embeddingQueue.delete(filePath);
 				this.queueDetails.delete(filePath);
-				
-			// Continue processing if there are more items
-			if (this.embeddingQueue.size > 0) {
-				// Use setTimeout to avoid blocking the main thread
-				window.setTimeout(() => this.processEmbeddingQueue(), 100);
-			}
+
+				// Continue processing if there are more items
+				if (this.embeddingQueue.size > 0) {
+					// Use setTimeout to avoid blocking the main thread
+					window.setTimeout(() => this.processEmbeddingQueue(), 100);
+				}
 			}
 		} catch (error) {
 			console.error('Error in processEmbeddingQueue:', error);
@@ -3245,7 +3245,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			// Process with retry logic
 			await this.processFileForEmbeddingWithRetry(file);
-			
+
 		} catch (error) {
 			console.error(`Error processing file from queue: ${filePath}`, error);
 		}
@@ -3256,18 +3256,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Read current file content and generate MD5
 			const content = await this.app.vault.read(file);
 			const currentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
-			
+
 			// Check if embedding record exists
 			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
 			const embeddingFilePath = this.vectorDbPath + '/' + pathMd5 + '.json';
-			
+
 			try {
 				const existingContent = await this.app.vault.adapter.read(embeddingFilePath);
 				const existingRecord: EmbeddingRecord = JSON.parse(existingContent);
-				
+
 				// Skip if vectors exist and MD5 matches (no changes)
-				if (existingRecord.vectors && 
-					existingRecord.vectors.length > 0 && 
+				if (existingRecord.vectors &&
+					existingRecord.vectors.length > 0 &&
 					existingRecord.content_md5_hash === currentMd5) {
 					return true;
 				}
@@ -3275,7 +3275,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				// File doesn't exist or can't be read, so we should process
 				return false;
 			}
-			
+
 			return false;
 		} catch (error) {
 			console.error('Error checking if file should be skipped:', error);
@@ -3285,7 +3285,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private async processFileForEmbeddingWithRetry(file: TFile): Promise<void> {
 		let lastError: any = null;
-		
+
 		for (let attempt = 1; attempt <= this.RETRY_ATTEMPTS; attempt++) {
 			try {
 				await this.processFileForEmbedding(file);
@@ -3293,14 +3293,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			} catch (error) {
 				lastError = error;
 				console.error(`Embedding attempt ${attempt}/${this.RETRY_ATTEMPTS} failed for ${file.path}:`, error);
-				
-			if (attempt < this.RETRY_ATTEMPTS) {
-				// Wait before retry
-				await new Promise(resolve => window.setTimeout(resolve, this.RETRY_DELAY));
-			}
+
+				if (attempt < this.RETRY_ATTEMPTS) {
+					// Wait before retry
+					await new Promise(resolve => window.setTimeout(resolve, this.RETRY_DELAY));
+				}
 			}
 		}
-		
+
 		// All retries failed, save error record
 		await this.saveErrorRecord(file, lastError);
 	}
@@ -3310,7 +3310,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
 			const content = await this.app.vault.read(file);
 			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
-			
+
 			const errorRecord: EmbeddingRecord = {
 				id: pathMd5,
 				vectors: [], // Empty array for failed embeddings
@@ -3332,7 +3332,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		if (this.queueConsumerTimer) {
 			window.clearInterval(this.queueConsumerTimer);
 		}
-		
+
 		this.queueConsumerTimer = this.registerInterval(
 			window.setInterval(() => {
 				this.processEmbeddingQueue();
@@ -3349,18 +3349,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private clearEmbeddingQueue() {
 		const queueSize = this.embeddingQueue.size;
-		
+
 		// Clear the queue and details
 		this.embeddingQueue.clear();
 		this.queueDetails.clear();
-		
+
 		// Reset processing flag
 		this.isProcessingQueue = false;
-		
+
 		if (queueSize > 0) {
 			new Notice(`Cleared embedding queue (${queueSize} pending items)`);
 		}
-		
+
 		// Notify UI update
 		this.notifySettingsUpdate();
 	}
@@ -3399,7 +3399,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	async triggerReindexAllFiles(): Promise<void> {
 		// 1. Add all files to embedding queue
 		await this.initializeBatchEmbeddingQueue();
-		
+
 		// 2. Clean up orphaned index files
 		await this.cleanupOrphanedIndexFiles();
 	}
@@ -3408,7 +3408,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			const pathMd5 = CryptoJS.MD5(filePath).toString(CryptoJS.enc.Hex);
 			const indexFilePath = this.vectorDbPath + '/' + pathMd5 + '.json';
-			
+
 			// Check if index file exists
 			if (await this.app.vault.adapter.exists(indexFilePath)) {
 				await this.app.vault.adapter.remove(indexFilePath);
@@ -3422,30 +3422,30 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			const files = await this.app.vault.adapter.list(this.vectorDbPath);
 			let cleanedCount = 0;
-			
+
 			for (const indexFile of files.files) {
 				if (indexFile.endsWith('.json')) {
 					try {
 						// Read index file to get the original file path
 						const content = await this.app.vault.adapter.read(indexFile);
 						const record: EmbeddingRecord = JSON.parse(content);
-						
+
 						// Check if the corresponding vault file still exists
 						const fileExists = this.app.vault.getAbstractFileByPath(record.file_path) instanceof TFile;
-						
-					if (!fileExists) {
-						await this.app.vault.adapter.remove(indexFile);
-						cleanedCount++;
-					}
+
+						if (!fileExists) {
+							await this.app.vault.adapter.remove(indexFile);
+							cleanedCount++;
+						}
 					} catch (error) {
 						console.error(`Failed to process index file ${indexFile}:`, error);
 					}
 				}
-		}
-		
-		if (cleanedCount > 0) {
-			new Notice(`Cleaned up ${cleanedCount} orphaned index files`);
-		}
+			}
+
+			if (cleanedCount > 0) {
+				new Notice(`Cleaned up ${cleanedCount} orphaned index files`);
+			}
 		} catch (error) {
 			console.error('Failed to cleanup orphaned index files:', error);
 		}
@@ -3453,18 +3453,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private async filterAndCleanupResults(embeddings: EmbeddingRecord[]): Promise<EmbeddingRecord[]> {
 		const validEmbeddings: EmbeddingRecord[] = [];
-		
+
 		for (const embedding of embeddings) {
 			const fileExists = this.app.vault.getAbstractFileByPath(embedding.file_path) instanceof TFile;
-			
-		if (fileExists) {
-			validEmbeddings.push(embedding);
-		} else {
-			// File doesn't exist, clean up its index
-			await this.cleanupDeletedFileEmbedding(embedding.file_path);
+
+			if (fileExists) {
+				validEmbeddings.push(embedding);
+			} else {
+				// File doesn't exist, clean up its index
+				await this.cleanupDeletedFileEmbedding(embedding.file_path);
+			}
 		}
-		}
-		
+
 		return validEmbeddings;
 	}
 
@@ -3474,15 +3474,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			if (!this.isLoggedIn()) {
 				return;
 			}
-			
+
 			// Get all markdown files in the vault
 			const allFiles = this.app.vault.getMarkdownFiles();
-			
+
 			// Add all files to queue with batch_process source
 			for (const file of allFiles) {
 				this.addToEmbeddingQueue(file.path, 'batch_process');
 			}
-			
+
 			new Notice(`Added ${allFiles.length} files to embedding queue for processing`);
 		} catch (error) {
 			console.error('Error initializing batch embedding queue:', error);
@@ -3589,10 +3589,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			const loginModal = new LoginModal(this.app, this);
 			const success = await loginModal.showLogin();
-			
+
 			if (success) {
 				this.updateStatusBar();
-				
+
 				// Start batch embedding queue after successful login
 				await this.initializeBatchEmbeddingQueue();
 			}
@@ -3609,10 +3609,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		try {
 			await this.auth0Service.logout();
-			
+
 			// Clear embedding queue after logout
 			this.clearEmbeddingQueue();
-			
+
 			// UI update logic will be added here later
 		} catch (error: any) {
 			console.error('Logout failed:', error);
@@ -3699,13 +3699,13 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			// Get billing session URL
 			const billingUrl = await this.getBillingSession();
-			
+
 			// Open external browser
 			window.open(billingUrl, '_blank', 'noopener,noreferrer');
-			
+
 		} catch (error: any) {
 			console.error('Failed to open billing portal:', error);
-			
+
 			// Show error notification
 			if (error.message.includes('Not logged in')) {
 				new Notice('Please log in first to manage billing');
@@ -3756,65 +3756,65 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		// Auth0 login status section
 		containerEl.createEl('h3', { text: 'Login status' });
-		
+
 		const authContainer = containerEl.createDiv('agentmode-auth-settings-container');
-		
+
 		if (this.plugin.isLoggedIn()) {
 			// Show logged in status
 			const userInfo = this.plugin.getUserInfo();
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
-			
+
 			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
 			statusDiv.createEl('div', { text: '✅ Logged in', cls: 'agentmode-auth-status-logged-in' });
 			statusDiv.createEl('div', { text: `User: ${userName}`, cls: 'agentmode-auth-user-info' });
 			if (userEmail && userEmail !== userName) {
 				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'agentmode-auth-user-info' });
 			}
-			
+
 			// Add subscription information
 			const subscriptionDiv = statusDiv.createDiv('agentmode-subscription-info');
 			subscriptionDiv.createEl('div', { text: 'Loading subscription...', cls: 'agentmode-subscription-loading' });
-			
-							// Asynchronously get user profile
-				this.plugin.getUserProfile().then(profileData => {
+
+			// Asynchronously get user profile
+			this.plugin.getUserProfile().then(profileData => {
 				// Clear loading information
 				subscriptionDiv.empty();
-				
+
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
-					
+
 					// Create header with refresh button
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					
+
 					if (subscription) {
 						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
-						subscriptionDetails.createEl('div', { 
-							text: `Plan: ${subscription.product_name}`, 
-							cls: 'agentmode-subscription-plan' 
+						subscriptionDetails.createEl('div', {
+							text: `Plan: ${subscription.product_name}`,
+							cls: 'agentmode-subscription-plan'
 						});
-						subscriptionDetails.createEl('div', { 
+						subscriptionDetails.createEl('div', {
 							text: `Status: ${subscription.status.toUpperCase()}`,
-							cls: 'agentmode-subscription-status-active' 
+							cls: 'agentmode-subscription-status-active'
 						});
-						
+
 						// Show subscription period
 						if (subscription.plan_id !== 'free') {
 							const periodEnd = new Date(subscription.current_period_end);
-							subscriptionDetails.createEl('div', { 
-								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-								cls: 'agentmode-subscription-period' 
+							subscriptionDetails.createEl('div', {
+								text: `Valid until: ${periodEnd.toLocaleDateString()}`,
+								cls: 'agentmode-subscription-period'
 							});
 						}
-						
+
 						// If there is a trial period, show trial information
 						if (subscription.trial_end) {
 							const trialEnd = new Date(subscription.trial_end);
 							if (trialEnd > new Date()) {
-								subscriptionDetails.createEl('div', { 
-									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
-									cls: 'agentmode-subscription-trial' 
+								subscriptionDetails.createEl('div', {
+									text: `Trial ends: ${trialEnd.toLocaleDateString()}`,
+									cls: 'agentmode-subscription-trial'
 								});
 							}
 						}
@@ -3825,11 +3825,11 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				} else {
 					// Show error information
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					subscriptionDiv.createEl('div', { 
-						text: 'Unable to load subscription info', 
-						cls: 'agentmode-subscription-error' 
+					subscriptionDiv.createEl('div', {
+						text: 'Unable to load subscription info',
+						cls: 'agentmode-subscription-error'
 					});
-					
+
 					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
 				}
@@ -3841,18 +3841,18 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					// Show error information
 					subscriptionDiv.empty();
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					subscriptionDiv.createEl('div', { 
-						text: 'Unable to load subscription info', 
-						cls: 'agentmode-subscription-error' 
+					subscriptionDiv.createEl('div', {
+						text: 'Unable to load subscription info',
+						cls: 'agentmode-subscription-error'
 					});
 					console.error('Failed to load user profile:', error);
-					
+
 					// Show Billing Portal button even if there's an error
 					this.addBillingPortalButton(subscriptionDiv);
 				}
-				
+
 			});
-			
+
 			// Logout button
 			new Setting(authContainer)
 				.setName('Log out')
@@ -3869,7 +3869,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
 			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'agentmode-auth-status-logged-out' });
 			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'agentmode-auth-status-desc' });
-			
+
 			// Login button
 			new Setting(authContainer)
 				.setName('Log in')
@@ -3882,10 +3882,10 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						this.display(); // Re-render settings page
 					}));
 		}
-		
+
 		// Separator line
 		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
-		
+
 		// OpenAI API key settings
 		containerEl.createEl('h3', { text: 'Bring your own key' });
 
@@ -3921,25 +3921,25 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		if (this.plugin.isLoggedIn()) {
 			// Add separator
 			containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
-			
+
 			this.createVaultIndexingSection(containerEl);
 		}
-		
+
 		// Register settings update callback for vault indexing status
 		this.registerSettingsUpdateCallback();
 	}
-	
+
 	private registerSettingsUpdateCallback() {
 		// Remove old callback if exists
 		if (this.updateCallback) {
 			this.plugin.removeSettingsUpdateListener(this.updateCallback);
 		}
-		
+
 		// Register new callback
 		this.updateCallback = () => this.updateVaultIndexingStatus();
 		this.plugin.addSettingsUpdateListener(this.updateCallback);
 	}
-	
+
 	// Clean up callback when tab is destroyed
 	onDestroy() {
 		if (this.updateCallback) {
@@ -3951,10 +3951,10 @@ class AgentPluginSettingTab extends PluginSettingTab {
 	private createVaultIndexingSection(containerEl: HTMLElement) {
 		// Create Vault file indexing section
 		containerEl.createEl('h4', { text: 'Vault file indexing', cls: 'agentmode-vault-indexing-header' });
-		
+
 		this.vaultIndexingContainer = containerEl.createDiv('agentmode-vault-indexing-container');
 		this.updateVaultIndexingStatus();
-		
+
 		// Add Reindex button
 		new Setting(this.vaultIndexingContainer)
 			.setName('Reindex all files')
@@ -3962,24 +3962,24 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			.addButton(button => {
 				const queueSize = this.plugin.getEmbeddingQueueSize();
 				const isIndexing = queueSize > 0;
-				
+
 				button
 					.setButtonText('Reindex all files')
 					.setDisabled(isIndexing)
 					.onClick(async () => {
-					const confirmed = await this.showReindexConfirmation();
-					if (!confirmed) {
-						// If user cancelled, we need to reset the button state
-						// The button will be updated by the next UI refresh
-						window.setTimeout(() => this.updateVaultIndexingStatus(), 100);
-					}
+						const confirmed = await this.showReindexConfirmation();
+						if (!confirmed) {
+							// If user cancelled, we need to reset the button state
+							// The button will be updated by the next UI refresh
+							window.setTimeout(() => this.updateVaultIndexingStatus(), 100);
+						}
 					});
 			});
 	}
 
 	private updateVaultIndexingStatus() {
 		if (!this.vaultIndexingContainer) return;
-		
+
 		// Find or create status container
 		let statusContainer = this.vaultIndexingContainer.querySelector('.agentmode-vault-indexing-status') as HTMLElement;
 		if (!statusContainer) {
@@ -3987,33 +3987,33 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		} else {
 			statusContainer.empty();
 		}
-		
+
 		const queueSize = this.plugin.getEmbeddingQueueSize();
 		const lastSuccessTime = this.plugin.getLastSuccessfulEmbeddingTime();
 		const isIndexing = queueSize > 0;
-		
+
 		// Status display
 		if (isIndexing) {
-			statusContainer.createEl('div', { 
-				text: `⏳ Indexing (${queueSize} files remaining)`, 
-				cls: 'indexing-status-indexing' 
+			statusContainer.createEl('div', {
+				text: `⏳ Indexing (${queueSize} files remaining)`,
+				cls: 'indexing-status-indexing'
 			});
 		} else {
-			statusContainer.createEl('div', { 
-				text: '✅ Synced (All files indexed)', 
-				cls: 'indexing-status-synced' 
+			statusContainer.createEl('div', {
+				text: '✅ Synced (All files indexed)',
+				cls: 'indexing-status-synced'
 			});
 		}
-		
+
 		// Last successful indexing time
 		if (lastSuccessTime) {
 			const lastTimeStr = new Date(lastSuccessTime).toLocaleString();
-			statusContainer.createEl('div', { 
-				text: `Last successful indexing: ${lastTimeStr}`, 
-				cls: 'last-indexing-time' 
+			statusContainer.createEl('div', {
+				text: `Last successful indexing: ${lastTimeStr}`,
+				cls: 'last-indexing-time'
 			});
 		}
-		
+
 		// Update Reindex button state
 		const reindexButton = this.vaultIndexingContainer.querySelector('button') as HTMLButtonElement;
 		if (reindexButton) {
@@ -4025,36 +4025,36 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		return new Promise((resolve) => {
 			const modal = new Modal(this.app);
 			modal.titleEl.setText('Reindex all files');
-			
+
 			const content = modal.contentEl;
-			content.createEl('p', { 
-				text: 'This will reindex all markdown files in your vault and may take some time. Are you sure you want to continue?' 
+			content.createEl('p', {
+				text: 'This will reindex all markdown files in your vault and may take some time. Are you sure you want to continue?'
 			});
-			
+
 			const buttonContainer = content.createDiv('agentmode-modal-button-container');
 			buttonContainer.style.display = 'flex';
 			buttonContainer.style.justifyContent = 'flex-end';
 			buttonContainer.style.gap = '10px';
 			buttonContainer.style.marginTop = '20px';
-			
+
 			// Cancel button
 			const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
 			cancelBtn.addEventListener('click', () => {
 				modal.close();
 				resolve(false); // User cancelled
 			});
-			
+
 			// Reindex button
-			const reindexBtn = buttonContainer.createEl('button', { 
-				text: 'Reindex', 
-				cls: 'mod-cta' 
+			const reindexBtn = buttonContainer.createEl('button', {
+				text: 'Reindex',
+				cls: 'mod-cta'
 			});
 			reindexBtn.addEventListener('click', async () => {
 				modal.close();
 				await this.plugin.triggerReindexAllFiles();
 				resolve(true); // User confirmed
 			});
-			
+
 			modal.open();
 		});
 	}
@@ -4077,7 +4077,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			try {
 				// Use the extracted public method
 				await this.plugin.openBillingPortal();
-				
+
 			} catch (error: any) {
 				// Error handling is already done in openBillingPortal method
 				console.error('Failed to open billing portal:', error);
@@ -4094,9 +4094,9 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		const headerContainer = containerDiv.createEl('div', { cls: 'agentmode-subscription-header-container' });
 
 		// Title text
-		const titleEl = headerContainer.createEl('div', { 
-			text: 'Current subscription', 
-			cls: 'agentmode-subscription-header' 
+		const titleEl = headerContainer.createEl('div', {
+			text: 'Current subscription',
+			cls: 'agentmode-subscription-header'
 		});
 
 		// Refresh button
@@ -4119,45 +4119,45 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 				// Re-fetch user profile
 				const profileData = await this.plugin.getUserProfile();
-				
+
 				// Clear and re-display
 				subscriptionDiv.empty();
-				
+
 				// Re-create header (recursive call)
 				const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-				
+
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;
-					
+
 					if (subscription) {
 						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
-						subscriptionDetails.createEl('div', { 
-							text: `Plan: ${subscription.product_name}`, 
-							cls: 'agentmode-subscription-plan' 
+						subscriptionDetails.createEl('div', {
+							text: `Plan: ${subscription.product_name}`,
+							cls: 'agentmode-subscription-plan'
 						});
-						subscriptionDetails.createEl('div', { 
+						subscriptionDetails.createEl('div', {
 							text: `Status: ${subscription.status.toUpperCase()}`,
-							cls: 'agentmode-subscription-status-active' 
+							cls: 'agentmode-subscription-status-active'
 						});
-						
+
 						// Show subscription period
 						if (subscription.plan_id !== 'free') {
 							const periodEnd = new Date(subscription.current_period_end);
-							subscriptionDetails.createEl('div', { 
-								text: `Valid until: ${periodEnd.toLocaleDateString()}`, 
-								cls: 'agentmode-subscription-period' 
+							subscriptionDetails.createEl('div', {
+								text: `Valid until: ${periodEnd.toLocaleDateString()}`,
+								cls: 'agentmode-subscription-period'
 							});
 						}
-						
-						
+
+
 						// If there is a trial period, show trial information
 						if (subscription.trial_end) {
 							const trialEnd = new Date(subscription.trial_end);
 							if (trialEnd > new Date()) {
-								subscriptionDetails.createEl('div', { 
-									text: `Trial ends: ${trialEnd.toLocaleDateString()}`, 
-									cls: 'agentmode-subscription-trial' 
+								subscriptionDetails.createEl('div', {
+									text: `Trial ends: ${trialEnd.toLocaleDateString()}`,
+									cls: 'agentmode-subscription-trial'
 								});
 							}
 						}
@@ -4167,11 +4167,11 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					this.addBillingPortalButton(subscriptionDiv);
 				} else {
 					// Show error information
-					subscriptionDiv.createEl('div', { 
-						text: 'Unable to load subscription info', 
-						cls: 'agentmode-subscription-error' 
+					subscriptionDiv.createEl('div', {
+						text: 'Unable to load subscription info',
+						cls: 'agentmode-subscription-error'
 					});
-					
+
 					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
 				}
@@ -4181,17 +4181,17 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				if (error.status === 401) {
 					this.plugin.logout();
 					this.display();
-				}else {
+				} else {
 					// Show error
 					subscriptionDiv.empty();
 					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					subscriptionDiv.createEl('div', { 
-						text: 'Failed to refresh subscription info', 
-						cls: 'agentmode-subscription-error' 
+					subscriptionDiv.createEl('div', {
+						text: 'Failed to refresh subscription info',
+						cls: 'agentmode-subscription-error'
 					});
 					this.addBillingPortalButton(subscriptionDiv);
 				}
-				
+
 			} finally {
 				// Restore button state (if button still exists)
 				if (refreshButton.isConnected) {

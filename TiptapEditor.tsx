@@ -63,10 +63,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
           char: '\u0000', // Use a null character that won't be typed
           items: () => [],
           render: () => ({
-            onStart: () => {},
-            onUpdate: () => {},
+            onStart: () => { },
+            onUpdate: () => { },
             onKeyDown: () => false,
-            onExit: () => {},
+            onExit: () => { },
           }),
         },
       })
@@ -111,10 +111,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
             nativeEvent: event,
             isDefaultPrevented: () => event.defaultPrevented,
             isPropagationStopped: () => false,
-            persist: () => {},
+            persist: () => { },
           } as unknown as React.KeyboardEvent
           onKeyPress(reactEvent)
-          
+
           // If Enter key without Shift was pressed, prevent TipTap from handling it
           if (event.key === 'Enter' && !event.shiftKey) {
             return true // Prevent TipTap from handling the event
@@ -134,7 +134,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
             nativeEvent: event,
             isDefaultPrevented: () => event.defaultPrevented,
             isPropagationStopped: () => false,
-            persist: () => {},
+            persist: () => { },
           } as unknown as React.ClipboardEvent
           onPaste(reactEvent)
         }
@@ -152,22 +152,22 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   // Function to convert wikilinks in text to mention nodes
   const convertWikilinksToMentions = (text: string) => {
     if (!text) return text
-    
+
     // Parse wikilinks and convert to HTML with mention nodes
     const wikiLinkRegex = /\[\[([^\]]+)\]\]/g
     let html = text
     let match
     const mentions: Array<{ id: string, label: string }> = []
-    
+
     while ((match = wikiLinkRegex.exec(text)) !== null) {
       const fullMatch = match[0]
       const linkText = match[1]
       mentions.push({ id: linkText, label: linkText })
-      
+
       // Replace with mention node HTML
       html = html.replace(fullMatch, `<span data-type="mention" data-id="${linkText}" data-label="${linkText}">[[${linkText}]]</span>`)
     }
-    
+
     return html
   }
 
@@ -204,12 +204,12 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     insertWikilink: (linkText: string, position?: number) => {
       if (!editor) return
       editor.commands.focus()
-      
+
       if (position !== undefined) {
         // Set cursor to the specific position
         editor.commands.setTextSelection(position)
       }
-      
+
       // Insert as a mention node with a space after it for better UX
       editor.commands.insertContent([
         {
@@ -228,10 +228,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     replaceRangeWithWikilink: (startPos: number, endPos: number, linkText: string) => {
       if (!editor) return
       editor.commands.focus()
-      
+
       // Select the range to be replaced
       editor.commands.setTextSelection({ from: startPos, to: endPos })
-      
+
       // Delete the selected content and insert the mention
       editor.commands.deleteSelection()
       editor.commands.insertContent([
@@ -250,10 +250,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
     },
     getTextBeforeCursor: (length?: number) => {
       if (!editor) return ''
-      
+
       const { from } = editor.state.selection
       const doc = editor.state.doc
-      
+
       if (length !== undefined) {
         // Get specific number of characters before cursor
         const startPos = Math.max(0, from - length)
