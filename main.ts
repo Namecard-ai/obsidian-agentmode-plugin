@@ -2455,9 +2455,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 								// Check if directory exists, if not create it
 								try {
-									const dirExists = await this.app.vault.adapter.exists(directoryPath);
-									if (!dirExists) {
-										await this.app.vault.adapter.mkdir(directoryPath);
+									const existingFolder = this.app.vault.getAbstractFileByPath(directoryPath);
+									if (!existingFolder) {
+										await this.app.vault.createFolder(directoryPath);
 									}
 								} catch (dirError: any) {
 									// Directory might already exist or be created by another process
@@ -2531,35 +2531,66 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return result || 'No files found in vault root';
 			}
 
-			// Check if the relative path exists as a folder
-			const folder = this.app.vault.getAbstractFileByPath(relativePath);
+		// Check if the relative path exists as a folder
+		const folder = this.app.vault.getAbstractFileByPath(relativePath);
 
-			if (folder && (folder as any).children) {
-				// It's a folder with children
-				const children = (folder as any).children;
+		if (folder && (folder as any).children) {
+			// It's a folder with children
+			const children = (folder as any).children;
 
-				const listing = children.map((child: any) => {
-					if (child.children) {
-						return `📁 ${child.name}/`;
-					} else {
-						return `📄 ${child.name}`;
-					}
-				});
-
-				const result = listing.slice(0, 20).join('\n');
-				return result || 'Empty folder';
-			}
-
-			// Try using adapter.list directly with the path
-			const contents = await this.app.vault.adapter.list(relativePath);
-
-			const listing = [
-				...contents.folders.map(f => `📁 ${f}/`),
-				...contents.files.map(f => `📄 ${f}`)
-			];
+			const listing = children.map((child: any) => {
+				if (child.children) {
+					return `📁 ${child.name}/`;
+				} else {
+					return `📄 ${child.name}`;
+				}
+			});
 
 			const result = listing.slice(0, 20).join('\n');
-			return result || 'Empty directory';
+			return result || 'Empty folder';
+		}
+
+		// Fallback: use getAllLoadedFiles() and filter by path
+		const allFiles = this.app.vault.getAllLoadedFiles();
+		const normalizedPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
+		
+		// Get direct children only (not nested descendants)
+		const directChildren = allFiles.filter(file => {
+			if (!file.path.startsWith(normalizedPath)) {
+				return false;
+			}
+			const remainingPath = file.path.substring(normalizedPath.length);
+			// Check if this is a direct child (no more slashes in remaining path means it's a file,
+			// one slash at the end means it's a folder)
+			const slashCount = (remainingPath.match(/\//g) || []).length;
+			return slashCount === 0 || (slashCount === 1 && remainingPath.endsWith('/'));
+		});
+
+		// Separate folders and files
+		const folders = new Set<string>();
+		const files: string[] = [];
+
+		for (const file of directChildren) {
+			const remainingPath = file.path.substring(normalizedPath.length);
+			const slashIndex = remainingPath.indexOf('/');
+			
+			if (slashIndex !== -1) {
+				// This is a folder
+				const folderName = remainingPath.substring(0, slashIndex);
+				folders.add(folderName);
+			} else {
+				// This is a file
+				files.push(file.name);
+			}
+		}
+
+		const listing = [
+			...Array.from(folders).sort().map(f => `📁 ${f}/`),
+			...files.sort().map(f => `📄 ${f}`)
+		];
+
+		const result = listing.slice(0, 20).join('\n');
+		return result || 'Empty directory';
 
 		} catch (error: any) {
 			console.error('📂 [TOOL] list_vault error:', error);
