@@ -889,8 +889,8 @@ export default class AgentPlugin extends Plugin {
 
 	async initializeVectorDB() {
 		try {
-			// Create vector database directory in the vault's config folder
-			this.vectorDbPath = `${this.app.vault.configDir}/vectors`;
+			// Create vector database directory in the plugin's folder
+			this.vectorDbPath = `${this.manifest.dir}/vectors`;
 			
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.vectorDbPath);
@@ -911,8 +911,8 @@ export default class AgentPlugin extends Plugin {
 
 	async initializeHistoryDB() {
 		try {
-			// Create chat history directory in the vault's config folder
-			this.historyDbPath = `${this.app.vault.configDir}/chat-history`;
+			// Create chat history directory in the plugin's folder
+			this.historyDbPath = `${this.manifest.dir}/chat-history`;
 			
 			// Ensure the directory exists
 			await this.ensureDirectoryExists(this.historyDbPath);
