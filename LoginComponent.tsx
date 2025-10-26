@@ -22,7 +22,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	onCancel
 }) => {
 	const [state, setState] = useState<LoginState>({ step: 'loading' });
-	const [countdownTimer, setCountdownTimer] = useState<NodeJS.Timeout | null>(null);
+	const [countdownTimer, setCountdownTimer] = useState<number | null>(null);
 	const [showManualLogin, setShowManualLogin] = useState<boolean>(false);
 
 	useEffect(() => {
@@ -30,7 +30,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		return () => {
 			// Clean up timer
 			if (countdownTimer) {
-				clearInterval(countdownTimer);
+				window.clearInterval(countdownTimer);
 			}
 			// Stop polling
 			auth0Service.stopPolling();
@@ -68,18 +68,18 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const startCountdown = (seconds: number) => {
 		if (countdownTimer) {
-			clearInterval(countdownTimer);
+			window.clearInterval(countdownTimer);
 		}
 
 		let remaining = seconds;
 		setState(prev => ({ ...prev, timeRemaining: remaining }));
 
-		const timer = setInterval(() => {
+		const timer = window.setInterval(() => {
 			remaining -= 1;
 			setState(prev => ({ ...prev, timeRemaining: remaining }));
 
 			if (remaining <= 0) {
-				clearInterval(timer);
+				window.clearInterval(timer);
 				setState(prev => ({ ...prev, step: 'timeout' }));
 				auth0Service.stopPolling();
 			}
@@ -122,7 +122,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		try {
 			// Stop countdown timer
 			if (countdownTimer) {
-				clearInterval(countdownTimer);
+				window.clearInterval(countdownTimer);
 			}
 
 			// Stop polling operation
@@ -169,15 +169,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 	const handleRetry = () => {
 		// Ensure previous polling operation is stopped
-		auth0Service.stopPolling();
-		
-		// Clean up countdown timer
-		if (countdownTimer) {
-			clearInterval(countdownTimer);
-			setCountdownTimer(null);
-		}
-		
-		startDeviceAuth();
+	auth0Service.stopPolling();
+	
+	// Clean up countdown timer
+	if (countdownTimer) {
+		window.clearInterval(countdownTimer);
+		setCountdownTimer(null);
+	}
+	
+	startDeviceAuth();
 	};
 
 	const formatTime = (seconds: number): string => {

@@ -525,10 +525,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Initial check
     checkLoginStatus();
 
-    // Check login status every 5 seconds (in case state changes aren't updated promptly)
-    const interval = setInterval(checkLoginStatus, 5000);
+  // Check login status every 5 seconds (in case state changes aren't updated promptly)
+  const interval = window.setInterval(checkLoginStatus, 5000);
 
-    return () => clearInterval(interval);
+  return () => window.clearInterval(interval);
   }, [plugin]);
 
   // Monitor messages changes
@@ -862,13 +862,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             
             await appendMessage(finalMessage);
           }
-          
-          // Use setTimeout to ensure the message is rendered before clearing states
-          setTimeout(() => {
-            setIsLoading(false);
-            setStreamingMessageId(null);
-            setCurrentStreamingContent('');
-          }, 50); // Small delay to ensure rendering
+        
+        // Use setTimeout to ensure the message is rendered before clearing states
+        window.setTimeout(() => {
+          setIsLoading(false);
+          setStreamingMessageId(null);
+          setCurrentStreamingContent('');
+        }, 50); // Small delay to ensure rendering
         },
         async (error: string) => {
           // Handle error
@@ -2193,16 +2193,16 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       const relativePath = file.path;
       
       if (textareaRef.current) {
-        // Replace the single [ with the wikilink mention
-        // Since we prevented the second [ from being inserted, we only need to replace 1 character
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.replaceRangeWithWikilink(
-              bracketStartPosition, 
-              bracketStartPosition + 1, // Only replace 1 character now
-              relativePath
-            );
-          }
+      // Replace the single [ with the wikilink mention
+      // Since we prevented the second [ from being inserted, we only need to replace 1 character
+      window.setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.replaceRangeWithWikilink(
+            bracketStartPosition, 
+            bracketStartPosition + 1, // Only replace 1 character now
+            relativePath
+          );
+        }
         }, 10);
       }
       

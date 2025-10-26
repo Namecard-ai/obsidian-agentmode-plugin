@@ -191,7 +191,7 @@ export enum Model {
 export class Auth0Service {
 	private plugin: AgentPlugin;
 	private config: Auth0Config;
-	private pollingTimer: NodeJS.Timeout | null = null;
+	private pollingTimer: number | null = null;
 	private isPolling: boolean = false;
 
 	constructor(plugin: AgentPlugin, config: Auth0Config) {
@@ -254,14 +254,14 @@ export class Auth0Service {
 					return;
 				}
 
-				if (attempts >= maxAttempts) {
-					if (this.pollingTimer) {
-						clearInterval(this.pollingTimer);
-						this.pollingTimer = null;
-					}
-					wrappedReject(new Error('Authorization timeout, please try again'));
-					return;
+			if (attempts >= maxAttempts) {
+				if (this.pollingTimer) {
+					window.clearInterval(this.pollingTimer);
+					this.pollingTimer = null;
 				}
+				wrappedReject(new Error('Authorization timeout, please try again'));
+				return;
+			}
 
 				attempts++;
 
@@ -293,32 +293,32 @@ export class Auth0Service {
 
 					const data = await response.json();
 
-					if (response.ok) {
-						if (this.pollingTimer) {
-							clearInterval(this.pollingTimer);
-							this.pollingTimer = null;
-						}
-						wrappedResolve(data as TokenResponse);
+				if (response.ok) {
+					if (this.pollingTimer) {
+						window.clearInterval(this.pollingTimer);
+						this.pollingTimer = null;
+					}
+					wrappedResolve(data as TokenResponse);
 					} else if (data.error === 'authorization_pending') {
 						// Continue polling
 						return;
-					} else if (data.error === 'slow_down') {
-						// Auth0 requests to slow down polling frequency
-						if (this.pollingTimer) {
-							clearInterval(this.pollingTimer);
-						}
-						// Only set new timer if still polling
-						if (this.isPolling) {
-							this.pollingTimer = setInterval(poll, (interval + 5) * 1000);
-						}
-						return;
-					} else {
-						if (this.pollingTimer) {
-							clearInterval(this.pollingTimer);
-							this.pollingTimer = null;
-						}
-						wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
+				} else if (data.error === 'slow_down') {
+					// Auth0 requests to slow down polling frequency
+					if (this.pollingTimer) {
+						window.clearInterval(this.pollingTimer);
 					}
+					// Only set new timer if still polling
+					if (this.isPolling) {
+						this.pollingTimer = window.setInterval(poll, (interval + 5) * 1000);
+					}
+					return;
+				} else {
+					if (this.pollingTimer) {
+						window.clearInterval(this.pollingTimer);
+						this.pollingTimer = null;
+					}
+					wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
+				}
 				} catch (error: any) {
 					console.error('Polling error:', error);
 					// Check if polling has been stopped (after error occurred)
@@ -329,9 +329,9 @@ export class Auth0Service {
 				}
 			};
 
-			// Start polling
-			this.pollingTimer = setInterval(poll, interval * 1000);
-			poll(); // Execute first time immediately
+		// Start polling
+		this.pollingTimer = window.setInterval(poll, interval * 1000);
+		poll(); // Execute first time immediately
 		});
 	}
 
@@ -339,7 +339,7 @@ export class Auth0Service {
 	stopPolling() {
 		this.isPolling = false;
 		if (this.pollingTimer) {
-			clearInterval(this.pollingTimer);
+			window.clearInterval(this.pollingTimer);
 			this.pollingTimer = null;
 		}
 	}
@@ -409,11 +409,11 @@ export class Auth0Service {
 	setupTokenRefreshTimer() {
 		// Clear existing timer
 		if (this.plugin.tokenRefreshTimer) {
-			clearInterval(this.plugin.tokenRefreshTimer);
+			window.clearInterval(this.plugin.tokenRefreshTimer);
 		}
 
 		// Check every 5 minutes
-		this.plugin.tokenRefreshTimer = setInterval(async () => {
+		this.plugin.tokenRefreshTimer = window.setInterval(async () => {
 			if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
 				try {
 					await this.autoRefreshToken();
@@ -447,16 +447,16 @@ export class Auth0Service {
 
 	// Logout
 	async logout() {
-		// Stop polling
-		this.stopPolling();
-		
-		// Clear timer
-		if (this.plugin.tokenRefreshTimer) {
-			clearInterval(this.plugin.tokenRefreshTimer);
-			this.plugin.tokenRefreshTimer = null;
-		}
+	// Stop polling
+	this.stopPolling();
+	
+	// Clear timer
+	if (this.plugin.tokenRefreshTimer) {
+		window.clearInterval(this.plugin.tokenRefreshTimer);
+		this.plugin.tokenRefreshTimer = null;
+	}
 
-		// Clear login status
+	// Clear login status
 		this.plugin.settings.isLoggedIn = false;
 		this.plugin.settings.accessToken = undefined;
 		this.plugin.settings.refreshToken = undefined;
@@ -642,7 +642,7 @@ export default class AgentPlugin extends Plugin {
 	vectorDbPath: string = '';
 	historyDbPath: string = '';
 	// Add debouncing for file processing
-	private fileProcessingTimeouts: Map<string, NodeJS.Timeout> = new Map();
+	private fileProcessingTimeouts: Map<string, number> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 	
 	// Chat interruption control
@@ -653,7 +653,7 @@ export default class AgentPlugin extends Plugin {
 	private embeddingQueue: Set<string> = new Set(); // Use Set to avoid duplicates
 	private queueDetails: Map<string, EmbeddingQueueItem> = new Map(); // Store detailed info
 	private isProcessingQueue: boolean = false;
-	private queueConsumerTimer: NodeJS.Timeout | null = null;
+	private queueConsumerTimer: number | null = null;
 	private readonly QUEUE_CONSUMER_INTERVAL = 5000; // 5 seconds
 	private readonly RETRY_ATTEMPTS = 3;
 	private readonly RETRY_DELAY = 5000; // 5 seconds
@@ -666,7 +666,7 @@ export default class AgentPlugin extends Plugin {
 	
 	// Auth0 configuration
 	private auth0Config: Auth0Config;
-	public tokenRefreshTimer: NodeJS.Timeout | null = null;
+	public tokenRefreshTimer: number | null = null;
 	private auth0Service: Auth0Service | null = null;
 	
 	// Status Bar
@@ -3111,7 +3111,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	onunload() {
 		// Clear all pending timeouts to prevent memory leaks
 		this.fileProcessingTimeouts.forEach((timeout) => {
-			clearTimeout(timeout);
+			window.clearTimeout(timeout);
 		});
 		this.fileProcessingTimeouts.clear();
 		
@@ -3124,7 +3124,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		
 		// Clear Auth0 related timers
 		if (this.tokenRefreshTimer) {
-			clearInterval(this.tokenRefreshTimer);
+			window.clearInterval(this.tokenRefreshTimer);
 			this.tokenRefreshTimer = null;
 		}
 		
@@ -3176,17 +3176,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			return;
 		}
 
-		const fileKey = file.path;
-		if (this.fileProcessingTimeouts.has(fileKey)) {
-			clearTimeout(this.fileProcessingTimeouts.get(fileKey));
+	const fileKey = file.path;
+	if (this.fileProcessingTimeouts.has(fileKey)) {
+		window.clearTimeout(this.fileProcessingTimeouts.get(fileKey));
+	}
+	this.fileProcessingTimeouts.set(fileKey, window.setTimeout(() => {
+		// Double-check login status when timer fires (in case user logged out during debounce period)
+		if (this.isLoggedIn()) {
+			this.addToEmbeddingQueue(file.path, 'file_modify');
 		}
-		this.fileProcessingTimeouts.set(fileKey, setTimeout(() => {
-			// Double-check login status when timer fires (in case user logged out during debounce period)
-			if (this.isLoggedIn()) {
-				this.addToEmbeddingQueue(file.path, 'file_modify');
-			}
-			this.fileProcessingTimeouts.delete(fileKey);
-		}, this.DEBOUNCE_DELAY));
+		this.fileProcessingTimeouts.delete(fileKey);
+	}, this.DEBOUNCE_DELAY));
 	}
 
 	// Embedding Queue Management Methods
@@ -3226,11 +3226,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				this.embeddingQueue.delete(filePath);
 				this.queueDetails.delete(filePath);
 				
-				// Continue processing if there are more items
-				if (this.embeddingQueue.size > 0) {
-					// Use setTimeout to avoid blocking the main thread
-					setTimeout(() => this.processEmbeddingQueue(), 100);
-				}
+			// Continue processing if there are more items
+			if (this.embeddingQueue.size > 0) {
+				// Use setTimeout to avoid blocking the main thread
+				window.setTimeout(() => this.processEmbeddingQueue(), 100);
+			}
 			}
 		} catch (error) {
 			console.error('Error in processEmbeddingQueue:', error);
@@ -3306,10 +3306,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				lastError = error;
 				console.error(`Embedding attempt ${attempt}/${this.RETRY_ATTEMPTS} failed for ${file.path}:`, error);
 				
-				if (attempt < this.RETRY_ATTEMPTS) {
-					// Wait before retry
-					await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
-				}
+			if (attempt < this.RETRY_ATTEMPTS) {
+				// Wait before retry
+				await new Promise(resolve => window.setTimeout(resolve, this.RETRY_DELAY));
+			}
 			}
 		}
 		
@@ -3342,17 +3342,17 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	private startQueueConsumer() {
 		if (this.queueConsumerTimer) {
-			clearInterval(this.queueConsumerTimer);
+			window.clearInterval(this.queueConsumerTimer);
 		}
 		
-		this.queueConsumerTimer = setInterval(() => {
+		this.queueConsumerTimer = window.setInterval(() => {
 			this.processEmbeddingQueue();
 		}, this.QUEUE_CONSUMER_INTERVAL);
 	}
 
 	private stopQueueConsumer() {
 		if (this.queueConsumerTimer) {
-			clearInterval(this.queueConsumerTimer);
+			window.clearInterval(this.queueConsumerTimer);
 			this.queueConsumerTimer = null;
 		}
 	}
@@ -3986,12 +3986,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					.setButtonText('Reindex All Files')
 					.setDisabled(isIndexing)
 					.onClick(async () => {
-						const confirmed = await this.showReindexConfirmation();
-						if (!confirmed) {
-							// If user cancelled, we need to reset the button state
-							// The button will be updated by the next UI refresh
-							setTimeout(() => this.updateVaultIndexingStatus(), 100);
-						}
+					const confirmed = await this.showReindexConfirmation();
+					if (!confirmed) {
+						// If user cancelled, we need to reset the button state
+						// The button will be updated by the next UI refresh
+						window.setTimeout(() => this.updateVaultIndexingStatus(), 100);
+					}
 					});
 			});
 	}
