@@ -491,14 +491,14 @@ export class PaymentRequiredModal extends Modal {
 		contentEl.addClass('agentmode-payment-required-modal');
 
 		// Set Modal title
-		this.titleEl.setText('Agentmode Upgrade Required');
+		this.titleEl.setText('Agentmode upgrade required');
 
 		// Main content container
 		const container = contentEl.createDiv('agentmode-payment-modal-content');
 
 		// Error explanation
 		const explanationEl = container.createEl('p', { cls: 'agentmode-payment-modal-explanation' });
-		explanationEl.setText('You are currently on the Free plan and no OpenAI API key is configured. To continue using AI features, please choose one of the following options:');
+		explanationEl.setText('You are currently on the free plan and no OpenAI API key is configured. To continue using AI features, please choose one of the following options:');
 
 		// Options container
 		const optionsContainer = container.createDiv('agentmode-payment-modal-options');
@@ -509,7 +509,7 @@ export class PaymentRequiredModal extends Modal {
 		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
 		
 		const proButton = proOption.createEl('button', { 
-			text: 'Open Billing Portal',
+			text: 'Open billing portal',
 			cls: 'agentmode-payment-modal-button primary' 
 		});
 		proButton.onclick = async () => {
@@ -519,11 +519,11 @@ export class PaymentRequiredModal extends Modal {
 
 		// Option 2: Set up BYOK
 		const byokOption = optionsContainer.createDiv('agentmode-payment-modal-option');
-		byokOption.createEl('h4', { text: '2. Bring Your Own OpenAI Key' });
+		byokOption.createEl('h4', { text: '2. Bring your own OpenAI key' });
 		byokOption.createEl('p', { text: 'Configure your own OpenAI API key to use AI features.' });
 		
 		const byokButton = byokOption.createEl('button', { 
-			text: 'Open Settings',
+			text: 'Open settings',
 			cls: 'agentmode-payment-modal-button secondary' 
 		});
 		byokButton.onclick = () => {
@@ -723,7 +723,7 @@ export default class AgentPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-		this.addRibbonIcon('bot-message-square', 'Open Chat', () => {
+		this.addRibbonIcon('bot-message-square', 'Open chat', () => {
 			this.activateAgentChatView();
 		});
 
@@ -731,7 +731,7 @@ export default class AgentPlugin extends Plugin {
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
 			id: 'open-chat',
-			name: 'Open Chat',
+			name: 'Open chat',
 			callback: () => {
 				this.activateAgentChatView();
 			}
@@ -4092,7 +4092,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 	private addBillingPortalButton(containerDiv: HTMLElement) {
 		// Create button directly, no need for separate bright container
 		const billingButton = containerDiv.createEl('button', {
-			text: 'Open Billing Portal',
+			text: 'Open billing portal',
 			cls: 'agentmode-billing-portal-button'
 		});
 

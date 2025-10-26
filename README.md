@@ -39,7 +39,7 @@ To help you experience our full service, all new users receive a **7-day free PR
 ## How to Use the Plugin
 
 1. **Login to Agentmode Account**
-   - Click the plugin icon (Open Chat) in the ribbon
+   - Click the plugin icon (Open chat) in the ribbon
    - If not logged in, you'll be guided through the login process
    - Create an account or login with existing credentials
    - New users get 7-day free PRO trial
