@@ -1,4 +1,4 @@
-# Obsidian Agentmode Plugin
+# Agentmode
 
 An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.
 
