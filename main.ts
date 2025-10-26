@@ -2033,7 +2033,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	private async readPlainTextFile(file: TFile, args: { start_line?: number; end_line?: number; read_entire_note?: boolean }): Promise<string> {
-		const content = await this.app.vault.read(file);
+		const content = await this.app.vault.cachedRead(file);
 
 		if (args.read_entire_note || (!args.start_line && !args.end_line)) {
 			return content;
@@ -2666,11 +2666,11 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			const results: Array<{ path: string; line: number; content: string }> = [];
 
-			// Search through each file
-			for (const file of filteredFiles) {
-				try {
-					const content = await this.app.vault.read(file);
-					const lines = content.split('\n');
+		// Search through each file
+		for (const file of filteredFiles) {
+			try {
+				const content = await this.app.vault.cachedRead(file);
+				const lines = content.split('\n');
 
 					// Search each line using regex pattern
 					for (let i = 0; i < lines.length; i++) {
@@ -2970,7 +2970,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	async processFileForEmbedding(file: TFile) {
 		try {
 			// Read file content
-			const content = await this.app.vault.read(file);
+			const content = await this.app.vault.cachedRead(file);
 
 			// Generate MD5 hash for content
 			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
@@ -3285,7 +3285,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private async shouldSkipFileProcessing(file: TFile): Promise<boolean> {
 		try {
 			// Read current file content and generate MD5
-			const content = await this.app.vault.read(file);
+			const content = await this.app.vault.cachedRead(file);
 			const currentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
 
 			// Check if embedding record exists
@@ -3339,7 +3339,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private async saveErrorRecord(file: TFile, error: any): Promise<void> {
 		try {
 			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
-			const content = await this.app.vault.read(file);
+			const content = await this.app.vault.cachedRead(file);
 			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
 
 			const errorRecord: EmbeddingRecord = {
