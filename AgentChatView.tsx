@@ -2249,7 +2249,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <IconButton
             icon="plus"
-            tooltip="New Chat"
+            tooltip="New chat"
             onClick={handleNewChat}
           />
           <div ref={historyButtonRef}>
@@ -2261,17 +2261,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           </div>
           <IconButton
             icon="image"
-            tooltip="Upload Image"
+            tooltip="Upload image"
             onClick={handleImageUpload}
           />
           <IconButton
             icon="paperclip"
-            tooltip="Upload File"
+            tooltip="Upload file"
             onClick={handleFileUpload}
           />
           <IconButton
             icon="link"
-            tooltip="Add Context"
+            tooltip="Add context"
             onClick={handleAddContext}
           />
         </div>
