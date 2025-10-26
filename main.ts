@@ -1,5 +1,5 @@
 import React, { StrictMode } from 'react';
-import { App, Modal, Menu, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile } from 'obsidian';
+import { App, Modal, Menu, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile, requestUrl } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ObsidianAgentChatView, VIEW_TYPE_AGENT_CHAT } from './ObsidianAgentChatView';
 import { LoginComponent } from './LoginComponent';
@@ -208,21 +208,21 @@ export class Auth0Service {
 			audience: this.config.audience
 		});
 
-		const response = await fetch(url, {
+		const response = await requestUrl({
+			url: url,
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
-			body: body.toString()
+			body: body.toString(),
+			throw: false
 		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Auth0 Device Authorization failed: ${response.status} ${errorText}`);
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error(`Auth0 Device Authorization failed: ${response.status} ${response.text}`);
 		}
 
-		const data = await response.json();
-		return data as DeviceAuthState;
+		return response.json as DeviceAuthState;
 	}
 
 	// Poll to check authorization status
@@ -278,12 +278,14 @@ export class Auth0Service {
 						client_id: this.config.clientId
 					});
 
-					const response = await fetch(url, {
+					const response = await requestUrl({
+						url: url,
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/x-www-form-urlencoded',
 						},
-						body: body.toString()
+						body: body.toString(),
+						throw: false
 					});
 
 					// Check if polling has been stopped (before processing response)
@@ -291,9 +293,9 @@ export class Auth0Service {
 						return;
 					}
 
-					const data = await response.json();
+					const data = response.json;
 
-				if (response.ok) {
+				if (response.status >= 200 && response.status < 300) {
 					if (this.pollingTimer) {
 						window.clearInterval(this.pollingTimer);
 						this.pollingTimer = null;
@@ -356,21 +358,21 @@ export class Auth0Service {
 			client_id: this.config.clientId
 		});
 
-		const response = await fetch(url, {
+		const response = await requestUrl({
+			url: url,
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded',
 			},
-			body: body.toString()
+			body: body.toString(),
+			throw: false
 		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error(`Token refresh failed: ${response.status} ${response.text}`);
 		}
 
-		const data = await response.json();
-		return data as TokenResponse;
+		return response.json as TokenResponse;
 	}
 
 	// Get user information
@@ -380,19 +382,20 @@ export class Auth0Service {
 		}
 
 		const url = `https://${this.config.domain}/userinfo`;
-		const response = await fetch(url, {
+		const response = await requestUrl({
+			url: url,
+			method: 'GET',
 			headers: {
 				'Authorization': `Bearer ${this.plugin.settings.accessToken}`,
-			}
+			},
+			throw: false
 		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Get user info failed: ${response.status} ${errorText}`);
+		if (response.status < 200 || response.status >= 300) {
+			throw new Error(`Get user info failed: ${response.status} ${response.text}`);
 		}
 
-		const data = await response.json();
-		return data as Auth0UserInfo;
+		return response.json as Auth0UserInfo;
 	}
 
 	// Check if Token is about to expire (expires within 30 minutes)
@@ -2099,17 +2102,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Authentication required. Please log in first.';
 			}
 
-			const response = await fetch(`${backendUrl}/convert`, {
+			const response = await requestUrl({
+				url: `${backendUrl}/convert`,
 				method: 'POST',
 				headers: headers,
 				body: JSON.stringify({
 					uri: dataUri,
 					enable_plugins: true
-				})
+				}),
+				throw: false
 			});
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
+			if (response.status < 200 || response.status >= 300) {
+				const errorData = response.json || {};
 				console.error('📄 [TOOL] convert error:', response.status, errorData);
 				
 				if (response.status === 401) {
@@ -2127,7 +2132,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				}
 			}
 
-			const data = await response.json();
+			const data = response.json;
 			
 			if (!data.success) {
 				console.error('📄 [TOOL] convert API error:', data);
@@ -2695,41 +2700,43 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Not logged in. Please log in to use web search functionality.';
 			}
 
-			const backendUrl = process.env.BACKEND_BASE_URL;
-			const headers: Record<string, string> = {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${this.settings.accessToken}`
-			};
+		const backendUrl = process.env.BACKEND_BASE_URL;
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${this.settings.accessToken}`
+		};
 
-			// Add Firecrawl BYOK key if available
-			if (this.settings.firecrawlApiKey) {
-				headers['X-BYOK'] = this.settings.firecrawlApiKey;
+		// Add Firecrawl BYOK key if available
+		if (this.settings.firecrawlApiKey) {
+			headers['X-BYOK'] = this.settings.firecrawlApiKey;
+		}
+
+		const response = await requestUrl({
+			url: `${backendUrl}/search`,
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify({
+				query: args.query
+			}),
+			throw: false
+		});
+
+		if (response.status < 200 || response.status >= 300) {
+			const errorData = response.json || {};
+			console.error('🔍 [TOOL] web_search error:', response.status, errorData);
+			
+			if (response.status === 402) {
+				return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+			} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+				return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+			} else if (response.status === 429) {
+				return 'Error: Search rate limit exceeded. Please try again later.';
+			} else {
+				return `Error: Web search failed (${response.status}). Please try again later.`;
 			}
+		}
 
-			const response = await fetch(`${backendUrl}/search`, {
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify({
-					query: args.query
-				})
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				console.error('🔍 [TOOL] web_search error:', response.status, errorData);
-				
-				if (response.status === 402) {
-					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
-				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
-					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
-				} else if (response.status === 429) {
-					return 'Error: Search rate limit exceeded. Please try again later.';
-				} else {
-					return `Error: Web search failed (${response.status}). Please try again later.`;
-				}
-			}
-
-			const data = await response.json();
+		const data = response.json;
 			
 			if (!data.success) {
 				console.error('🔍 [TOOL] web_search API error:', data);
@@ -2804,42 +2811,44 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Invalid URL format. Please provide a valid URL.';
 			}
 
-			const backendUrl = process.env.BACKEND_BASE_URL;
-			const headers: Record<string, string> = {
-				'Content-Type': 'application/json',
-				'Authorization': `Bearer ${this.settings.accessToken}`
-			};
+		const backendUrl = process.env.BACKEND_BASE_URL;
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${this.settings.accessToken}`
+		};
 
-			// Add Firecrawl BYOK key if available
-			if (this.settings.firecrawlApiKey) {
-				headers['X-BYOK'] = this.settings.firecrawlApiKey;
+		// Add Firecrawl BYOK key if available
+		if (this.settings.firecrawlApiKey) {
+			headers['X-BYOK'] = this.settings.firecrawlApiKey;
+		}
+
+		const response = await requestUrl({
+			url: `${backendUrl}/scrape`,
+			method: 'POST',
+			headers: headers,
+			body: JSON.stringify({
+				url: args.url,
+				formats: ['summary'] // Always use summary format as requested
+			}),
+			throw: false
+		});
+
+		if (response.status < 200 || response.status >= 300) {
+			const errorData = response.json || {};
+			console.error('🕷️ [TOOL] web_scrape error:', response.status, errorData);
+			
+			if (response.status === 402) {
+				return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
+			} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
+				return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
+			} else if (response.status === 429) {
+				return 'Error: Scrape rate limit exceeded. Please try again later.';
+			} else {
+				return `Error: Web scrape failed (${response.status}). Please try again later.`;
 			}
+		}
 
-			const response = await fetch(`${backendUrl}/scrape`, {
-				method: 'POST',
-				headers: headers,
-				body: JSON.stringify({
-					url: args.url,
-					formats: ['summary'] // Always use summary format as requested
-				})
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				console.error('🕷️ [TOOL] web_scrape error:', response.status, errorData);
-				
-				if (response.status === 402) {
-					return 'Error: BYOK API key is required for free plan. Please add your Firecrawl API key in plugin settings.';
-				} else if (response.status === 400 && errorData.error?.code === 'ERR_INVALID_FIRECRAWL_BYOK') {
-					return 'Error: Invalid Firecrawl BYOK API key. Please check your API key in plugin settings.';
-				} else if (response.status === 429) {
-					return 'Error: Scrape rate limit exceeded. Please try again later.';
-				} else {
-					return `Error: Web scrape failed (${response.status}). Please try again later.`;
-				}
-			}
-
-			const data = await response.json();
+		const data = response.json;
 			
 			if (!data.success) {
 				console.error('🕷️ [TOOL] web_scrape API error:', data);
@@ -3656,24 +3665,24 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		try {
 			const backendUrl = process.env.BACKEND_BASE_URL;
-			const response = await fetch(`${backendUrl}/user/profile`, {
+			const response = await requestUrl({
+				url: `${backendUrl}/user/profile`,
 				method: 'GET',
 				headers: {
 					'Authorization': `Bearer ${this.settings.accessToken}`,
 					'Content-Type': 'application/json'
-				}
+				},
+				throw: false
 			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
+			if (response.status < 200 || response.status >= 300) {
 				throw {
 					status: response.status,
-					message: errorText
+					message: response.text
 				};
 			}
 
-			const data = await response.json();
-			return data;
+			return response.json;
 		} catch (error: any) {
 			console.error('Get user profile failed:', error);
 			throw error;
@@ -3688,20 +3697,21 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		try {
 			const backendUrl = process.env.BACKEND_BASE_URL;
-			const response = await fetch(`${backendUrl}/user/billing-session`, {
+			const response = await requestUrl({
+				url: `${backendUrl}/user/billing-session`,
 				method: 'POST',
 				headers: {
 					'Authorization': `Bearer ${this.settings.accessToken}`,
 					'Content-Type': 'application/json'
-				}
+				},
+				throw: false
 			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`Get billing session failed: ${response.status} ${errorText}`);
+			if (response.status < 200 || response.status >= 300) {
+				throw new Error(`Get billing session failed: ${response.status} ${response.text}`);
 			}
 
-			const data = await response.json();
+			const data = response.json;
 			if (data.success && data.data && data.data.url) {
 				return data.data.url;
 			} else {
