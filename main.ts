@@ -3784,7 +3784,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Auth0 login status section
-		containerEl.createEl('h3', { text: 'Login Status' });
+		containerEl.createEl('h3', { text: 'Login status' });
 		
 		const authContainer = containerEl.createDiv('agentmode-auth-settings-container');
 		
@@ -3915,8 +3915,8 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		// Separator line
 		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
 		
-		// OpenAI API Key settings
-		containerEl.createEl('h3', { text: 'Bring Your Own Key' });
+		// OpenAI API key settings
+		containerEl.createEl('h3', { text: 'Bring your own key' });
 
 		// Add important notice
 		const keyInfoEl = containerEl.createEl('p', { cls: 'agentmode-byok-info' });
@@ -3925,7 +3925,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		keyInfoEl.appendText(' Free plan users need to bring their own OpenAI API key and Firecrawl API key to get started. Pro plan users automatically get access to our managed API service - you don\'t need to enter your own key (even if you\'ve entered one, we\'ll directly ignore your key and use our managed service).');
 
 		new Setting(containerEl)
-			.setName('OpenAI API Key')
+			.setName('OpenAI API key')
 			.setDesc('The agent leverage OpenAI API to provide AI features, you can get your API key from OpenAI Platform (https://platform.openai.com/api-keys)')
 			.addText(text => text
 				.setPlaceholder('sk-...')
@@ -3936,7 +3936,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Firecrawl API Key')
+			.setName('Firecrawl API key')
 			.setDesc('For web search and scrape functionality, you can get your API key from Firecrawl (https://firecrawl.dev/)')
 			.addText(text => text
 				.setPlaceholder('fc-...')
@@ -3978,22 +3978,22 @@ class AgentPluginSettingTab extends PluginSettingTab {
 	}
 
 	private createVaultIndexingSection(containerEl: HTMLElement) {
-		// Create Vault File Indexing section
-		containerEl.createEl('h4', { text: 'Vault File Indexing', cls: 'agentmode-vault-indexing-header' });
+		// Create Vault file indexing section
+		containerEl.createEl('h4', { text: 'Vault file indexing', cls: 'agentmode-vault-indexing-header' });
 		
 		this.vaultIndexingContainer = containerEl.createDiv('agentmode-vault-indexing-container');
 		this.updateVaultIndexingStatus();
 		
 		// Add Reindex button
 		new Setting(this.vaultIndexingContainer)
-			.setName('Reindex All Files')
+			.setName('Reindex all files')
 			.setDesc('Rebuild the search index for all markdown files in your vault')
 			.addButton(button => {
 				const queueSize = this.plugin.getEmbeddingQueueSize();
 				const isIndexing = queueSize > 0;
 				
 				button
-					.setButtonText('Reindex All Files')
+					.setButtonText('Reindex all files')
 					.setDisabled(isIndexing)
 					.onClick(async () => {
 					const confirmed = await this.showReindexConfirmation();
@@ -4053,7 +4053,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 	private async showReindexConfirmation(): Promise<boolean> {
 		return new Promise((resolve) => {
 			const modal = new Modal(this.app);
-			modal.titleEl.setText('Reindex All Files');
+			modal.titleEl.setText('Reindex all files');
 			
 			const content = modal.contentEl;
 			content.createEl('p', { 
@@ -4124,7 +4124,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 		// Title text
 		const titleEl = headerContainer.createEl('div', { 
-			text: 'Current Subscription', 
+			text: 'Current subscription', 
 			cls: 'agentmode-subscription-header' 
 		});
 

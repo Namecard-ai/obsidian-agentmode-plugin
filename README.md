@@ -11,7 +11,7 @@ An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides 
 
 ## Pricing Plans
 
-This plugin offers two plans: **FREE** and **PRO**. PRO users can access all features directly without needing to configure an OpenAI API Key. FREE users can still enjoy the complete functionality by bringing their own OpenAI API Key (Bring Your Own Key).
+This plugin offers two plans: **FREE** and **PRO**. PRO users can access all features directly without needing to configure an OpenAI API key. FREE users can still enjoy the complete functionality by bringing their own OpenAI API key (Bring Your Own Key).
 
 To help you experience our full service, all new users receive a **7-day free PRO trial** upon first login, with no credit card required. Please note that all plugin features require registration and login with an Agentmode account.
 

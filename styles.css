@@ -1183,7 +1183,7 @@ If your plugin does not need CSS, delete this file.
   color: var(--text-on-accent);
 }
 
-/* Vault File Indexing Styles */
+/* Vault file indexing styles */
 .agentmode-vault-indexing-header {
   color: var(--text-normal);
   margin-bottom: 12px;
