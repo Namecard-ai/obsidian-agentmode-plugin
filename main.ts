@@ -1119,6 +1119,7 @@ export default class AgentPlugin extends Plugin {
 
 
 			// Define available tools in OpenAI format
+			// Base tools available in both Ask and Agent modes
 			const tools = [
 				{
 					type: 'function' as const,
@@ -1350,6 +1351,40 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
+			// Add Agent-mode-only tools
+			if (chatMode === 'Agent') {
+				tools.push({
+					type: 'function',
+					function: {
+						name: 'generate_bitmap_image',
+						description: 'Generate a bitmap image (PNG) using AI image generation (DALL-E 2). Use this ONLY for creating realistic photos, artistic illustrations, or complex visual content that cannot be represented with diagrams. DO NOT use this for flowcharts, architecture diagrams, concept maps, or structured visualizations - use create_file with .canvas format for those instead, as it is more economical and flexible.',
+						parameters: {
+							type: 'object',
+							properties: {
+								file_path: {
+									type: 'string',
+									description: 'Path where the generated PNG image should be saved. Must end with .png extension (e.g., "images/sunset.png").'
+								},
+								image_generation_prompt: {
+									type: 'string',
+									description: 'Detailed text description of the image to generate. Be specific about style, composition, colors, mood, and subject matter.'
+								},
+								size: {
+									type: 'string',
+									enum: ['256x256', '512x512', '1024x1024'],
+									description: 'Optional size of the generated image. Defaults to 512x512. Use 1024x1024 for high detail, 256x256 for thumbnails.'
+								},
+								explanation: {
+									type: 'string',
+									description: 'One sentence explanation of why a bitmap image is necessary for this task instead of a canvas diagram.'
+								}
+							},
+							required: ['file_path', 'image_generation_prompt', 'explanation']
+						}
+					}
+				} as any);
+			}
+
 			// Main conversation loop - continue until no more tool calls
 			let finalAssistantContent = '';
 			while (true) {
@@ -1454,6 +1489,9 @@ export default class AgentPlugin extends Plugin {
 								break;
 							case 'web_scrape':
 								result = await this.toolWebScrape(args);
+								break;
+							case 'generate_bitmap_image':
+								result = await this.toolGenerateBitmapImage(args);
 								break;
 							default:
 								result = 'Unknown tool call';
@@ -1816,6 +1854,38 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 - Connect related concepts with labeled edges
 - Consider visual hierarchy and flow direction
 </drawing_canvas>
+
+<generating_bitmap_images>
+**When to Use Bitmap Image Generation (generate_bitmap_image tool):**
+
+This tool generates AI-created bitmap images (PNG format) using DALL-E 2. Use this tool ONLY when the user specifically needs:
+- **Realistic photographs or photorealistic scenes** (e.g., "a sunset over mountains", "a modern office interior")
+- **Artistic illustrations or creative artwork** (e.g., "watercolor painting of a garden", "abstract digital art")
+- **Character designs or concept art** (e.g., "a futuristic robot character", "fantasy creature illustration")
+- **Stylized visual content** that requires specific artistic rendering (e.g., "cyberpunk city street", "minimalist logo design")
+- **Marketing or presentation visuals** that need professional photographic quality
+
+**When NOT to Use Bitmap Image Generation:**
+
+DO NOT use this tool for structured, diagrammatic, or schematic content. Instead, use the create_file tool with .canvas format for:
+- ❌ Flowcharts and process diagrams
+- ❌ Architecture diagrams and system designs
+- ❌ Mind maps and concept maps
+- ❌ Organization charts and hierarchies
+- ❌ Network diagrams and graphs
+- ❌ UML diagrams and technical schematics
+- ❌ Simple shapes, boxes, and arrows
+- ❌ Text-heavy diagrams with annotations
+
+**Reasoning:** Canvas files are more economical (no API costs), editable, scalable, and better suited for structured information. Bitmap image generation consumes API credits and should be reserved for content that truly requires AI artistic generation.
+
+**Before using generate_bitmap_image, always ask yourself:**
+1. Could this be represented as a canvas diagram instead?
+2. Does this require photorealistic rendering or artistic creativity?
+3. Is this structured information or creative visual content?
+
+If in doubt, prefer canvas format for diagrams and structured content.
+</generating_bitmap_images>
 
 <proactive_engagement>
 Your role goes beyond simply completing tasks — you are a proactive collaborator who helps users discover opportunities to enhance their knowledge management workflow.
@@ -2797,6 +2867,96 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		} catch (error: any) {
 			console.error('🔍 [TOOL] web_search error:', error);
 			return `Error performing web search: ${error.message}`;
+		}
+	}
+
+	private async toolGenerateBitmapImage(args: { 
+		file_path: string; 
+		image_generation_prompt: string; 
+		size?: '256x256' | '512x512' | '1024x1024';
+		explanation: string 
+	}): Promise<string> {
+		try {
+			// Validate file path ends with .png
+			if (!args.file_path.endsWith('.png')) {
+				return 'Error: file_path must end with .png extension';
+			}
+
+			// Generate image using OpenAI DALL-E 2
+			let reqOptions: RequestOptions = {
+				headers: {
+					'Authorization': `Bearer ${this.settings.accessToken}`
+				},
+			}
+			if (this.settings.openaiApiKey) {
+				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
+			}
+
+			const response = await this.openaiClient!.images.generate({
+				model: 'dall-e-2',
+				prompt: args.image_generation_prompt,
+				n: 1,
+				size: args.size || '512x512',
+				response_format: 'b64_json'
+			}, reqOptions);
+
+			// Extract base64 image data
+			if (!response.data || response.data.length === 0) {
+				return 'Error: No image data received from API';
+			}
+			
+			const imageData = response.data[0].b64_json;
+			if (!imageData) {
+				return 'Error: No base64 image data in API response';
+			}
+
+			// Convert base64 to binary
+			const binaryData = atob(imageData);
+			const bytes = new Uint8Array(binaryData.length);
+			for (let i = 0; i < binaryData.length; i++) {
+				bytes[i] = binaryData.charCodeAt(i);
+			}
+
+			// Save to vault
+			const filePath = args.file_path;
+			
+			// Check if file already exists
+			const existingFile = this.app.vault.getAbstractFileByPath(filePath);
+			if (existingFile) {
+				return `Error: File already exists at ${filePath}. Please specify a different path or delete the existing file first.`;
+			}
+
+			// Create parent folders if they don't exist
+			const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
+			if (folderPath) {
+				const folder = this.app.vault.getAbstractFileByPath(folderPath);
+				if (!folder) {
+					await this.app.vault.createFolder(folderPath);
+				}
+			}
+
+			// Save the file
+			await this.app.vault.createBinary(filePath, bytes.buffer);
+			
+			return `✅ Successfully generated and saved bitmap image to: ${filePath}\n\nPrompt used: "${args.image_generation_prompt}"\nSize: ${args.size || '512x512'}`;
+
+		} catch (error: any) {
+			console.error('🎨 [TOOL] generate_bitmap_image error:', error);
+			
+			// Handle specific OpenAI API errors
+			if (error.status === 401) {
+				this.logout();
+				return 'Error: Authentication failed. Please log in again.';
+			} else if (error.status === 402) {
+				return 'Error: Payment required. Please check your billing settings.';
+			} else if (error.status === 429) {
+				return 'Error: Rate limit exceeded. Please try again later.';
+			} else if (error.status === 400) {
+				// Content policy violation or invalid prompt
+				return `Error: Image generation failed. The prompt may violate content policy or be invalid: ${error.message}`;
+			}
+			
+			return `Error generating bitmap image: ${error.message || 'Unknown error'}`;
 		}
 	}
 
