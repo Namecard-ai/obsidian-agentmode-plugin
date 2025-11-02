@@ -1103,7 +1103,7 @@ export default class AgentPlugin extends Plugin {
 
 		try {
 			// Get system prompt with context files
-			const systemPrompt = this.getSystemPrompt(contextFiles);
+			const systemPrompt = await this.getSystemPrompt(contextFiles);
 
 			// Convert messages to OpenAI format and build conversation
 			const chatMessages: ChatCompletionMessageParam[] = [
@@ -1563,7 +1563,7 @@ export default class AgentPlugin extends Plugin {
 		return reduce(previous, choice.delta);
 	}
 
-	private getSystemPrompt(contextFiles?: TFile[]): string {
+	private async getSystemPrompt(contextFiles?: TFile[]): Promise<string> {
 		// Build context files section if any are provided
 		let contextFilesSection = '';
 		if (contextFiles && contextFiles.length > 0) {
@@ -1580,6 +1580,29 @@ ${contextFilesList}
 
 These files represent the user's current focus and are most relevant to their immediate needs. ALWAYS prioritize examining and referencing these files when responding to the user's queries. When the user asks questions or requests actions, first consider how these context files relate to their request and use them as your primary source of information.
 </context_files>`;
+		}
+
+		// Check for AGENTMODE.md in vault root directory
+		let agentModeSection = '';
+		try {
+			const agentModeFile = this.app.vault.getAbstractFileByPath('AGENTMODE.md');
+			if (agentModeFile && agentModeFile instanceof TFile) {
+				const agentModeContent = await this.app.vault.read(agentModeFile);
+				if (agentModeContent.trim()) {
+					agentModeSection = `
+
+<agent_mode_rules>
+The following are custom rules and guidelines specifically configured for this vault. These rules take HIGH PRIORITY and should be followed carefully when working with the user's notes:
+
+${agentModeContent}
+
+IMPORTANT: The above rules are user-defined customizations for this specific vault. Always consider these rules when planning tasks, making edits, organizing content, or suggesting next steps. If any of these rules conflict with general best practices, prioritize the user's custom rules.
+</agent_mode_rules>`;
+				}
+			}
+		} catch (error) {
+			// Silently fail if AGENTMODE.md doesn't exist or can't be read
+			console.debug('AGENTMODE.md not found or could not be read:', error);
 		}
 
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
@@ -1897,7 +1920,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 - Use groups to organize related content
 - Connect related concepts with labeled edges
 - Consider visual hierarchy and flow direction
-</drawing_canvas>`;
+</drawing_canvas>${contextFilesSection}${agentModeSection}`;
 	}
 
 	// Tool implementations

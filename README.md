@@ -9,6 +9,45 @@ An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides 
 - **Agent Mode**: Execute tasks and automation through AI assistance
 - **Vault File Integration**: Advanced drag-and-drop and file picker functionality
 - **Upload External Files**: Upload images and PDFs out side of the vault
+- **Custom Agent Rules**: Personalize agent behavior with `AGENTMODE.md` configuration file
+
+## Custom Agent Rules (AGENTMODE.md)
+
+You can customize how the AI agent works with your vault by creating an `AGENTMODE.md` file in your vault's root directory. This feature is inspired by [Claude Code's CLAUDE.md](https://www.anthropic.com/engineering/claude-code-best-practices) but adapted specifically for note-taking workflows.
+
+### How It Works
+
+When you chat with the agent, it automatically looks for `AGENTMODE.md` in your vault's root directory. If found, the rules you define in that file will be followed with **HIGH PRIORITY** throughout all interactions.
+
+### What You Can Configure
+
+- **Note Organization**: Default folders, naming conventions, YAML frontmatter standards
+- **Content Structure**: Preferred heading hierarchy, section templates, formatting rules
+- **Linking Patterns**: How to create links, when to add tags, MOC (Map of Content) guidelines
+- **Markdown Style**: List formatting, emphasis preferences, code block standards
+- **Workflows**: Templates for specific note types (meetings, books, projects, etc.)
+- **Language Preferences**: Content language, tone, and style guidelines
+
+### Example Rules
+
+```markdown
+# My Vault Rules
+
+## Note Organization
+- Daily notes go in `Journal/Daily/` with YYYY-MM-DD format
+- All notes must have YAML frontmatter with `created`, `updated`, and `tags` fields
+
+## Linking
+- Always use WikiLinks format: `[[Note Name]]`
+- Link new concepts to the Main MOC if it exists
+
+## Content Style
+- Use `-` for bullet points (not `*`)
+- Code blocks must specify language
+- Include a "## Summary" section for notes over 500 words
+```
+
+The more specific your rules, the better the agent can adapt to your workflow!
 
 ## Pricing Plans
 
