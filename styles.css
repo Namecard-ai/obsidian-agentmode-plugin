@@ -1365,3 +1365,45 @@ If your plugin does not need CSS, delete this file.
   background-color: var(--background-modifier-error);
   color: var(--text-on-accent);
 }
+
+/* Rule File Section Styles */
+.agentmode-rule-file-info {
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.agentmode-rule-file-status {
+  margin-bottom: 16px;
+}
+
+.agentmode-rule-file-found,
+.agentmode-rule-file-not-found {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.agentmode-rule-file-found {
+  background-color: var(--background-secondary);
+  border-left: 3px solid var(--interactive-success);
+}
+
+.agentmode-rule-file-not-found {
+  background-color: var(--background-secondary);
+  border-left: 3px solid var(--text-muted);
+}
+
+.agentmode-rule-file-found > div:first-child,
+.agentmode-rule-file-not-found > div:first-child {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.agentmode-rule-file-last-modified {
+  color: var(--text-muted);
+  font-size: 13px;
+}

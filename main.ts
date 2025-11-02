@@ -3934,6 +3934,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Add separator
+		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
+
+		// Rule File section
+		this.createRuleFileSection(containerEl);
+
 		// Add Vault File Indexing section (only for logged-in users)
 		if (this.plugin.isLoggedIn()) {
 			// Add separator
@@ -3962,6 +3968,151 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		if (this.updateCallback) {
 			this.plugin.removeSettingsUpdateListener(this.updateCallback);
 			this.updateCallback = null;
+		}
+	}
+
+	private createRuleFileSection(containerEl: HTMLElement) {
+		// Create Rule File section
+		containerEl.createEl('h3', { text: 'Rule File' });
+
+		// Add description
+		const ruleFileInfoEl = containerEl.createEl('p', { cls: 'agentmode-rule-file-info' });
+		const strongEl = ruleFileInfoEl.createEl('strong');
+		strongEl.textContent = 'How this works:';
+		ruleFileInfoEl.appendText(' Create an AGENTMODE.md file in your vault root to customize the AI assistant\'s behavior. You can define rules for note organization, formatting preferences, linking patterns, and workflows. The assistant will automatically follow these rules in all conversations.');
+
+		// Check if AGENTMODE.md exists
+		const agentModeFile = this.app.vault.getAbstractFileByPath('AGENTMODE.md');
+		const exists = agentModeFile instanceof TFile;
+
+		// Status display
+		const statusContainer = containerEl.createDiv('agentmode-rule-file-status');
+		
+		if (exists) {
+			// File exists - show status and edit button
+			const statusDiv = statusContainer.createDiv('agentmode-rule-file-found');
+			statusDiv.createEl('div', { text: '✅ Rule file exists (AGENTMODE.md)' });
+			
+			// Show last modified time
+			const lastModified = new Date((agentModeFile as TFile).stat.mtime).toLocaleString();
+			statusDiv.createEl('div', { 
+				text: `Last modified: ${lastModified}`,
+				cls: 'agentmode-rule-file-last-modified'
+			});
+
+			// Edit button
+			new Setting(statusContainer)
+				.setName('Edit rule file')
+				.setDesc('Open AGENTMODE.md for editing')
+				.addButton(button => button
+					.setButtonText('Edit rule file')
+					.onClick(async () => {
+						await this.openRuleFile();
+					}));
+		} else {
+			// File doesn't exist - show create button
+			const statusDiv = statusContainer.createDiv('agentmode-rule-file-not-found');
+			statusDiv.createEl('div', { text: '⚫ No rule file found' });
+			statusDiv.createEl('div', { text: 'Create a rule file to customize the AI assistant\'s behavior' });
+
+			// Create button
+			new Setting(statusContainer)
+				.setName('Create rule file')
+				.setDesc('Create AGENTMODE.md with a starter template')
+				.addButton(button => button
+					.setButtonText('Create rule file')
+					.setCta()
+					.onClick(async () => {
+						await this.createRuleFile();
+					}));
+		}
+	}
+
+	private async createRuleFile() {
+		try {
+			// Check if file already exists
+			const existingFile = this.app.vault.getAbstractFileByPath('AGENTMODE.md');
+			if (existingFile instanceof TFile) {
+				new Notice('AGENTMODE.md already exists');
+				return;
+			}
+
+			// Template content
+			const templateContent = `# AGENTMODE - Custom Agent Rules
+
+This file customizes how the AI assistant works with your vault.
+
+## Note Organization
+
+- Daily notes location: \`Journal/\`
+- Meeting notes location: \`Meetings/\`
+- Default date format: YYYY-MM-DD
+
+## Content Structure
+
+- Start notes with a level-1 heading matching the title
+- Include a "## Summary" section for longer notes
+- Use "## References" section for related note links
+
+## Linking and Tagging
+
+- Use WikiLinks format: \`[[Note Name]]\`
+- Add descriptive aliases: \`[[Note Name|description]]\`
+- Tag system: \`#concept\`, \`#project\`, \`#review\`
+
+## Markdown Style
+
+- Use \`-\` for unordered lists
+- Use \`**bold**\` for emphasis
+- Include blank lines before and after headings
+- Specify language in code blocks
+
+## Special Workflows
+
+### Meeting Notes Template
+- Date, attendees, discussion points, action items
+
+### Project Notes Template
+- Objective, status, next steps, resources
+`;
+
+			// Create the file
+			const newFile = await this.app.vault.create('AGENTMODE.md', templateContent);
+			
+			new Notice('Rule file created successfully');
+
+			// Close settings
+			(this.app as any).setting.close();
+
+			// Open the file in a new tab
+			const leaf = this.app.workspace.getLeaf('tab');
+			await leaf.openFile(newFile);
+			
+		} catch (error) {
+			console.error('Failed to create rule file:', error);
+			new Notice('Failed to create rule file');
+		}
+	}
+
+	private async openRuleFile() {
+		try {
+			const agentModeFile = this.app.vault.getAbstractFileByPath('AGENTMODE.md');
+			
+			if (!(agentModeFile instanceof TFile)) {
+				new Notice('Rule file not found');
+				return;
+			}
+
+			// Close settings
+			(this.app as any).setting.close();
+
+			// Open the file in a new tab
+			const leaf = this.app.workspace.getLeaf('tab');
+			await leaf.openFile(agentModeFile);
+			
+		} catch (error) {
+			console.error('Failed to open rule file:', error);
+			new Notice('Failed to open rule file');
 		}
 	}
 
