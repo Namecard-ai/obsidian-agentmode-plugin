@@ -259,7 +259,11 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 													<code>{state.deviceAuth.verification_uri}</code>
 													<button
 														className="agentmode-copy-btn"
-														onClick={() => copyToClipboard(state.deviceAuth!.verification_uri)}
+														onClick={() => {
+															copyToClipboard(state.deviceAuth!.verification_uri).catch((error) => {
+																console.error('Failed to copy to clipboard:', error);
+															});
+														}}
 													>
 														Copy
 													</button>
@@ -272,7 +276,11 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 													<code className="agentmode-device-code">{state.deviceAuth.user_code}</code>
 													<button
 														className="agentmode-copy-btn"
-														onClick={() => copyToClipboard(state.deviceAuth!.user_code)}
+														onClick={() => {
+															copyToClipboard(state.deviceAuth!.user_code).catch((error) => {
+																console.error('Failed to copy to clipboard:', error);
+															});
+														}}
 													>
 														Copy
 													</button>

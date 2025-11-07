@@ -1174,7 +1174,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
   };
 
-  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = async (e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
     let hasImage = false;
 
@@ -2067,7 +2067,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 marginTop: '12px',
               }}>
                 <button
-                  onClick={() => handleSaveEdit(message.id)}
+                  onClick={() => {
+                    handleSaveEdit(message.id).catch((error) => {
+                      console.error('Failed to save edit:', error);
+                      new Notice('Failed to save edit');
+                    });
+                  }}
                   disabled={!editingContent.trim()}
                   style={{
                     padding: '6px 16px',
@@ -2230,7 +2235,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     return (
       <LoginPrompt
         plugin={plugin}
-        onLoginClick={handleLoginClick}
+        onLoginClick={() => {
+          handleLoginClick().catch((error) => {
+            console.error('Login failed:', error);
+            new Notice('Login failed');
+          });
+        }}
       />
     );
   }
@@ -2298,7 +2308,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             {chatHistory.length > 0 && (
               <button
                 className="agentmode-chat-history-clear-btn"
-                onClick={handleClearAllHistory}
+                onClick={() => {
+                  handleClearAllHistory().catch((error) => {
+                    console.error('Failed to clear history:', error);
+                    new Notice('Failed to clear history');
+                  });
+                }}
               >
                 Clear All
               </button>
@@ -2323,7 +2338,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 </div>
                 <button
                   className="agentmode-chat-history-delete-btn"
-                  onClick={(e) => handleDeleteHistoryEntry(chat.id, e)}
+                  onClick={(e) => {
+                    handleDeleteHistoryEntry(chat.id, e).catch((error) => {
+                      console.error('Failed to delete history entry:', error);
+                      new Notice('Failed to delete chat');
+                    });
+                  }}
                   title="Delete this chat"
                 >
                   ×
@@ -2591,7 +2611,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               value={inputText}
               onChange={(value) => setInputText(value)}
               onKeyPress={handleKeyPress}
-              onPaste={handlePaste}
+              onPaste={(e) => {
+                handlePaste(e).catch((error) => {
+                  console.error('Failed to handle paste:', error);
+                  new Notice('Failed to process pasted content');
+                });
+              }}
               placeholder={chatMode === 'Ask'
                 ? "Ask something... Use [[]] to link notes"
                 : "Give instructions to the agent... Use [[]] to link notes"
@@ -2731,7 +2756,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         type="file"
         accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
         style={{ display: 'none' }}
-        onChange={handleFileChange}
+        onChange={(e) => {
+          handleFileChange(e).catch((error) => {
+            console.error('Failed to handle file change:', error);
+            new Notice('Failed to process selected files');
+          });
+        }}
         multiple
       />
 
@@ -2741,7 +2771,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         type="file"
         accept="application/pdf"
         style={{ display: 'none' }}
-        onChange={handleFileUploadChange}
+        onChange={(e) => {
+          handleFileUploadChange(e).catch((error) => {
+            console.error('Failed to handle file upload:', error);
+            new Notice('Failed to upload files');
+          });
+        }}
         multiple
       />
 

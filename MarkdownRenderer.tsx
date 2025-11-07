@@ -76,7 +76,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
       }}>
         <span style={{ fontWeight: '500' }}>{language}</span>
         <button
-          onClick={handleCopy}
+          onClick={() => {
+            handleCopy().catch((error) => {
+              console.error('Failed to copy code:', error);
+              new Notice('Failed to copy code');
+            });
+          }}
           className="agentmode-copy-button-styled"
           style={{
             color: copied ? 'var(--text-success)' : undefined,
