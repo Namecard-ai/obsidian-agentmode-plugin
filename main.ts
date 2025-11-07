@@ -309,7 +309,7 @@ export class Auth0Service {
 
 			const wrappedReject = (reason: unknown) => {
 				this.isPolling = false;
-				reject(reason);
+				reject(reason instanceof Error ? reason : new Error(String(reason)));
 			};
 
 			const poll = async () => {
@@ -897,19 +897,19 @@ export default class AgentPlugin extends Plugin {
 			icon.textContent = '✅';
 
 			// Add user name
-		const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
-		text.textContent = 'Agentmode';
+			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
+			text.textContent = 'Agentmode';
 
-		this.statusBarElement.title = `Logged in: ${userName}\nclick to view options`;
+			this.statusBarElement.title = `Logged in: ${userName}\nclick to view options`;
 		} else {
 			// Not logged in status
 			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-out' });
 			icon.textContent = '⚫';
 
-		const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
-		text.textContent = 'Agentmode';
+			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
+			text.textContent = 'Agentmode';
 
-		this.statusBarElement.title = 'Not logged in (click to log in)';
+			this.statusBarElement.title = 'Not logged in (click to log in)';
 		}
 	}
 

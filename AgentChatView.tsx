@@ -1386,7 +1386,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           reject(new Error('Failed to read file as base64'));
         }
       };
-      reader.onerror = () => reject(reader.error);
+      reader.onerror = () => reject(new Error(reader.error?.message || 'Failed to read file'));
       reader.readAsDataURL(file);
     });
   };
