@@ -301,16 +301,16 @@ export class Auth0Service {
 			// Set polling flag
 			this.isPolling = true;
 
-		// Wrap resolve and reject to ensure state cleanup
-		const wrappedResolve = (value: TokenResponse) => {
-			this.isPolling = false;
-			resolve(value);
-		};
+			// Wrap resolve and reject to ensure state cleanup
+			const wrappedResolve = (value: TokenResponse) => {
+				this.isPolling = false;
+				resolve(value);
+			};
 
-		const wrappedReject = (reason: unknown) => {
-			this.isPolling = false;
-			reject(reason);
-		};
+			const wrappedReject = (reason: unknown) => {
+				this.isPolling = false;
+				reject(reason);
+			};
 
 			const poll = async () => {
 				// Check if polling has been stopped
@@ -397,15 +397,15 @@ export class Auth0Service {
 				}
 			};
 
-		// Start polling
-		this.pollingTimer = this.plugin.registerInterval(
-			window.setInterval(poll, interval * 1000)
-		);
-		poll().catch((error) => {
-			console.error('Initial polling failed:', error);
-		}); // Execute first time immediately
-	});
-}
+			// Start polling
+			this.pollingTimer = this.plugin.registerInterval(
+				window.setInterval(poll, interval * 1000)
+			);
+			poll().catch((error) => {
+				console.error('Initial polling failed:', error);
+			}); // Execute first time immediately
+		});
+	}
 
 	// Stop polling
 	stopPolling() {
@@ -795,35 +795,35 @@ export default class AgentPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-	this.addRibbonIcon('bot-message-square', 'Open chat', () => {
-		this.activateAgentChatView().catch((error) => {
-			console.error('Failed to activate chat view:', error);
-		});
-	});
-
-
-		// This adds a simple command that can be triggered anywhere
-	this.addCommand({
-		id: 'open-chat',
-		name: 'Open chat',
-		callback: () => {
+		this.addRibbonIcon('bot-message-square', 'Open chat', () => {
 			this.activateAgentChatView().catch((error) => {
 				console.error('Failed to activate chat view:', error);
 			});
-		}
-	});
+		});
+
+
+		// This adds a simple command that can be triggered anywhere
+		this.addCommand({
+			id: 'open-chat',
+			name: 'Open chat',
+			callback: () => {
+				this.activateAgentChatView().catch((error) => {
+					console.error('Failed to activate chat view:', error);
+				});
+			}
+		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new AgentPluginSettingTab(this.app, this));
 
 		// Start the embedding queue consumer
-	this.startQueueConsumer();
+		this.startQueueConsumer();
 
-	// Initialize batch processing for all markdown files in vault
-	this.initializeBatchEmbeddingQueue().catch((error) => {
-		console.error('Failed to initialize batch embedding queue:', error);
-	});
-}
+		// Initialize batch processing for all markdown files in vault
+		this.initializeBatchEmbeddingQueue().catch((error) => {
+			console.error('Failed to initialize batch embedding queue:', error);
+		});
+	}
 
 	initializeOpenAI() {
 		const backendUrl = process.env.BACKEND_BASE_URL;
@@ -1422,81 +1422,81 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
-		// Main conversation loop - continue until no more tool calls
-		let finalAssistantContent = '';
-		// eslint-disable-next-line no-constant-condition
-		while (true) {
+			// Main conversation loop - continue until no more tool calls
+			let finalAssistantContent = '';
+			// eslint-disable-next-line no-constant-condition
+			while (true) {
 				// Check for interruption
 				if (this.shouldStopChat) {
 					onInterrupted?.();
 					return;
 				}
 
-			// Start streaming chat completion
-			const headers: Record<string, string> = {
-				'Authorization': `Bearer ${this.settings.accessToken}`
-			};
-			if (this.settings.openaiApiKey) {
-				headers['X-BYOK'] = this.settings.openaiApiKey;
-			}
-			const reqOptions: RequestOptions = {
-				headers,
-				signal: this.currentChatController.signal
-			};
-
-			const stream = await this.openaiClient.chat.completions.create({
-				model: model,
-				messages: chatMessages,
-				tools: tools,
-				stream: true,
-				// temperature: 0.7
-			}, reqOptions);
-
-			// Build up the message from streaming chunks
-			let currentMessage: Record<string, unknown> = {};
-
-			for await (const chunk of stream) {
-				// Check for interruption
-				if (this.shouldStopChat) {
-					onInterrupted?.();
-					return;
+				// Start streaming chat completion
+				const headers: Record<string, string> = {
+					'Authorization': `Bearer ${this.settings.accessToken}`
+				};
+				if (this.settings.openaiApiKey) {
+					headers['X-BYOK'] = this.settings.openaiApiKey;
 				}
+				const reqOptions: RequestOptions = {
+					headers,
+					signal: this.currentChatController.signal
+				};
 
-				currentMessage = this.messageReducer(currentMessage, chunk as unknown as Record<string, unknown>);
+				const stream = await this.openaiClient.chat.completions.create({
+					model: model,
+					messages: chatMessages,
+					tools: tools,
+					stream: true,
+					// temperature: 0.7
+				}, reqOptions);
 
-				// Stream content to UI
-				const delta = (chunk as { choices?: Array<{ delta?: { content?: string; tool_calls?: ToolCall[] } }> }).choices?.[0]?.delta;
-				if (delta?.content) {
-					onChunk(delta.content);
-					// Accumulate final content
-					finalAssistantContent += delta.content;
-				}
+				// Build up the message from streaming chunks
+				let currentMessage: Record<string, unknown> = {};
 
-				// Handle tool call deltas
-				if (delta?.tool_calls) {
-					for (const toolCall of delta.tool_calls) {
-						if (toolCall.function?.name) {
-							onToolCall(toolCall);
+				for await (const chunk of stream) {
+					// Check for interruption
+					if (this.shouldStopChat) {
+						onInterrupted?.();
+						return;
+					}
+
+					currentMessage = this.messageReducer(currentMessage, chunk as unknown as Record<string, unknown>);
+
+					// Stream content to UI
+					const delta = (chunk as { choices?: Array<{ delta?: { content?: string; tool_calls?: ToolCall[] } }> }).choices?.[0]?.delta;
+					if (delta?.content) {
+						onChunk(delta.content);
+						// Accumulate final content
+						finalAssistantContent += delta.content;
+					}
+
+					// Handle tool call deltas
+					if (delta?.tool_calls) {
+						for (const toolCall of delta.tool_calls) {
+							if (toolCall.function?.name) {
+								onToolCall(toolCall);
+							}
 						}
 					}
 				}
-		}
 
-		// Add the completed assistant message to conversation
-		// Ensure currentMessage has required properties for ChatCompletionMessageParam
-		if (!currentMessage.role) {
-			currentMessage.role = 'assistant';
-		}
-		chatMessages.push(currentMessage as unknown as ChatCompletionMessageParam);
+				// Add the completed assistant message to conversation
+				// Ensure currentMessage has required properties for ChatCompletionMessageParam
+				if (!currentMessage.role) {
+					currentMessage.role = 'assistant';
+				}
+				chatMessages.push(currentMessage as unknown as ChatCompletionMessageParam);
 
-		// If there are no tool calls, we're done
-		const toolCalls = currentMessage.tool_calls as ToolCall[] | undefined;
-			if (!toolCalls) {
-				break;
-			}
+				// If there are no tool calls, we're done
+				const toolCalls = currentMessage.tool_calls as ToolCall[] | undefined;
+				if (!toolCalls) {
+					break;
+				}
 
-			// Execute tool calls and add results to conversation
-			for (const toolCall of toolCalls) {
+				// Execute tool calls and add results to conversation
+				for (const toolCall of toolCalls) {
 					// Check for interruption
 					if (this.shouldStopChat) {
 						onInterrupted?.();
@@ -1545,60 +1545,60 @@ export default class AgentPlugin extends Plugin {
 							content: result
 						};
 
-					chatMessages.push(toolMessage);
-					onToolResult({ toolCallId: toolCall.id, result });
+						chatMessages.push(toolMessage);
+						onToolResult({ toolCallId: toolCall.id, result });
 
-				} catch (error: unknown) {
-					// Debug: Log tool call error
-					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-					const errorStack = error instanceof Error ? error.stack : undefined;
-					console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
-						tool_call_id: toolCall.id,
-						error_message: errorMessage,
-						error_stack: errorStack,
-						full_error: error
-					});
+					} catch (error: unknown) {
+						// Debug: Log tool call error
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+						const errorStack = error instanceof Error ? error.stack : undefined;
+						console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
+							tool_call_id: toolCall.id,
+							error_message: errorMessage,
+							error_stack: errorStack,
+							full_error: error
+						});
 
-					// Handle tool execution error
-					const toolErrorMessage: ChatCompletionMessageParam = {
-						tool_call_id: toolCall.id,
-						role: 'tool',
-						content: `Error: ${errorMessage}`
-					};
+						// Handle tool execution error
+						const toolErrorMessage: ChatCompletionMessageParam = {
+							tool_call_id: toolCall.id,
+							role: 'tool',
+							content: `Error: ${errorMessage}`
+						};
 
-					chatMessages.push(toolErrorMessage);
-					onToolResult({ toolCallId: toolCall.id, result: `Error: ${errorMessage}` });
+						chatMessages.push(toolErrorMessage);
+						onToolResult({ toolCallId: toolCall.id, result: `Error: ${errorMessage}` });
 					}
 				}
 
 				// Continue the loop for next round of chat completion
 			}
 
-		onComplete(finalAssistantContent);
+			onComplete(finalAssistantContent);
 
-	} catch (error: unknown) {
-		console.error('Error in agent chat:', error);
+		} catch (error: unknown) {
+			console.error('Error in agent chat:', error);
 
-		// Handle abort error
-		const errorName = error instanceof Error ? error.name : '';
-		if (errorName === 'AbortError' || this.shouldStopChat) {
-			onInterrupted?.();
-			return;
-		}
+			// Handle abort error
+			const errorName = error instanceof Error ? error.name : '';
+			if (errorName === 'AbortError' || this.shouldStopChat) {
+				onInterrupted?.();
+				return;
+			}
 
-	const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
-	if (errorStatus === 401) {
-		this.logout().catch((error) => {
-			console.error('Logout failed:', error);
-		});
-	}
-	if (errorStatus === 402) {
-			// Show payment required modal
-			const paymentModal = new PaymentRequiredModal(this.app, this);
-			paymentModal.show();
-		}
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		onError(errorMessage);
+			const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+			if (errorStatus === 401) {
+				this.logout().catch((error) => {
+					console.error('Logout failed:', error);
+				});
+			}
+			if (errorStatus === 402) {
+				// Show payment required modal
+				const paymentModal = new PaymentRequiredModal(this.app, this);
+				paymentModal.show();
+			}
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+			onError(errorMessage);
 		} finally {
 			// Clean up interruption control
 			this.currentChatController = null;
@@ -1629,7 +1629,7 @@ export default class AgentPlugin extends Plugin {
 				} else if (Array.isArray(acc[key]) && Array.isArray(value)) {
 					const accArray = acc[key] as Array<Record<string, unknown>>;
 					for (let i = 0; i < value.length; i++) {
-						const { index, ...chunkTool } = value[i] as { index: number; [key: string]: unknown };
+						const { index, ...chunkTool } = value[i] as { index: number;[key: string]: unknown };
 						if (index - accArray.length > 1) {
 							throw new Error(
 								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${accArray}; tool: ${value}`,
@@ -2017,15 +2017,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				relevance: 'High' // You could calculate actual similarity scores here
 			}));
 
-		const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+			const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
 
-		return resultText;
-	} catch (error: unknown) {
-		console.error('🔍 [TOOL] vault_search error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error searching vault: ${errorMessage}`;
+			return resultText;
+		} catch (error: unknown) {
+			console.error('🔍 [TOOL] vault_search error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error searching vault: ${errorMessage}`;
+		}
 	}
-}
 
 	// File type constants for easy extension
 	private static readonly GREPPABLE_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt', 'html']
@@ -2072,19 +2072,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			const fileType = this.getFileType(args.file_path);
 
-		if (fileType === 'plain_text') {
-			return await this.readPlainTextFile(file, args);
-		} else if (fileType === 'convertible') {
-			return await this.readConvertibleFile(file, args);
-		} else {
-			return `Unsupported file type: ${args.file_path}`;
+			if (fileType === 'plain_text') {
+				return await this.readPlainTextFile(file, args);
+			} else if (fileType === 'convertible') {
+				return await this.readConvertibleFile(file, args);
+			} else {
+				return `Unsupported file type: ${args.file_path}`;
+			}
+		} catch (error: unknown) {
+			console.error('📖 [TOOL] read_file error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error reading file: ${errorMessage}`;
 		}
-	} catch (error: unknown) {
-		console.error('📖 [TOOL] read_file error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error reading file: ${errorMessage}`;
 	}
-}
 
 	private async readPlainTextFile(file: TFile, args: { start_line?: number; end_line?: number; read_entire_note?: boolean }): Promise<string> {
 		const content = await this.app.vault.cachedRead(file);
@@ -2163,14 +2163,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			if (response.status < 200 || response.status >= 300) {
 				const errorData = response.json || {};
-			console.error('📄 [TOOL] convert error:', response.status, errorData);
+				console.error('📄 [TOOL] convert error:', response.status, errorData);
 
-			if (response.status === 401) {
-				this.logout().catch((error) => {
-					console.error('Logout failed:', error);
-				});
-				return 'Error: Authentication failed. Please log in again.';
-			} else if (response.status === 413) {
+				if (response.status === 401) {
+					this.logout().catch((error) => {
+						console.error('Logout failed:', error);
+					});
+					return 'Error: Authentication failed. Please log in again.';
+				} else if (response.status === 413) {
 					return 'Error: File too large for conversion.';
 				} else if (response.status === 504) {
 					return 'Error: Conversion timeout. The file may be too complex to process.';
@@ -2184,18 +2184,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			const data = response.json;
 
-		if (!data.success) {
-			console.error('📄 [TOOL] convert API error:', data);
-			return 'Error: File conversion failed.';
-		}
-		return data.data.markdown || 'No content could be extracted from the file.';
+			if (!data.success) {
+				console.error('📄 [TOOL] convert API error:', data);
+				return 'Error: File conversion failed.';
+			}
+			return data.data.markdown || 'No content could be extracted from the file.';
 
-	} catch (error: unknown) {
-		console.error('📄 [TOOL] convert error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error converting file: ${errorMessage}`;
+		} catch (error: unknown) {
+			console.error('📄 [TOOL] convert error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error converting file: ${errorMessage}`;
+		}
 	}
-}
 
 	private async toolEditFile(args: { file_path: string; instructions: string; edits: EditOperation[] }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
@@ -2252,15 +2252,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				// Set up callbacks for user decision
 				this.editConfirmationCallbacks = {
 					onAccept: async () => {
-					try {
-						// Apply the changes
-						await this.app.vault.modify(file, modifiedContent);
-						const diffPreview = this.formatDiffForDisplay(diff);
-						resolve(`✅ Edit confirmed and applied to: ${args.file_path}\n\nChanges:\n${diffPreview}`);
-					} catch (error: unknown) {
-						const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-						reject(new Error(`Failed to apply changes: ${errorMessage}`));
-					}
+						try {
+							// Apply the changes
+							await this.app.vault.modify(file, modifiedContent);
+							const diffPreview = this.formatDiffForDisplay(diff);
+							resolve(`✅ Edit confirmed and applied to: ${args.file_path}\n\nChanges:\n${diffPreview}`);
+						} catch (error: unknown) {
+							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+							reject(new Error(`Failed to apply changes: ${errorMessage}`));
+						}
 					},
 					onReject: (reason?: string) => {
 						const message = reason
@@ -2270,16 +2270,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					}
 				};
 
-			// Store the pending confirmation and notify listeners
-			this.pendingEditConfirmation = pendingConfirmation;
-			this.notifyEditConfirmationListeners();
-		});
+				// Store the pending confirmation and notify listeners
+				this.pendingEditConfirmation = pendingConfirmation;
+				this.notifyEditConfirmationListeners();
+			});
 
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error preparing edit: ${errorMessage}`;
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error preparing edit: ${errorMessage}`;
+		}
 	}
-}
 
 	// Validate edit operations for overlaps and constraints
 	private validateEditOperations(edits: EditOperation[], totalLines: number): { valid: boolean; error?: string } {
@@ -2512,42 +2512,42 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 								// Remove the filename to get the directory path
 								const directoryPath = pathParts.slice(0, -1).join('/');
 
-							// Check if directory exists, if not create it
-							try {
-								const existingFolder = this.app.vault.getAbstractFileByPath(directoryPath);
-								if (!existingFolder) {
-									await this.app.vault.createFolder(directoryPath);
+								// Check if directory exists, if not create it
+								try {
+									const existingFolder = this.app.vault.getAbstractFileByPath(directoryPath);
+									if (!existingFolder) {
+										await this.app.vault.createFolder(directoryPath);
+									}
+								} catch (dirError: unknown) {
+									// Directory might already exist or be created by another process
 								}
-							} catch (dirError: unknown) {
-								// Directory might already exist or be created by another process
-							}
 							}
 
-					// Create the file
-					await this.app.vault.create(args.file_path, args.content);
-					resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
-				} catch (error: unknown) {
-					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-					reject(new Error(`Failed to create file: ${errorMessage}`));
-				}
-			},
-			onReject: (reason?: string) => {
-				const message = reason
-					? `❌ File creation rejected by user: ${reason}`
-					: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
-				resolve(message);
-			}
-		};
+							// Create the file
+							await this.app.vault.create(args.file_path, args.content);
+							resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
+						} catch (error: unknown) {
+							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+							reject(new Error(`Failed to create file: ${errorMessage}`));
+						}
+					},
+					onReject: (reason?: string) => {
+						const message = reason
+							? `❌ File creation rejected by user: ${reason}`
+							: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
+						resolve(message);
+					}
+				};
 
-		// Store the pending confirmation and notify listeners
-		this.pendingCreateNoteConfirmation = pendingConfirmation;
-		this.notifyCreateNoteConfirmationListeners();
-	});
+				// Store the pending confirmation and notify listeners
+				this.pendingCreateNoteConfirmation = pendingConfirmation;
+				this.notifyCreateNoteConfirmationListeners();
+			});
 
-} catch (error: unknown) {
-	const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-	return `Error preparing file creation: ${errorMessage}`;
-}
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error preparing file creation: ${errorMessage}`;
+		}
 	}
 
 	private async toolListVault(args: { vault_path: string; explanation: string }) {
@@ -2592,81 +2592,81 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return result || 'No files found in vault root';
 			}
 
-	// Check if the relative path exists as a folder
-	const folder = this.app.vault.getAbstractFileByPath(relativePath);
+			// Check if the relative path exists as a folder
+			const folder = this.app.vault.getAbstractFileByPath(relativePath);
 
-	if (folder && (folder as FolderWithChildren).children) {
-		// It's a folder with children
-		const children = (folder as FolderWithChildren).children!;
+			if (folder && (folder as FolderWithChildren).children) {
+				// It's a folder with children
+				const children = (folder as FolderWithChildren).children!;
 
-		const listing = children.map((child) => {
-			if (child.children) {
-				return `📁 ${child.name}/`;
-			} else {
-				return `📄 ${child.name}`;
+				const listing = children.map((child) => {
+					if (child.children) {
+						return `📁 ${child.name}/`;
+					} else {
+						return `📄 ${child.name}`;
+					}
+				});
+
+				const result = listing.slice(0, 20).join('\n');
+				return result || 'Empty folder';
 			}
-		});
+
+			// Fallback: use getAllLoadedFiles() and filter by path
+			const allFiles = this.app.vault.getAllLoadedFiles();
+			const normalizedPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
+
+			// Get direct children only (not nested descendants)
+			const directChildren = allFiles.filter(file => {
+				if (!file.path.startsWith(normalizedPath)) {
+					return false;
+				}
+				const remainingPath = file.path.substring(normalizedPath.length);
+				// Check if this is a direct child (no more slashes in remaining path means it's a file,
+				// one slash at the end means it's a folder)
+				const slashCount = (remainingPath.match(/\//g) || []).length;
+				return slashCount === 0 || (slashCount === 1 && remainingPath.endsWith('/'));
+			});
+
+			// Separate folders and files
+			const folders = new Set<string>();
+			const files: string[] = [];
+
+			for (const file of directChildren) {
+				const remainingPath = file.path.substring(normalizedPath.length);
+				const slashIndex = remainingPath.indexOf('/');
+
+				if (slashIndex !== -1) {
+					// This is a folder
+					const folderName = remainingPath.substring(0, slashIndex);
+					folders.add(folderName);
+				} else {
+					// This is a file
+					files.push(file.name);
+				}
+			}
+
+			const listing = [
+				...Array.from(folders).sort().map(f => `📁 ${f}/`),
+				...files.sort().map(f => `📄 ${f}`)
+			];
 
 			const result = listing.slice(0, 20).join('\n');
-			return result || 'Empty folder';
-		}
+			return result || 'Empty directory';
 
-		// Fallback: use getAllLoadedFiles() and filter by path
-		const allFiles = this.app.vault.getAllLoadedFiles();
-		const normalizedPath = relativePath.endsWith('/') ? relativePath : relativePath + '/';
-		
-		// Get direct children only (not nested descendants)
-		const directChildren = allFiles.filter(file => {
-			if (!file.path.startsWith(normalizedPath)) {
-				return false;
+		} catch (error: unknown) {
+			console.error('📂 [TOOL] list_vault error:', error);
+
+			// Fallback: list all files in vault
+			try {
+				const files = this.app.vault.getAllLoadedFiles();
+				const result = files.map(f => f.path).slice(0, 20).join('\n');
+				return result || 'No files found in vault';
+			} catch (fallbackError: unknown) {
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+				return `Error listing vault: ${errorMessage}`;
 			}
-			const remainingPath = file.path.substring(normalizedPath.length);
-			// Check if this is a direct child (no more slashes in remaining path means it's a file,
-			// one slash at the end means it's a folder)
-			const slashCount = (remainingPath.match(/\//g) || []).length;
-			return slashCount === 0 || (slashCount === 1 && remainingPath.endsWith('/'));
-		});
-
-		// Separate folders and files
-		const folders = new Set<string>();
-		const files: string[] = [];
-
-		for (const file of directChildren) {
-			const remainingPath = file.path.substring(normalizedPath.length);
-			const slashIndex = remainingPath.indexOf('/');
-			
-			if (slashIndex !== -1) {
-				// This is a folder
-				const folderName = remainingPath.substring(0, slashIndex);
-				folders.add(folderName);
-			} else {
-				// This is a file
-				files.push(file.name);
-			}
-		}
-
-		const listing = [
-			...Array.from(folders).sort().map(f => `📁 ${f}/`),
-			...files.sort().map(f => `📄 ${f}`)
-		];
-
-	const result = listing.slice(0, 20).join('\n');
-	return result || 'Empty directory';
-
-	} catch (error: unknown) {
-		console.error('📂 [TOOL] list_vault error:', error);
-
-		// Fallback: list all files in vault
-		try {
-			const files = this.app.vault.getAllLoadedFiles();
-			const result = files.map(f => f.path).slice(0, 20).join('\n');
-			return result || 'No files found in vault';
-		} catch (fallbackError: unknown) {
-			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			return `Error listing vault: ${errorMessage}`;
 		}
 	}
-}
 
 	private vaultGrepCache: Map<string, { results: GrepResult[], timestamp: number }> = new Map();
 	private readonly CACHE_DURATION = 60000; // 1 minute in milliseconds
@@ -2693,16 +2693,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return JSON.stringify(cached.results);
 			}
 
-		// Compile regex pattern with error handling
-		let regex: RegExp;
-		try {
-			const flags = args.case_insensitive ? 'i' : '';
-			regex = new RegExp(args.pattern, flags);
-		} catch (regexError: unknown) {
-			console.error('🔍 [TOOL] vault_grep invalid regex pattern:', regexError);
-			const errorMessage = regexError instanceof Error ? regexError.message : 'Invalid pattern';
-			return `Error: Invalid regular expression pattern "${args.pattern}": ${errorMessage}`;
-		}
+			// Compile regex pattern with error handling
+			let regex: RegExp;
+			try {
+				const flags = args.case_insensitive ? 'i' : '';
+				regex = new RegExp(args.pattern, flags);
+			} catch (regexError: unknown) {
+				console.error('🔍 [TOOL] vault_grep invalid regex pattern:', regexError);
+				const errorMessage = regexError instanceof Error ? regexError.message : 'Invalid pattern';
+				return `Error: Invalid regular expression pattern "${args.pattern}": ${errorMessage}`;
+			}
 
 			// Get all files in vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
@@ -2723,16 +2723,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					args.target_subpaths!.some(subpath =>
 						file.path.startsWith(subpath.endsWith('/') ? subpath : subpath + '/')
 					)
-			);
-		}
+				);
+			}
 
-		const results: GrepResult[] = [];
+			const results: GrepResult[] = [];
 
-		// Search through each file
-		for (const file of filteredFiles) {
-			try {
-				const content = await this.app.vault.cachedRead(file);
-				const lines = content.split('\n');
+			// Search through each file
+			for (const file of filteredFiles) {
+				try {
+					const content = await this.app.vault.cachedRead(file);
+					const lines = content.split('\n');
 
 					// Search each line using regex pattern
 					for (let i = 0; i < lines.length; i++) {
@@ -2765,14 +2765,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				}
 			}
 
-		return JSON.stringify(results);
+			return JSON.stringify(results);
 
-	} catch (error: unknown) {
-		console.error('🔍 [TOOL] vault_grep error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error performing grep search: ${errorMessage}`;
+		} catch (error: unknown) {
+			console.error('🔍 [TOOL] vault_grep error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error performing grep search: ${errorMessage}`;
+		}
 	}
-}
 
 	private async toolWebSearch(args: { query: string }) {
 		try {
@@ -2823,60 +2823,60 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Web search API returned unsuccessful response.';
 			}
 
-		// Format the search results for display
-		const results: string[] = [];
+			// Format the search results for display
+			const results: string[] = [];
 
-		if (data.data?.web && Array.isArray(data.data.web)) {
-			results.push('🌐 Web Results:');
-			(data.data.web as WebSearchResult[]).forEach((result, index) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.description) {
-					results.push(`   ${result.description}`);
-				}
-				if (result.url) {
-					results.push(`   🔗 ${result.url}`);
-				}
-				results.push('');
-			});
+			if (data.data?.web && Array.isArray(data.data.web)) {
+				results.push('🌐 Web Results:');
+				(data.data.web as WebSearchResult[]).forEach((result, index) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.description) {
+						results.push(`   ${result.description}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.images && Array.isArray(data.data.images)) {
+				results.push('🖼️ Image Results:');
+				(data.data.images as ImageSearchResult[]).forEach((result, index) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.imageUrl) {
+						results.push(`   🔗 ${result.imageUrl}`);
+					}
+					results.push('');
+				});
+			}
+
+			if (data.data?.news && Array.isArray(data.data.news)) {
+				results.push('📰 News Results:');
+				(data.data.news as NewsSearchResult[]).forEach((result, index) => {
+					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+					if (result.snippet) {
+						results.push(`   ${result.snippet}`);
+					}
+					if (result.url) {
+						results.push(`   🔗 ${result.url}`);
+					}
+					if (result.date) {
+						results.push(`   📅 ${result.date}`);
+					}
+					results.push('');
+				});
+			}
+
+			const resultText = results.join('\n');
+			return resultText || 'No search results found.';
+
+		} catch (error: unknown) {
+			console.error('🔍 [TOOL] web_search error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error performing web search: ${errorMessage}`;
 		}
-
-		if (data.data?.images && Array.isArray(data.data.images)) {
-			results.push('🖼️ Image Results:');
-			(data.data.images as ImageSearchResult[]).forEach((result, index) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.imageUrl) {
-					results.push(`   🔗 ${result.imageUrl}`);
-				}
-				results.push('');
-			});
-		}
-
-		if (data.data?.news && Array.isArray(data.data.news)) {
-			results.push('📰 News Results:');
-			(data.data.news as NewsSearchResult[]).forEach((result, index) => {
-				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-				if (result.snippet) {
-					results.push(`   ${result.snippet}`);
-				}
-				if (result.url) {
-					results.push(`   🔗 ${result.url}`);
-				}
-				if (result.date) {
-					results.push(`   📅 ${result.date}`);
-				}
-				results.push('');
-			});
-		}
-
-		const resultText = results.join('\n');
-		return resultText || 'No search results found.';
-
-	} catch (error: unknown) {
-		console.error('🔍 [TOOL] web_search error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error performing web search: ${errorMessage}`;
 	}
-}
 
 	private async toolWebScrape(args: { url: string }) {
 		try {
@@ -2963,15 +2963,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				results.push(`⚠️ **Warning:** ${data.warning}`);
 			}
 
-		const resultText = results.join('\n');
-		return resultText || 'No content could be scraped from the URL.';
+			const resultText = results.join('\n');
+			return resultText || 'No content could be scraped from the URL.';
 
-	} catch (error: unknown) {
-		console.error('🕷️ [TOOL] web_scrape error:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		return `Error performing web scrape: ${errorMessage}`;
+		} catch (error: unknown) {
+			console.error('🕷️ [TOOL] web_scrape error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error performing web scrape: ${errorMessage}`;
+		}
 	}
-}
 
 	// Helper method to split text into chunks based on token count
 	splitTextIntoChunks(text: string, maxTokens = 8000, overlapTokens = 200): string[] {
@@ -3171,16 +3171,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return null;
 			}
 
-		// Build request options, consistent with other OpenAI calls
-		const headers: Record<string, string> = {
-			'Authorization': `Bearer ${this.settings.accessToken}`
-		};
-		if (this.settings.openaiApiKey) {
-			headers['X-BYOK'] = this.settings.openaiApiKey;
-		}
-		const reqOptions: RequestOptions = {
-			headers,
-		};
+			// Build request options, consistent with other OpenAI calls
+			const headers: Record<string, string> = {
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
+			if (this.settings.openaiApiKey) {
+				headers['X-BYOK'] = this.settings.openaiApiKey;
+			}
+			const reqOptions: RequestOptions = {
+				headers,
+			};
 
 			const response = await this.openaiClient.embeddings.create({
 				model: 'text-embedding-3-small',
@@ -3188,15 +3188,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}, reqOptions);
 
 			return response.data[0].embedding;
-	} catch (error) {
-		console.error('Error getting OpenAI embedding:', error);
-		if (error.status === 401) {
-			this.logout().catch((error) => {
-				console.error('Logout failed:', error);
-			});
+		} catch (error) {
+			console.error('Error getting OpenAI embedding:', error);
+			if (error.status === 401) {
+				this.logout().catch((error) => {
+					console.error('Logout failed:', error);
+				});
+			}
+			return null;
 		}
-		return null;
-	}
 	}
 
 	onunload() {
@@ -3289,14 +3289,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			});
 
 			// Notify UI update
-		this.notifySettingsUpdate();
+			this.notifySettingsUpdate();
 
-		// Trigger immediate processing if not already processing
-		this.processEmbeddingQueue().catch((error) => {
-			console.error('Failed to process embedding queue:', error);
-		});
+			// Trigger immediate processing if not already processing
+			this.processEmbeddingQueue().catch((error) => {
+				console.error('Failed to process embedding queue:', error);
+			});
+		}
 	}
-}
 
 	private async processEmbeddingQueue() {
 		if (this.isProcessingQueue || this.embeddingQueue.size === 0) {
@@ -3434,14 +3434,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			window.clearInterval(this.queueConsumerTimer);
 		}
 
-	this.queueConsumerTimer = this.registerInterval(
-		window.setInterval(() => {
-			this.processEmbeddingQueue().catch((error) => {
-				console.error('Failed to process embedding queue:', error);
-			});
-		}, this.QUEUE_CONSUMER_INTERVAL)
-	);
-}
+		this.queueConsumerTimer = this.registerInterval(
+			window.setInterval(() => {
+				this.processEmbeddingQueue().catch((error) => {
+					console.error('Failed to process embedding queue:', error);
+				});
+			}, this.QUEUE_CONSUMER_INTERVAL)
+		);
+	}
 
 	private stopQueueConsumer() {
 		if (this.queueConsumerTimer) {
@@ -3693,18 +3693,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const loginModal = new LoginModal(this.app, this);
 			const success = await loginModal.showLogin();
 
-		if (success) {
-			this.updateStatusBar();
+			if (success) {
+				this.updateStatusBar();
 
-			// Start batch embedding queue after successful login
-			await this.initializeBatchEmbeddingQueue();
+				// Start batch embedding queue after successful login
+				await this.initializeBatchEmbeddingQueue();
+			}
+		} catch (error: unknown) {
+			console.error('Login failed:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			new Notice(`Login failed: ${errorMessage}`);
 		}
-	} catch (error: unknown) {
-		console.error('Login failed:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		new Notice(`Login failed: ${errorMessage}`);
 	}
-}
 
 	async logout(): Promise<void> {
 		if (!this.auth0Service) {
@@ -3714,30 +3714,30 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			await this.auth0Service.logout();
 
-		// Clear embedding queue after logout
-		this.clearEmbeddingQueue();
+			// Clear embedding queue after logout
+			this.clearEmbeddingQueue();
 
-		// UI update logic will be added here later
-	} catch (error: unknown) {
-		console.error('Logout failed:', error);
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		new Notice(`Logout failed: ${errorMessage}`);
+			// UI update logic will be added here later
+		} catch (error: unknown) {
+			console.error('Logout failed:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			new Notice(`Logout failed: ${errorMessage}`);
+		}
 	}
-}
 
-isLoggedIn(): boolean {
-	return this.settings.isLoggedIn && !!this.settings.accessToken;
-}
-
-getUserInfo(): { email?: string; name?: string; sub?: string } | null {
-	return this.settings.userInfo || null;
-}
-
-// Get user profile (including subscription information)
-async getUserProfile(): Promise<UserProfileResponse> {
-	if (!this.isLoggedIn() || !this.settings.accessToken) {
-		throw new Error('Not logged in');
+	isLoggedIn(): boolean {
+		return this.settings.isLoggedIn && !!this.settings.accessToken;
 	}
+
+	getUserInfo(): { email?: string; name?: string; sub?: string } | null {
+		return this.settings.userInfo || null;
+	}
+
+	// Get user profile (including subscription information)
+	async getUserProfile(): Promise<UserProfileResponse> {
+		if (!this.isLoggedIn() || !this.settings.accessToken) {
+			throw new Error('Not logged in');
+		}
 
 		try {
 			const backendUrl = process.env.BACKEND_BASE_URL;
@@ -3751,19 +3751,19 @@ async getUserProfile(): Promise<UserProfileResponse> {
 				throw: false
 			});
 
-		if (response.status < 200 || response.status >= 300) {
-			throw {
-				status: response.status,
-				message: response.text
-			};
-		}
+			if (response.status < 200 || response.status >= 300) {
+				throw {
+					status: response.status,
+					message: response.text
+				};
+			}
 
-		return response.json as UserProfileResponse;
-	} catch (error: unknown) {
-		console.error('Get user profile failed:', error);
-		throw error;
+			return response.json as UserProfileResponse;
+		} catch (error: unknown) {
+			console.error('Get user profile failed:', error);
+			throw error;
+		}
 	}
-}
 
 	// Get Stripe Billing Portal Session URL
 	async getBillingSession(): Promise<string> {
@@ -3787,51 +3787,51 @@ async getUserProfile(): Promise<UserProfileResponse> {
 				throw new Error(`Get billing session failed: ${response.status} ${response.text}`);
 			}
 
-		const data = response.json;
-		if (data.success && data.data && data.data.url) {
-			return data.data.url;
-		} else {
-			throw new Error('Invalid response format');
-		}
-	} catch (error: unknown) {
-		console.error('Get billing session failed:', error);
-		throw error;
-	}
-}
-
-// Open Billing Portal (extracted from AgentPluginSettingTab)
-async openBillingPortal(): Promise<void> {
-	try {
-		// Get billing session URL
-		const billingUrl = await this.getBillingSession();
-
-		// Open external browser
-		window.open(billingUrl, '_blank', 'noopener,noreferrer');
-
-	} catch (error: unknown) {
-		console.error('Failed to open billing portal:', error);
-
-		// Show error notification
-		const errorMessage = error instanceof Error ? error.message : '';
-		if (errorMessage.includes('Not logged in')) {
-			new Notice('Please log in first to manage billing');
-		} else {
-			new Notice('Failed to open billing portal. Please try again.');
+			const data = response.json;
+			if (data.success && data.data && data.data.url) {
+				return data.data.url;
+			} else {
+				throw new Error('Invalid response format');
+			}
+		} catch (error: unknown) {
+			console.error('Get billing session failed:', error);
+			throw error;
 		}
 	}
-}
 
-// Open Plugin Settings (extracted from showStatusBarMenu)
-openPluginSettings(): void {
-	interface AppWithSettings {
-		setting: {
-			open(): void;
-			openTabById(id: string): void;
-		};
+	// Open Billing Portal (extracted from AgentPluginSettingTab)
+	async openBillingPortal(): Promise<void> {
+		try {
+			// Get billing session URL
+			const billingUrl = await this.getBillingSession();
+
+			// Open external browser
+			window.open(billingUrl, '_blank', 'noopener,noreferrer');
+
+		} catch (error: unknown) {
+			console.error('Failed to open billing portal:', error);
+
+			// Show error notification
+			const errorMessage = error instanceof Error ? error.message : '';
+			if (errorMessage.includes('Not logged in')) {
+				new Notice('Please log in first to manage billing');
+			} else {
+				new Notice('Failed to open billing portal. Please try again.');
+			}
+		}
 	}
-	(this.app as unknown as AppWithSettings).setting.open();
-	(this.app as unknown as AppWithSettings).setting.openTabById(this.manifest.id);
-}
+
+	// Open Plugin Settings (extracted from showStatusBarMenu)
+	openPluginSettings(): void {
+		interface AppWithSettings {
+			setting: {
+				open(): void;
+				openTabById(id: string): void;
+			};
+		}
+		(this.app as unknown as AppWithSettings).setting.open();
+		(this.app as unknown as AppWithSettings).setting.openTabById(this.manifest.id);
+	}
 }
 
 // class SampleModal extends Modal {
@@ -3894,12 +3894,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				subscriptionDiv.empty();
 
 				if (profileData.success && profileData.data) {
-				const { subscription } = profileData.data;
+					const { subscription } = profileData.data;
 
-				// Create header with refresh button
-				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					// Create header with refresh button
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 
-				if (subscription) {
+					if (subscription) {
 						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
 						subscriptionDetails.createEl('div', {
@@ -3934,26 +3934,26 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 					// Add Billing Portal button (shown to all logged in users)
 					this.addBillingPortalButton(subscriptionDiv);
-			} else {
-				// Show error information
-				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-				subscriptionDiv.createEl('div', {
+				} else {
+					// Show error information
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					subscriptionDiv.createEl('div', {
 						text: 'Unable to load subscription info',
 						cls: 'agentmode-subscription-error'
 					});
 
 					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
-			}
-		}).catch(error => {
-			if (error.status === 401) {
-				this.plugin.logout().catch((error) => {
-					console.error('Logout failed:', error);
-				});
-				this.display();
-			} else {
-				// Show error information
-				subscriptionDiv.empty();
+				}
+			}).catch(error => {
+				if (error.status === 401) {
+					this.plugin.logout().catch((error) => {
+						console.error('Logout failed:', error);
+					});
+					this.display();
+				} else {
+					// Show error information
+					subscriptionDiv.empty();
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', {
 						text: 'Unable to load subscription info',
@@ -4188,15 +4188,15 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			billingButton.textContent = '⏳ Opening...';
 			billingButton.disabled = true;
 
-		try {
-			// Use the extracted public method
-			await this.plugin.openBillingPortal();
+			try {
+				// Use the extracted public method
+				await this.plugin.openBillingPortal();
 
-		} catch (error: unknown) {
-			// Error handling is already done in openBillingPortal method
-			console.error('Failed to open billing portal:', error);
-		} finally {
-			// Restore button state
+			} catch (error: unknown) {
+				// Error handling is already done in openBillingPortal method
+				console.error('Failed to open billing portal:', error);
+			} finally {
+				// Restore button state
 				billingButton.textContent = originalText;
 				billingButton.disabled = false;
 			}
@@ -4286,28 +4286,28 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						cls: 'agentmode-subscription-error'
 					});
 
-			// Show Billing Portal button even if loading fails
-			this.addBillingPortalButton(subscriptionDiv);
-		}
+					// Show Billing Portal button even if loading fails
+					this.addBillingPortalButton(subscriptionDiv);
+				}
 
-	} catch (error: unknown) {
-	console.error('Failed to refresh subscription:', error);
-	const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
-	if (errorStatus === 401) {
-		this.plugin.logout().catch((error) => {
-			console.error('Logout failed:', error);
-		});
-		this.display();
-	} else {
-		// Show error
-		subscriptionDiv.empty();
-			this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-			subscriptionDiv.createEl('div', {
-				text: 'Failed to refresh subscription info',
-				cls: 'agentmode-subscription-error'
-			});
-			this.addBillingPortalButton(subscriptionDiv);
-		}
+			} catch (error: unknown) {
+				console.error('Failed to refresh subscription:', error);
+				const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+				if (errorStatus === 401) {
+					this.plugin.logout().catch((error) => {
+						console.error('Logout failed:', error);
+					});
+					this.display();
+				} else {
+					// Show error
+					subscriptionDiv.empty();
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					subscriptionDiv.createEl('div', {
+						text: 'Failed to refresh subscription info',
+						cls: 'agentmode-subscription-error'
+					});
+					this.addBillingPortalButton(subscriptionDiv);
+				}
 
 			} finally {
 				// Restore button state (if button still exists)

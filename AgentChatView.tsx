@@ -129,9 +129,9 @@ interface ChatCompletionContentPartFile {
   };
 }
 
-type ChatCompletionContentPart = 
-  | ChatCompletionContentPartText 
-  | ChatCompletionContentPartImage 
+type ChatCompletionContentPart =
+  | ChatCompletionContentPartText
+  | ChatCompletionContentPartImage
   | ChatCompletionContentPartFile;
 
 interface UserMessage {

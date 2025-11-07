@@ -52,15 +52,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				timeRemaining: deviceAuth.expires_in
 			});
 
-		// Start countdown timer
-		startCountdown(deviceAuth.expires_in);
+			// Start countdown timer
+			startCountdown(deviceAuth.expires_in);
 
-		// Start polling
-		startPolling(deviceAuth).catch((error) => {
-			console.error('Polling failed:', error);
-		});
+			// Start polling
+			startPolling(deviceAuth).catch((error) => {
+				console.error('Polling failed:', error);
+			});
 
-	} catch (error: unknown) {
+		} catch (error: unknown) {
 			console.error('Device auth failed:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Failed to start login process';
 			setState({
@@ -112,7 +112,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			auth0Service.stopPolling();
 
 			const errorMessage = error instanceof Error ? error.message : 'Authorization failed';
-			
+
 			if (errorMessage.includes('timeout')) {
 				setState({ step: 'timeout' });
 			} else {
@@ -135,25 +135,25 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Stop polling operation
 			auth0Service.stopPolling();
 
-		setState({ step: 'success' });
+			setState({ step: 'success' });
 
-		// Save token to plugin settings (through auth0Service)
-		const plugin = auth0Service.getPlugin();
-		plugin.settings.isLoggedIn = true;
-		plugin.settings.accessToken = tokenResponse.access_token;
-		plugin.settings.refreshToken = tokenResponse.refresh_token;
-		plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
+			// Save token to plugin settings (through auth0Service)
+			const plugin = auth0Service.getPlugin();
+			plugin.settings.isLoggedIn = true;
+			plugin.settings.accessToken = tokenResponse.access_token;
+			plugin.settings.refreshToken = tokenResponse.refresh_token;
+			plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 
-		// Get user information
-		const userInfo = await auth0Service.getUserInfo();
-		plugin.settings.userInfo = {
-			email: userInfo.email,
-			name: userInfo.name,
-			sub: userInfo.sub
-		};
+			// Get user information
+			const userInfo = await auth0Service.getUserInfo();
+			plugin.settings.userInfo = {
+				email: userInfo.email,
+				name: userInfo.name,
+				sub: userInfo.sub
+			};
 
-		// Save settings
-		await plugin.saveSettings();
+			// Save settings
+			await plugin.saveSettings();
 
 			// Setup token refresh timer
 			auth0Service.setupTokenRefreshTimer();
@@ -168,7 +168,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			const fullErrorMessage = 'Failed to save login state: ' + errorMessage;
-			
+
 			setState({
 				step: 'error',
 				errorMessage: fullErrorMessage
@@ -182,15 +182,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		auth0Service.stopPolling();
 
 		// Clean up countdown timer
-	if (countdownTimer) {
-		window.clearInterval(countdownTimer);
-		setCountdownTimer(null);
-	}
+		if (countdownTimer) {
+			window.clearInterval(countdownTimer);
+			setCountdownTimer(null);
+		}
 
-	startDeviceAuth().catch((error) => {
-		console.error('Failed to restart device auth:', error);
-	});
-};
+		startDeviceAuth().catch((error) => {
+			console.error('Failed to restart device auth:', error);
+		});
+	};
 
 	const formatTime = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);
