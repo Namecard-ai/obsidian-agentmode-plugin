@@ -874,8 +874,8 @@ export default class AgentPlugin extends Plugin {
 		this.statusBarElement.addClass('agentmode-auth-status-bar');
 
 		// Add click event
-		this.statusBarElement.addEventListener('click', () => {
-			this.showStatusBarMenu();
+		this.statusBarElement.addEventListener('click', (event: MouseEvent) => {
+			this.showStatusBarMenu(event);
 		});
 
 		// Update status bar display
@@ -913,7 +913,7 @@ export default class AgentPlugin extends Plugin {
 		}
 	}
 
-	showStatusBarMenu() {
+	showStatusBarMenu(event: MouseEvent) {
 		const menu = new Menu();
 
 		if (this.isLoggedIn()) {
@@ -970,7 +970,7 @@ export default class AgentPlugin extends Plugin {
 		});
 
 		// Show menu
-		menu.showAtMouseEvent(event as MouseEvent);
+		menu.showAtMouseEvent(event);
 	}
 
 	async initializeVectorDB() {
@@ -1342,7 +1342,7 @@ export default class AgentPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'list_vault',
-						description: 'List files and folders in a given vault path. Use relative paths from vault root, or empty string/"." for root directory.',
+						description: 'List files and folders in a given vault path.',
 						parameters: {
 							type: 'object',
 							properties: {
@@ -1640,7 +1640,7 @@ export default class AgentPlugin extends Plugin {
 						const { index, ...chunkTool } = value[i] as { index: number;[key: string]: unknown };
 						if (index - accArray.length > 1) {
 							throw new Error(
-								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${accArray}; tool: ${value}`,
+								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${JSON.stringify(accArray)}; tool: ${JSON.stringify(value)}`,
 							);
 						}
 						accArray[index] = reduce((accArray[index] as Record<string, unknown>) || {}, chunkTool);
