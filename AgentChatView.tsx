@@ -2042,26 +2042,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 value={editingContent}
                 onChange={(e) => setEditingContent(e.target.value)}
                 autoFocus
-                style={{
-                  width: '100%',
-                  minHeight: '80px',
-                  padding: '8px',
-                  backgroundColor: 'var(--background-secondary)',
-                  border: '1px solid var(--background-modifier-border)',
-                  borderRadius: '6px',
-                  color: 'var(--text-normal)',
-                  fontFamily: 'inherit',
-                  fontSize: '14px',
-                  lineHeight: '1.5',
-                  resize: 'vertical',
-                  outline: 'none',
-                }}
-                onFocus={(e) => {
-                  e.target.style.border = '1px solid var(--interactive-accent)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.border = '1px solid var(--background-modifier-border)';
-                }}
+                className="agent-chat-message-edit-textarea"
               />
 
               {/* Warning about deleted messages */}
