@@ -11,64 +11,6 @@ import {
   CreateNoteConfirmationArgs,
 } from './main';
 
-// Add CSS styles
-const styles = `
-  @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
-  }
-  
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-  }
-  
-  .agentmode-tool-session-header:hover {
-    background-color: var(--background-modifier-hover);
-    border-radius: 4px;
-  }
-  
-  .agentmode-tool-step {
-    transition: all 0.2s ease-in-out;
-  }
-  
-  .agentmode-tool-step:hover {
-    transform: translateX(2px);
-  }
-  
-  .agentmode-tool-result-header:hover {
-    background-color: var(--background-modifier-hover);
-    border-radius: 4px;
-  }
-  
-  .agentmode-loading-bar {
-    height: 2px;
-    width: 100%;
-    background: linear-gradient(90deg, transparent, var(--interactive-accent), transparent);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 1px;
-  }
-  
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-  
-  /* Show edit button on message hover */
-  .agentmode-message:hover .agentmode-message-edit-button {
-    opacity: 1 !important;
-  }
-`;
-
-// Inject styles
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = styles;
-  document.head.appendChild(styleSheet);
-}
-
 interface ToolCall {
   id: string;
   type: 'function';
