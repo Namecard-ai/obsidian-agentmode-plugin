@@ -1022,7 +1022,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     }
 
     const isFirstPersist = chatCreatedTimestamp === null;
-    const timestamp = isFirstPersist ? new Date() : chatCreatedTimestamp!;
+    const timestamp = isFirstPersist ? new Date() : chatCreatedTimestamp;
 
     if (isFirstPersist) {
       setChatCreatedTimestamp(timestamp);
