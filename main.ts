@@ -2437,40 +2437,50 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 								// Remove the filename to get the directory path
 								const directoryPath = pathParts.slice(0, -1).join('/');
 
-								// Check if directory exists, if not create it
-								try {
-									const existingFolder = this.app.vault.getAbstractFileByPath(directoryPath);
-									if (!existingFolder) {
-										await this.app.vault.createFolder(directoryPath);
-									}
-								} catch (dirError: any) {
-									// Directory might already exist or be created by another process
+							// Check if directory exists, if not create it
+							try {
+								const existingFolder = this.app.vault.getAbstractFileByPath(directoryPath);
+								if (!existingFolder) {
+									await this.app.vault.createFolder(directoryPath);
 								}
+							} catch (dirError: unknown) {
+								// Directory might already exist or be created by another process
+							}
 							}
 
-							// Create the file
-							await this.app.vault.create(args.file_path, args.content);
-							resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
-						} catch (error: any) {
-							reject(new Error(`Failed to create file: ${error.message}`));
-						}
-					},
-					onReject: (reason?: string) => {
-						const message = reason
-							? `❌ File creation rejected by user: ${reason}`
-							: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
-						resolve(message);
-					}
-				};
+					// Create the file
+					await this.app.vault.create(args.file_path, args.content);
+					resolve(`✅ File creation confirmed and completed: ${args.file_path}`);
+				} catch (error: unknown) {
+					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+					reject(new Error(`Failed to create file: ${errorMessage}`));
+				}
+			},
+			onReject: (reason?: string) => {
+				const message = reason
+					? `❌ File creation rejected by user: ${reason}`
+					: `❌ File creation rejected by user. No file was created at: ${args.file_path}`;
+				resolve(message);
+			}
+		};
 
-				// Store the pending confirmation and notify listeners
-				this.pendingCreateNoteConfirmation = pendingConfirmation;
-				this.notifyCreateNoteConfirmationListeners();
-			});
+		// Store the pending confirmation and notify listeners
+		this.pendingCreateNoteConfirmation = pendingConfirmation;
+		this.notifyCreateNoteConfirmationListeners();
+	});
 
-		} catch (error: any) {
-			return `Error preparing file creation: ${error.message}`;
-		}
+} catch (error: unknown) {
+	const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+	return `Error preparing file creation: ${errorMessage}`;
+}
+	}
+
+	// Interface for Obsidian internal folder structure
+	interface FolderWithChildren {
+		children?: Array<{
+			name: string;
+			children?: unknown;
+		}>;
 	}
 
 	private async toolListVault(args: { vault_path: string; explanation: string }) {
@@ -2515,20 +2525,20 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return result || 'No files found in vault root';
 			}
 
-		// Check if the relative path exists as a folder
-		const folder = this.app.vault.getAbstractFileByPath(relativePath);
+	// Check if the relative path exists as a folder
+	const folder = this.app.vault.getAbstractFileByPath(relativePath);
 
-		if (folder && (folder as any).children) {
-			// It's a folder with children
-			const children = (folder as any).children;
+	if (folder && (folder as FolderWithChildren).children) {
+		// It's a folder with children
+		const children = (folder as FolderWithChildren).children!;
 
-			const listing = children.map((child: any) => {
-				if (child.children) {
-					return `📁 ${child.name}/`;
-				} else {
-					return `📄 ${child.name}`;
-				}
-			});
+		const listing = children.map((child) => {
+			if (child.children) {
+				return `📁 ${child.name}/`;
+			} else {
+				return `📄 ${child.name}`;
+			}
+		});
 
 			const result = listing.slice(0, 20).join('\n');
 			return result || 'Empty folder';
@@ -2573,25 +2583,31 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			...files.sort().map(f => `📄 ${f}`)
 		];
 
-		const result = listing.slice(0, 20).join('\n');
-		return result || 'Empty directory';
+	const result = listing.slice(0, 20).join('\n');
+	return result || 'Empty directory';
 
-		} catch (error: any) {
-			console.error('📂 [TOOL] list_vault error:', error);
+	} catch (error: unknown) {
+		console.error('📂 [TOOL] list_vault error:', error);
 
-			// Fallback: list all files in vault
-			try {
-				const files = this.app.vault.getAllLoadedFiles();
-				const result = files.map(f => f.path).slice(0, 20).join('\n');
-				return result || 'No files found in vault';
-			} catch (fallbackError: any) {
-				return `Error listing vault: ${error.message}`;
-			}
+		// Fallback: list all files in vault
+		try {
+			const files = this.app.vault.getAllLoadedFiles();
+			const result = files.map(f => f.path).slice(0, 20).join('\n');
+			return result || 'No files found in vault';
+		} catch (fallbackError: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			return `Error listing vault: ${errorMessage}`;
 		}
 	}
+}
 
 	// Simple cache for vault grep results
-	private vaultGrepCache: Map<string, { results: any[], timestamp: number }> = new Map();
+	interface GrepResult {
+		path: string;
+		line: number;
+		content: string;
+	}
+	private vaultGrepCache: Map<string, { results: GrepResult[], timestamp: number }> = new Map();
 	private readonly CACHE_DURATION = 60000; // 1 minute in milliseconds
 
 	private async toolVaultGrep(args: {
@@ -2616,15 +2632,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return JSON.stringify(cached.results);
 			}
 
-			// Compile regex pattern with error handling
-			let regex: RegExp;
-			try {
-				const flags = args.case_insensitive ? 'i' : '';
-				regex = new RegExp(args.pattern, flags);
-			} catch (regexError: any) {
-				console.error('🔍 [TOOL] vault_grep invalid regex pattern:', regexError);
-				return `Error: Invalid regular expression pattern "${args.pattern}": ${regexError.message}`;
-			}
+		// Compile regex pattern with error handling
+		let regex: RegExp;
+		try {
+			const flags = args.case_insensitive ? 'i' : '';
+			regex = new RegExp(args.pattern, flags);
+		} catch (regexError: unknown) {
+			console.error('🔍 [TOOL] vault_grep invalid regex pattern:', regexError);
+			const errorMessage = regexError instanceof Error ? regexError.message : 'Invalid pattern';
+			return `Error: Invalid regular expression pattern "${args.pattern}": ${errorMessage}`;
+		}
 
 			// Get all files in vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
@@ -2645,10 +2662,10 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					args.target_subpaths!.some(subpath =>
 						file.path.startsWith(subpath.endsWith('/') ? subpath : subpath + '/')
 					)
-				);
-			}
+			);
+		}
 
-			const results: Array<{ path: string; line: number; content: string }> = [];
+		const results: GrepResult[] = [];
 
 		// Search through each file
 		for (const file of filteredFiles) {
@@ -2687,13 +2704,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				}
 			}
 
-			return JSON.stringify(results);
+		return JSON.stringify(results);
 
-		} catch (error: any) {
-			console.error('🔍 [TOOL] vault_grep error:', error);
-			return `Error performing grep search: ${error.message}`;
-		}
+	} catch (error: unknown) {
+		console.error('🔍 [TOOL] vault_grep error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error performing grep search: ${errorMessage}`;
 	}
+}
 
 	private async toolWebSearch(args: { query: string }) {
 		try {
