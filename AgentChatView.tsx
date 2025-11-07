@@ -143,6 +143,23 @@ interface UserMessage {
   content: string | ChatCompletionContentPart[];
 }
 
+interface FuzzySuggestionItem {
+  item?: TFile;
+}
+
+// Obsidian internal API interfaces (not officially documented)
+interface ObsidianWorkspaceInternal {
+  [key: string]: unknown;
+  dragManager?: unknown;
+  fileManager?: unknown;
+}
+
+interface FileExplorerView {
+  tree?: {
+    selectedDoms?: Array<{ file?: TFile }>;
+  };
+}
+
 // File picker modal using Obsidian's native FuzzySuggestModal
 class FilePickerModal extends FuzzySuggestModal<TFile> {
   private onChooseFile: (file: TFile) => void;
@@ -170,8 +187,8 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
     this.onChooseFile(file);
   }
 
-  renderSuggestion(value: any, el: HTMLElement): void {
-    const file = value.item || value;
+  renderSuggestion(value: FuzzySuggestionItem | TFile, el: HTMLElement): void {
+    const file = (value as FuzzySuggestionItem).item || (value as TFile);
     el.createEl('div', { text: file.basename, cls: 'suggestion-title' });
     el.createEl('small', { text: file.path, cls: 'suggestion-note' });
   }
@@ -1571,7 +1588,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       if (filesAdded === 0) {
         // Try to access Obsidian's internal drag state
         try {
-          const workspace = app.workspace as any;
+          const workspace = app.workspace as unknown as ObsidianWorkspaceInternal;
 
           // Try multiple ways to access dragged files
           const possiblePaths = [
@@ -1584,7 +1601,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
           for (const path of possiblePaths) {
             const parts = path.split('.');
-            let obj = workspace;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let obj: any = workspace;
             for (const part of parts) {
               obj = obj?.[part];
             }
@@ -1630,7 +1648,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Also try to get the currently selected files from file explorer
           const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
           if (fileExplorer && fileExplorer.view && filesAdded === 0) {
-            const view = fileExplorer.view as any;
+            const view = fileExplorer.view as unknown as FileExplorerView;
 
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
