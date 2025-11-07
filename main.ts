@@ -2161,7 +2161,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Return a Promise that will be resolved when user confirms or rejects
 			return new Promise<string>((resolve, reject) => {
 				// Create pending edit confirmation
-				const confirmationId = Math.random().toString(36).substr(2, 9);
+				const confirmationId = Math.random().toString(36).slice(2, 11);
 				const pendingConfirmation: PendingEditConfirmation = {
 					id: confirmationId,
 					note_path: args.file_path,
@@ -2417,7 +2417,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Return a Promise that will be resolved when user confirms or rejects
 			return new Promise<string>((resolve, reject) => {
 				// Create pending create note confirmation
-				const confirmationId = Math.random().toString(36).substr(2, 9);
+				const confirmationId = Math.random().toString(36).slice(2, 11);
 				const pendingConfirmation: PendingCreateNoteConfirmation = {
 					id: confirmationId,
 					note_path: args.file_path,
