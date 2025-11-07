@@ -20,6 +20,11 @@ interface ToolCall {
   };
 }
 
+interface ToolResult {
+  toolCallId: string;
+  result: string;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant' | 'tool';
@@ -101,6 +106,41 @@ interface AIModel {
   name: string;
   supportVision: boolean;
   supportFiles: boolean;
+}
+
+interface AgentPluginConstructor {
+  IMAGE_EXTENSIONS: string[];
+  MIME_TYPES: Record<string, string>;
+}
+
+interface ChatCompletionContentPartText {
+  type: 'text';
+  text: string;
+}
+
+interface ChatCompletionContentPartImage {
+  type: 'image_url';
+  image_url: {
+    url: string;
+  };
+}
+
+interface ChatCompletionContentPartFile {
+  type: 'file';
+  file: {
+    filename: string;
+    file_data: string;
+  };
+}
+
+type ChatCompletionContentPart = 
+  | ChatCompletionContentPartText 
+  | ChatCompletionContentPartImage 
+  | ChatCompletionContentPartFile;
+
+interface UserMessage {
+  role: 'user';
+  content: string | ChatCompletionContentPart[];
 }
 
 // File picker modal using Obsidian's native FuzzySuggestModal
@@ -567,7 +607,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         (chunk: string) => {
           setCurrentStreamingContent(prev => prev + chunk);
         },
-        async (toolCall: any) => {
+        async (toolCall: ToolCall) => {
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
 
@@ -624,16 +664,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           setCurrentStreamingContent('');
           setIsLoading(false);
         },
-        async (toolResult: any) => {
+        async (toolResult: ToolResult) => {
           const toolResultMessage: Message = {
             id: generateId(),
             role: 'tool',
-            content: typeof toolResult.content === 'string'
-              ? toolResult.content
-              : JSON.stringify(toolResult.content, null, 2),
+            content: toolResult.result,
             timestamp: new Date(),
-            tool_call_id: toolResult.tool_call_id,
-            name: toolResult.name
+            tool_call_id: toolResult.toolCallId,
+            name: 'tool_result'
           };
           await appendMessage(toolResultMessage);
         }
@@ -702,7 +740,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     let lastToolCallContent = ''; // Track content before tool calls
 
     // Convert messages to plugin format - now include tool messages too
-    const chatMessages = messages
+    const chatMessages: Array<{
+      role: 'user' | 'assistant' | 'tool';
+      content: string | ChatCompletionContentPart[];
+      tool_calls?: ToolCall[];
+      tool_call_id?: string;
+      name?: string;
+    }> = messages
       .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
       .map(msg => ({
         role: msg.role,
@@ -713,7 +757,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       }));
 
     // Add the current user message with images and files if any
-    const currentUserMessage: any = {
+    const currentUserMessage: UserMessage = {
       role: 'user' as const,
       content: (uploadedImages.length > 0 || uploadedFiles.length > 0) ? [
         {
@@ -721,13 +765,13 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           text: messageContent
         },
         ...uploadedImages.map(img => ({
-          type: 'image_url',
+          type: 'image_url' as const,
           image_url: {
             url: `data:${img.file.type};base64,${img.base64Data}`
           }
         })),
         ...uploadedFiles.map(file => ({
-          type: 'file',
+          type: 'file' as const,
           file: {
             filename: file.name,
             file_data: `data:${file.type};base64,${file.base64Data}`
@@ -743,7 +787,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     try {
       await plugin.streamAgentChat(
-        chatMessages,
+        chatMessages as ChatMessage[],
         contextTFiles,
         selectedModel,
         chatMode,
@@ -751,7 +795,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Handle streaming for assistant response content
           setCurrentStreamingContent(prev => prev + chunk);
         },
-        async (toolCall: any) => {
+        async (toolCall: ToolCall) => {
           // Handle tool call - accumulate tool calls into a single assistant message
           const currentContent = currentStreamingContentRef.current;
           lastToolCallContent = currentContent;
@@ -1735,9 +1779,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     try {
       await plugin.startLogin();
       // Login state will be automatically updated through useEffect
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login failed:', error);
-      new Notice(`Login failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      new Notice(`Login failed: ${errorMessage}`);
     }
   };
 
