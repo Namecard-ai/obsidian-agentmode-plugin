@@ -1069,10 +1069,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handleDeleteHistoryEntry = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent loading the chat when clicking delete
 
-    // Show confirmation dialog
-    const confirmed = window.confirm('Are you sure you want to delete this chat from history?');
-    if (!confirmed) return;
-
     // Delete from disk
     await plugin.deleteHistoryEntry(id);
 
@@ -1081,10 +1077,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   };
 
   const handleClearAllHistory = async () => {
-    // Show confirmation dialog with warning
-    const confirmed = window.confirm('Are you sure you want to clear ALL chat history? This action cannot be undone.');
-    if (!confirmed) return;
-
     // Clear from disk
     await plugin.clearAllHistory();
 
