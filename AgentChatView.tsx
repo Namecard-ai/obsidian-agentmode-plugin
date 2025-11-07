@@ -1089,7 +1089,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       const base64Data = btoa(binaryString);
       const fileExtension = file.extension.toLowerCase();
-      const mimeType = (plugin as any).constructor.MIME_TYPES[fileExtension] || 'application/octet-stream';
+      const mimeType = (plugin.constructor as unknown as AgentPluginConstructor).MIME_TYPES[fileExtension] || 'application/octet-stream';
 
       // Create File object for compatibility with existing upload logic
       const fileObj = new File([arrayBuffer], file.name, { type: mimeType });
@@ -1155,8 +1155,8 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           const fileExtension = mimeToExtension[item.type];
 
           // Check if extension is supported
-          if (!fileExtension || !(plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
-            const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
+          if (!fileExtension || !(plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
+            const supportedFormats = (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.join(', ').toUpperCase();
             new Notice(`Pasted image format "${item.type}" is not supported. Supported formats: ${supportedFormats}`);
             continue;
           }
@@ -1265,10 +1265,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
       // Check file type using IMAGE_EXTENSIONS from main.ts
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      const isImageSupported = fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+      const isImageSupported = fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension);
 
       if (!isImageSupported) {
-        const supportedFormats = (plugin as any).constructor.IMAGE_EXTENSIONS.join(', ').toUpperCase();
+        const supportedFormats = (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.join(', ').toUpperCase();
         new Notice(`File "${file.name}" is not a supported image format. Supported formats: ${supportedFormats}`);
         continue;
       }
@@ -1424,7 +1424,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             const fileExtension = abstractFile.extension.toLowerCase();
 
             // Check if it's an image file
-            if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+            if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
               await handleImageFileDrop(abstractFile);
             }
             // Check if file is supported by read_file tool
@@ -1475,7 +1475,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               const fileExtension = abstractFile.extension.toLowerCase();
 
               // Check if it's an image file
-              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+              if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                 await handleImageFileDrop(abstractFile);
                 filesAdded++;
                 continue;
@@ -1503,7 +1503,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 const fileExtension = abstractFile.extension.toLowerCase();
 
                 // Check if it's an image file
-                if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                   handleImageFileDrop(abstractFile).catch(error => {
                     console.error('Error handling dropped image:', error);
                   });
@@ -1521,7 +1521,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             if (abstractFile && abstractFile instanceof TFile) {
               const fileExtension = abstractFile.extension.toLowerCase();
-              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension) ||
+              if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension) ||
                 plugin.isFileSupportedByReadTool(abstractFile)) {
                 continue;
               }
@@ -1531,7 +1531,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             const allFiles = app.vault.getFiles();
             const foundFile = allFiles.find(f => {
               const fileExtension = f.extension.toLowerCase();
-              const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+              const isImage = (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension);
               const isReadable = plugin.isFileSupportedByReadTool(f);
 
               if (!isImage && !isReadable) return false;
@@ -1547,7 +1547,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               const fileExtension = foundFile.extension.toLowerCase();
 
               // Check if it's an image file
-              if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+              if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                 handleImageFileDrop(foundFile).catch(error => {
                   console.error('Error handling dropped image:', error);
                 });
@@ -1591,12 +1591,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             if (obj) {
               if (Array.isArray(obj)) {
-                const objPromises = obj.map(async (file: any) => {
+                const objPromises = obj.map(async (file: TFile) => {
                   if (file) {
                     const fileExtension = file.extension?.toLowerCase();
 
                     // Check if it's an image file
-                    if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                    if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                       await handleImageFileDrop(file);
                       return true;
                     }
@@ -1614,7 +1614,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 const fileExtension = obj.extension?.toLowerCase();
 
                 // Check if it's an image file
-                if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                   await handleImageFileDrop(obj);
                   filesAdded++;
                 }
@@ -1634,12 +1634,12 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             // Try to get selected files
             if (view.tree && view.tree.selectedDoms) {
-              const domPromises = view.tree.selectedDoms.map(async (dom: any) => {
+              const domPromises = view.tree.selectedDoms.map(async (dom: { file?: TFile }) => {
                 if (dom.file) {
                   const fileExtension = dom.file.extension?.toLowerCase();
 
                   // Check if it's an image file
-                  if (fileExtension && (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                  if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                     await handleImageFileDrop(dom.file);
                     return true;
                   }
@@ -1672,7 +1672,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               const allFiles = app.vault.getFiles();
               const matchingFile = allFiles.find(file => {
                 const fileExtension = file.extension.toLowerCase();
-                const isImage = (plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension);
+                const isImage = (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension);
                 const isReadable = plugin.isFileSupportedByReadTool(file);
 
                 if (!isImage && !isReadable) return false;
@@ -1688,7 +1688,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 const fileExtension = matchingFile.extension.toLowerCase();
 
                 // Check if it's an image file
-                if ((plugin as any).constructor.IMAGE_EXTENSIONS.includes(fileExtension)) {
+                if ((plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
                   handleImageFileDrop(matchingFile).catch(error => {
                     console.error('Error handling dropped image:', error);
                   });
