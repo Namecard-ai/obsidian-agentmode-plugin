@@ -480,22 +480,22 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         {children}
       </h6>
     ),
-    p: ({ children, ...props }: any) => (
+    p: ({ children, ...props }: React.ComponentPropsWithoutRef<'p'>) => (
       <p style={{ lineHeight: '1.6', marginBottom: '16px' }} {...props}>
         {children}
       </p>
     ),
-    strong: ({ children, ...props }: any) => (
+    strong: ({ children, ...props }: React.ComponentPropsWithoutRef<'strong'>) => (
       <strong style={{ fontWeight: '600' }} {...props}>
         {children}
       </strong>
     ),
-    em: ({ children, ...props }: any) => (
+    em: ({ children, ...props }: React.ComponentPropsWithoutRef<'em'>) => (
       <em {...props}>
         {children}
       </em>
     ),
-    blockquote: ({ children, ...props }: any) => (
+    blockquote: ({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) => (
       <blockquote style={{
         borderLeft: '4px solid var(--background-modifier-border)',
         paddingLeft: '16px',
@@ -505,22 +505,22 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         {children}
       </blockquote>
     ),
-    ul: ({ children, ...props }: any) => (
+    ul: ({ children, ...props }: React.ComponentPropsWithoutRef<'ul'>) => (
       <ul style={{ marginBottom: '16px', paddingLeft: '24px' }} {...props}>
         {children}
       </ul>
     ),
-    ol: ({ children, ...props }: any) => (
+    ol: ({ children, ...props }: React.ComponentPropsWithoutRef<'ol'>) => (
       <ol style={{ marginBottom: '16px', paddingLeft: '24px' }} {...props}>
         {children}
       </ol>
     ),
-    li: ({ children, ...props }: any) => (
+    li: ({ children, ...props }: React.ComponentPropsWithoutRef<'li'>) => (
       <li style={{ marginBottom: '8px' }} {...props}>
         {children}
       </li>
     ),
-    a: ({ children, href, ...props }: any) => {
+    a: ({ children, href, ...props }: React.ComponentPropsWithoutRef<'a'>) => {
       // Check if this is a file path or wiki link
       const isFilePath = href && (href.endsWith('.md') || href.includes('/'));
       const isWikiLink = href && href.startsWith('[[') && href.endsWith(']]');
@@ -549,7 +549,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         </a>
       );
     },
-    table: ({ children, ...props }: any) => (
+    table: ({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) => (
       <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
         <table style={{
           width: '100%',
@@ -562,7 +562,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         </table>
       </div>
     ),
-    th: ({ children, ...props }: any) => (
+    th: ({ children, ...props }: React.ComponentPropsWithoutRef<'th'>) => (
       <th style={{
         backgroundColor: 'var(--background-secondary-alt)',
         color: 'var(--text-normal)',
@@ -574,7 +574,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         {children}
       </th>
     ),
-    td: ({ children, ...props }: any) => (
+    td: ({ children, ...props }: React.ComponentPropsWithoutRef<'td'>) => (
       <td style={{
         color: 'var(--text-normal)',
         padding: '12px',
