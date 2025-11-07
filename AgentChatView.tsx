@@ -626,73 +626,105 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         (chunk: string) => {
           setCurrentStreamingContent(prev => prev + chunk);
         },
-        async (toolCall: ToolCall) => {
-          const currentContent = currentStreamingContentRef.current;
-          lastToolCallContent = currentContent;
+        (toolCall: ToolCall) => {
+          const handleToolCall = async () => {
+            const currentContent = currentStreamingContentRef.current;
+            lastToolCallContent = currentContent;
 
-          const currentMessages = messagesRef.current;
-          const newMessages = [...currentMessages];
-          const lastMessage = newMessages[newMessages.length - 1];
+            const currentMessages = messagesRef.current;
+            const newMessages = [...currentMessages];
+            const lastMessage = newMessages[newMessages.length - 1];
 
-          let updatedMessages: Message[];
+            let updatedMessages: Message[];
 
-          if (lastMessage &&
-            lastMessage.role === 'assistant' &&
-            lastMessage.content === currentContent &&
-            lastMessage.tool_calls) {
-            lastMessage.tool_calls.push(toolCall);
-            updatedMessages = newMessages;
-          } else {
-            const toolCallMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: currentContent,
-              timestamp: new Date(),
-              tool_calls: [toolCall]
-            };
-            updatedMessages = [...newMessages, toolCallMessage];
-          }
+            if (lastMessage &&
+              lastMessage.role === 'assistant' &&
+              lastMessage.content === currentContent &&
+              lastMessage.tool_calls) {
+              lastMessage.tool_calls.push(toolCall);
+              updatedMessages = newMessages;
+            } else {
+              const toolCallMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: currentContent,
+                timestamp: new Date(),
+                tool_calls: [toolCall]
+              };
+              updatedMessages = [...newMessages, toolCallMessage];
+            }
 
-          setMessages(updatedMessages);
-          await persistCurrentChat(updatedMessages);
-          setCurrentStreamingContent('');
+            setMessages(updatedMessages);
+            await persistCurrentChat(updatedMessages);
+            setCurrentStreamingContent('');
+          };
+
+          handleToolCall().catch((error) => {
+            console.error('Failed to handle tool call:', error);
+            new Notice('Failed to process tool call');
+          });
         },
-        async (finalContent: string) => {
-          if (finalContent) {
-            const finalMessage: Message = {
+        (finalContent: string) => {
+          const handleComplete = async () => {
+            if (finalContent) {
+              const finalMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: finalContent,
+                timestamp: new Date()
+              };
+              await appendMessage(finalMessage);
+            }
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+            setIsLoading(false);
+          };
+
+          handleComplete().catch((error) => {
+            console.error('Failed to handle completion:', error);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+            setIsLoading(false);
+          });
+        },
+        (error: string) => {
+          const handleError = async () => {
+            const errorMessage: Message = {
               id: generateId(),
               role: 'assistant',
-              content: finalContent,
+              content: `Error: ${error}`,
               timestamp: new Date()
             };
-            await appendMessage(finalMessage);
-          }
-          setStreamingMessageId(null);
-          setCurrentStreamingContent('');
-          setIsLoading(false);
-        },
-        async (error: string) => {
-          const errorMessage: Message = {
-            id: generateId(),
-            role: 'assistant',
-            content: `Error: ${error}`,
-            timestamp: new Date()
+            await appendMessage(errorMessage);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+            setIsLoading(false);
           };
-          await appendMessage(errorMessage);
-          setStreamingMessageId(null);
-          setCurrentStreamingContent('');
-          setIsLoading(false);
+
+          handleError().catch((err) => {
+            console.error('Failed to handle error:', err);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+            setIsLoading(false);
+          });
         },
-        async (toolResult: ToolResult) => {
-          const toolResultMessage: Message = {
-            id: generateId(),
-            role: 'tool',
-            content: toolResult.result,
-            timestamp: new Date(),
-            tool_call_id: toolResult.toolCallId,
-            name: 'tool_result'
+        (toolResult: ToolResult) => {
+          const handleToolResult = async () => {
+            const toolResultMessage: Message = {
+              id: generateId(),
+              role: 'tool',
+              content: toolResult.result,
+              timestamp: new Date(),
+              tool_call_id: toolResult.toolCallId,
+              name: 'tool_result'
+            };
+            await appendMessage(toolResultMessage);
           };
-          await appendMessage(toolResultMessage);
+
+          handleToolResult().catch((error) => {
+            console.error('Failed to handle tool result:', error);
+            new Notice('Failed to process tool result');
+          });
         }
       );
     } catch (error) {
@@ -814,110 +846,151 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Handle streaming for assistant response content
           setCurrentStreamingContent(prev => prev + chunk);
         },
-        async (toolCall: ToolCall) => {
-          // Handle tool call - accumulate tool calls into a single assistant message
-          const currentContent = currentStreamingContentRef.current;
-          lastToolCallContent = currentContent;
+        (toolCall: ToolCall) => {
+          const handleToolCall = async () => {
+            // Handle tool call - accumulate tool calls into a single assistant message
+            const currentContent = currentStreamingContentRef.current;
+            lastToolCallContent = currentContent;
 
-          // Use messagesRef to get current messages
-          const currentMessages = messagesRef.current;
-          const newMessages = [...currentMessages];
-          const lastMessage = newMessages[newMessages.length - 1];
+            // Use messagesRef to get current messages
+            const currentMessages = messagesRef.current;
+            const newMessages = [...currentMessages];
+            const lastMessage = newMessages[newMessages.length - 1];
 
-          let updatedMessages: Message[];
+            let updatedMessages: Message[];
 
-          // If the last message is an assistant message with the same content, add this tool call to it
-          if (lastMessage &&
-            lastMessage.role === 'assistant' &&
-            lastMessage.content === currentContent &&
-            lastMessage.tool_calls) {
-            lastMessage.tool_calls.push(toolCall);
-            updatedMessages = newMessages;
-          } else {
-            // Create new assistant message with this tool call
-            const toolCallMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: currentContent,
-              timestamp: new Date(),
-              tool_calls: [toolCall]
-            };
-            updatedMessages = [...newMessages, toolCallMessage];
-          }
+            // If the last message is an assistant message with the same content, add this tool call to it
+            if (lastMessage &&
+              lastMessage.role === 'assistant' &&
+              lastMessage.content === currentContent &&
+              lastMessage.tool_calls) {
+              lastMessage.tool_calls.push(toolCall);
+              updatedMessages = newMessages;
+            } else {
+              // Create new assistant message with this tool call
+              const toolCallMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: currentContent,
+                timestamp: new Date(),
+                tool_calls: [toolCall]
+              };
+              updatedMessages = [...newMessages, toolCallMessage];
+            }
 
-          // Update state
-          setMessages(updatedMessages);
+            // Update state
+            setMessages(updatedMessages);
 
-          // Persist after updating messages
-          await persistCurrentChat(updatedMessages);
+            // Persist after updating messages
+            await persistCurrentChat(updatedMessages);
 
-          setCurrentStreamingContent(''); // Reset for new content after tool call
+            setCurrentStreamingContent(''); // Reset for new content after tool call
+          };
+
+          handleToolCall().catch((error) => {
+            console.error('Failed to handle tool call:', error);
+            new Notice('Failed to process tool call');
+          });
         },
-        async (finalContent: string) => {
-          // Handle completion - create final message with complete content from main.ts
-          if (finalContent) {
-            const finalMessage: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: finalContent,
-              timestamp: new Date()
-            };
+        (finalContent: string) => {
+          const handleComplete = async () => {
+            // Handle completion - create final message with complete content from main.ts
+            if (finalContent) {
+              const finalMessage: Message = {
+                id: generateId(),
+                role: 'assistant',
+                content: finalContent,
+                timestamp: new Date()
+              };
 
-            await appendMessage(finalMessage);
-          }
+              await appendMessage(finalMessage);
+            }
 
-          // Use setTimeout to ensure the message is rendered before clearing states
-          window.setTimeout(() => {
+            // Use setTimeout to ensure the message is rendered before clearing states
+            window.setTimeout(() => {
+              setIsLoading(false);
+              setStreamingMessageId(null);
+              setCurrentStreamingContent('');
+            }, 50); // Small delay to ensure rendering
+          };
+
+          handleComplete().catch((error) => {
+            console.error('Failed to handle completion:', error);
             setIsLoading(false);
             setStreamingMessageId(null);
             setCurrentStreamingContent('');
-          }, 50); // Small delay to ensure rendering
+          });
         },
-        async (error: string) => {
-          // Handle error
-          console.error(`${chatMode} chat error:`, error);
+        (error: string) => {
+          const handleError = async () => {
+            // Handle error
+            console.error(`${chatMode} chat error:`, error);
 
-          const errorMessage: Message = {
-            id: generateId(),
-            role: 'assistant',
-            content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
-            timestamp: new Date()
-          };
-          await appendMessage(errorMessage);
+            const errorMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: currentStreamingContentRef.current + `\n\n❌ Error: ${error}`,
+              timestamp: new Date()
+            };
+            await appendMessage(errorMessage);
 
-          setIsLoading(false);
-          setStreamingMessageId(null);
-          setCurrentStreamingContent('');
-        },
-        async (toolResult: { toolCallId: string; result: string }) => {
-          // Handle tool result - add as tool message
-          const toolResultMessage: Message = {
-            id: generateId(),
-            role: 'tool',
-            content: toolResult.result,
-            timestamp: new Date(),
-            tool_call_id: toolResult.toolCallId
+            setIsLoading(false);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
           };
 
-          await appendMessage(toolResultMessage);
-
-          // Add UI notification for Ask Mode auto-rejection
-          if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
-            // Show a subtle notification that editing was blocked
-          }
+          handleError().catch((err) => {
+            console.error('Failed to handle error:', err);
+            setIsLoading(false);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+          });
         },
-        async () => {
-          // Handle interruption
-          const interruptedMessage: Message = {
-            id: generateId(),
-            role: 'assistant',
-            content: '❌ Chat interrupted',
-            timestamp: new Date()
+        (toolResult: { toolCallId: string; result: string }) => {
+          const handleToolResult = async () => {
+            // Handle tool result - add as tool message
+            const toolResultMessage: Message = {
+              id: generateId(),
+              role: 'tool',
+              content: toolResult.result,
+              timestamp: new Date(),
+              tool_call_id: toolResult.toolCallId
+            };
+
+            await appendMessage(toolResultMessage);
+
+            // Add UI notification for Ask Mode auto-rejection
+            if (chatMode === 'Ask' && toolResult.result.includes("I'm currently in Ask Mode")) {
+              // Show a subtle notification that editing was blocked
+            }
           };
-          await appendMessage(interruptedMessage);
-          setIsLoading(false);
-          setStreamingMessageId(null);
-          setCurrentStreamingContent('');
+
+          handleToolResult().catch((error) => {
+            console.error('Failed to handle tool result:', error);
+            new Notice('Failed to process tool result');
+          });
+        },
+        () => {
+          const handleInterruption = async () => {
+            // Handle interruption
+            const interruptedMessage: Message = {
+              id: generateId(),
+              role: 'assistant',
+              content: '❌ Chat interrupted',
+              timestamp: new Date()
+            };
+            await appendMessage(interruptedMessage);
+            setIsLoading(false);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+          };
+
+          handleInterruption().catch((error) => {
+            console.error('Failed to handle interruption:', error);
+            setIsLoading(false);
+            setStreamingMessageId(null);
+            setCurrentStreamingContent('');
+          });
         }
       );
     } catch (error) {
