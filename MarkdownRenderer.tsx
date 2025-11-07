@@ -126,10 +126,14 @@ const LazyCodeHighlighter: React.FC<{ language: string; code: string }> = ({ lan
     if (isLightTheme) {
       import('react-syntax-highlighter/dist/esm/styles/prism').then(module => {
         setStyle(module.oneLight);
+      }).catch((error) => {
+        console.error('Failed to load light theme style:', error);
       });
     } else {
       import('react-syntax-highlighter/dist/esm/styles/prism').then(module => {
         setStyle(module.oneDark);
+      }).catch((error) => {
+        console.error('Failed to load dark theme style:', error);
       });
     }
   }, [isLightTheme]);

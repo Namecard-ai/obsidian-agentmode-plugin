@@ -31,7 +31,9 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 	const [showManualLogin, setShowManualLogin] = useState<boolean>(false);
 
 	useEffect(() => {
-		startDeviceAuth();
+		startDeviceAuth().catch((error) => {
+			console.error('Failed to start device auth:', error);
+		});
 		return () => {
 			// Clean up timer
 			if (countdownTimer) {
@@ -55,13 +57,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 				timeRemaining: deviceAuth.expires_in
 			});
 
-			// Start countdown timer
-			startCountdown(deviceAuth.expires_in);
+		// Start countdown timer
+		startCountdown(deviceAuth.expires_in);
 
-			// Start polling
-			startPolling(deviceAuth);
+		// Start polling
+		startPolling(deviceAuth).catch((error) => {
+			console.error('Polling failed:', error);
+		});
 
-		} catch (error: unknown) {
+	} catch (error: unknown) {
 			console.error('Device auth failed:', error);
 			const errorMessage = error instanceof Error ? error.message : 'Failed to start login process';
 			setState({
@@ -183,13 +187,15 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 		auth0Service.stopPolling();
 
 		// Clean up countdown timer
-		if (countdownTimer) {
-			window.clearInterval(countdownTimer);
-			setCountdownTimer(null);
-		}
+	if (countdownTimer) {
+		window.clearInterval(countdownTimer);
+		setCountdownTimer(null);
+	}
 
-		startDeviceAuth();
-	};
+	startDeviceAuth().catch((error) => {
+		console.error('Failed to restart device auth:', error);
+	});
+};
 
 	const formatTime = (seconds: number): string => {
 		const mins = Math.floor(seconds / 60);

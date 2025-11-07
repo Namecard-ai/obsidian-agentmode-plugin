@@ -445,7 +445,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
       const history = await plugin.loadAllHistory();
       setChatHistory(history);
     };
-    loadHistory();
+    loadHistory().catch((error) => {
+      console.error('Failed to load chat history:', error);
+    });
   }, [plugin]);
 
   // TipTap editor handles auto-resizing internally, so we can remove this
@@ -1042,7 +1044,9 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSendMessage().catch((error) => {
+        console.error('Failed to send message:', error);
+      });
     } else if (e.key === '[' && textareaRef.current) {
       // Check if this is the second [ to trigger wiki link input
       // Get the character immediately before the cursor from the TipTap editor
