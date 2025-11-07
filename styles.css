@@ -1435,3 +1435,13 @@ If your plugin does not need CSS, delete this file.
 .agentmode-message:hover .agentmode-message-edit-button {
   opacity: 1 !important;
 }
+
+/* Edit button hover effect */
+.agentmode-message-edit-button:hover {
+  background-color: var(--background-modifier-hover) !important;
+}
+
+/* Cancel button hover effect in edit message mode */
+.agentmode-edit-message-cancel-button:hover {
+  background-color: var(--background-modifier-hover) !important;
+}

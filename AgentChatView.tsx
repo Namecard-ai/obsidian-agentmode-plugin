@@ -2061,11 +2061,14 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               )}
 
               {/* Action buttons */}
-              <div style={{
-                display: 'flex',
-                gap: '8px',
-                marginTop: '12px',
-              }}>
+              <div
+                className="agentmode-edit-message-buttons"
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginTop: '12px',
+                }}
+              >
                 <button
                   onClick={() => {
                     handleSaveEdit(message.id).catch((error) => {
@@ -2093,6 +2096,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 </button>
                 <button
                   onClick={handleCancelEdit}
+                  className="agentmode-edit-message-cancel-button"
                   style={{
                     padding: '6px 16px',
                     backgroundColor: 'transparent',
@@ -2105,12 +2109,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   <span>❌</span>
@@ -2185,12 +2183,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                     opacity: 0,
                     transition: 'opacity 0.2s ease, background-color 0.2s ease',
                     color: 'var(--text-muted)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--background-modifier-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                   title="Edit message"
                 >
