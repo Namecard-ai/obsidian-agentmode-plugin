@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { Notice } from 'obsidian';
+import type AgentPlugin from './main';
 
 // Lazy load syntax highlighting components
 const LazyMarkdown = lazy(() => import('react-markdown'));
@@ -109,7 +110,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, inline }) =>
 // Lazy loaded syntax highlighting component
 const LazyCodeHighlighter: React.FC<{ language: string; code: string }> = ({ language, code }) => {
   const [isLightTheme, setIsLightTheme] = useState(false);
-  const [style, setStyle] = useState<any>({});
+  const [style, setStyle] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -178,7 +179,7 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   style?: React.CSSProperties;
-  plugin?: any; // ObsidianCopilot plugin instance
+  plugin?: AgentPlugin;
 }
 
 // Helper function to detect and convert table-like content to proper markdown tables
@@ -380,8 +381,8 @@ const formatAsMarkdownTable = (tableLines: string[]): string[] => {
 };
 
 // Component that loads and uses remarkGfm
-const MarkdownWithGfm: React.FC<{ content: string; plugin: any; components: any }> = ({ content, plugin, components }) => {
-  const [remarkGfm, setRemarkGfm] = useState<any>(null);
+const MarkdownWithGfm: React.FC<{ content: string; plugin?: AgentPlugin; components: Record<string, React.ComponentType<unknown>> }> = ({ content, plugin, components }) => {
+  const [remarkGfm, setRemarkGfm] = useState<((options?: unknown) => void) | null>(null);
 
   useEffect(() => {
     import('remark-gfm').then(module => {
@@ -440,7 +441,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   }, [content, plugin]);
 
   const markdownComponents = React.useMemo(() => ({
-    code: ({ node, inline, className, children, ...props }: any) => (
+    code: ({ node, inline, className, children, ...props }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown; inline?: boolean }) => (
       <CodeBlock
         inline={inline}
         className={className}
@@ -449,32 +450,32 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         {String(children).replace(/\n$/, '')}
       </CodeBlock>
     ),
-    h1: ({ children, ...props }: any) => (
+    h1: ({ children, ...props }: React.ComponentPropsWithoutRef<'h1'>) => (
       <h1 {...props}>
         {children}
       </h1>
     ),
-    h2: ({ children, ...props }: any) => (
+    h2: ({ children, ...props }: React.ComponentPropsWithoutRef<'h2'>) => (
       <h2 {...props}>
         {children}
       </h2>
     ),
-    h3: ({ children, ...props }: any) => (
+    h3: ({ children, ...props }: React.ComponentPropsWithoutRef<'h3'>) => (
       <h3 {...props}>
         {children}
       </h3>
     ),
-    h4: ({ children, ...props }: any) => (
+    h4: ({ children, ...props }: React.ComponentPropsWithoutRef<'h4'>) => (
       <h4 {...props}>
         {children}
       </h4>
     ),
-    h5: ({ children, ...props }: any) => (
+    h5: ({ children, ...props }: React.ComponentPropsWithoutRef<'h5'>) => (
       <h5 {...props}>
         {children}
       </h5>
     ),
-    h6: ({ children, ...props }: any) => (
+    h6: ({ children, ...props }: React.ComponentPropsWithoutRef<'h6'>) => (
       <h6 {...props}>
         {children}
       </h6>

@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Auth0Service, DeviceAuthState, TokenResponse, Auth0UserInfo } from './main';
+import type AgentPlugin from './main';
+
+interface Auth0ServiceWithPlugin extends Auth0Service {
+	plugin: AgentPlugin;
+}
 
 interface LoginComponentProps {
 	auth0Service: Auth0Service;
@@ -56,13 +61,14 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Start polling
 			startPolling(deviceAuth);
 
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Device auth failed:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Failed to start login process';
 			setState({
 				step: 'error',
-				errorMessage: error.message || 'Failed to start login process'
+				errorMessage: errorMessage
 			});
-			onLoginError(error.message || 'Failed to start login process');
+			onLoginError(errorMessage);
 		}
 	};
 
@@ -100,20 +106,22 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Get user information
 			await handleLoginSuccess(tokenResponse);
 
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Polling failed:', error);
 
 			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
 
-			if (error.message.includes('timeout')) {
+			const errorMessage = error instanceof Error ? error.message : 'Authorization failed';
+			
+			if (errorMessage.includes('timeout')) {
 				setState({ step: 'timeout' });
 			} else {
 				setState({
 					step: 'error',
-					errorMessage: error.message || 'Authorization failed'
+					errorMessage: errorMessage
 				});
-				onLoginError(error.message || 'Authorization failed');
+				onLoginError(errorMessage);
 			}
 		}
 	};
@@ -131,7 +139,7 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			setState({ step: 'success' });
 
 			// Save token to plugin settings (through auth0Service)
-			const plugin = (auth0Service as any).plugin;
+			const plugin = (auth0Service as Auth0ServiceWithPlugin).plugin;
 			plugin.settings.isLoggedIn = true;
 			plugin.settings.accessToken = tokenResponse.access_token;
 			plugin.settings.refreshToken = tokenResponse.refresh_token;
@@ -153,17 +161,20 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 
 			onLoginSuccess(userInfo);
 
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Failed to save login state:', error);
 
 			// Ensure polling operation is stopped
 			auth0Service.stopPolling();
 
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			const fullErrorMessage = 'Failed to save login state: ' + errorMessage;
+			
 			setState({
 				step: 'error',
-				errorMessage: 'Failed to save login state: ' + error.message
+				errorMessage: fullErrorMessage
 			});
-			onLoginError('Failed to save login state: ' + error.message);
+			onLoginError(fullErrorMessage);
 		}
 	};
 
