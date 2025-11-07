@@ -42,6 +42,97 @@ This is an Obsidian plugin written in TypeScript/React. This document outlines d
 - Use `let` for variables that will be reassigned
 - `var` has function-level scope which can lead to bugs - modern JavaScript uses block-level scope with `const`/`let`
 
+### Promise Handling
+**CRITICAL**: All promises must be properly handled to prevent unhandled rejections and ensure error visibility.
+
+#### Promise Handling Requirements
+Promises must always be:
+1. **Awaited** with proper async/await syntax, OR
+2. **End with `.catch()`** to handle rejections, OR
+3. **End with `.then()` with a rejection handler**, OR
+4. **Explicitly marked as ignored** with the `void` operator
+
+#### Good Examples
+
+```typescript
+// ✅ GOOD - Using await in async function
+async function loadData() {
+  try {
+    const data = await fetchData();
+    processData(data);
+  } catch (error) {
+    console.error('Failed to load data:', error);
+  }
+}
+
+// ✅ GOOD - Using .catch() for fire-and-forget promises
+someAsyncOperation().catch((error) => {
+  console.error('Operation failed:', error);
+});
+
+// ✅ GOOD - Using .then() with rejection handler
+fetchData().then(
+  (data) => processData(data),
+  (error) => console.error('Failed:', error)
+);
+
+// ✅ GOOD - Using void operator to explicitly ignore (use sparingly)
+void someAsyncOperation();
+```
+
+#### Bad Examples
+
+```typescript
+// ❌ BAD - Unhandled promise in useEffect
+useEffect(() => {
+  loadHistory(); // Missing error handling
+}, []);
+
+// ❌ BAD - Unhandled promise in event handler
+const handleClick = () => {
+  sendMessage(); // Missing error handling
+};
+
+// ❌ BAD - Unhandled promise in callback
+setTimeout(() => {
+  doAsyncWork(); // Missing error handling
+}, 1000);
+```
+
+#### Common Patterns
+
+**React useEffect with async function:**
+```typescript
+useEffect(() => {
+  const loadData = async () => {
+    const data = await fetchData();
+    setData(data);
+  };
+  loadData().catch((error) => {
+    console.error('Failed to load data:', error);
+  });
+}, []);
+```
+
+**Event handlers:**
+```typescript
+const handleSubmit = () => {
+  submitForm().catch((error) => {
+    console.error('Submit failed:', error);
+    new Notice('Failed to submit form');
+  });
+};
+```
+
+**Dynamic imports:**
+```typescript
+import('module').then(module => {
+  useModule(module);
+}).catch((error) => {
+  console.error('Failed to load module:', error);
+});
+```
+
 ### Documentation
 - Add JSDoc comments for complex functions
 - Document component props and their types

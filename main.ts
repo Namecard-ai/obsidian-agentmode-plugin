@@ -342,13 +342,15 @@ export class Auth0Service {
 				}
 			};
 
-			// Start polling
-			this.pollingTimer = this.plugin.registerInterval(
-				window.setInterval(poll, interval * 1000)
-			);
-			poll(); // Execute first time immediately
-		});
-	}
+		// Start polling
+		this.pollingTimer = this.plugin.registerInterval(
+			window.setInterval(poll, interval * 1000)
+		);
+		poll().catch((error) => {
+			console.error('Initial polling failed:', error);
+		}); // Execute first time immediately
+	});
+}
 
 	// Stop polling
 	stopPolling() {
@@ -738,19 +740,23 @@ export default class AgentPlugin extends Plugin {
 			(leaf) => new ObsidianAgentChatView(leaf, this)
 		);
 
-		this.addRibbonIcon('bot-message-square', 'Open chat', () => {
-			this.activateAgentChatView();
+	this.addRibbonIcon('bot-message-square', 'Open chat', () => {
+		this.activateAgentChatView().catch((error) => {
+			console.error('Failed to activate chat view:', error);
 		});
+	});
 
 
 		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-chat',
-			name: 'Open chat',
-			callback: () => {
-				this.activateAgentChatView();
-			}
-		});
+	this.addCommand({
+		id: 'open-chat',
+		name: 'Open chat',
+		callback: () => {
+			this.activateAgentChatView().catch((error) => {
+				console.error('Failed to activate chat view:', error);
+			});
+		}
+	});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new AgentPluginSettingTab(this.app, this));

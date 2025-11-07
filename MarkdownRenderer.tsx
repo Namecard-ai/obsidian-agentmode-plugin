@@ -391,6 +391,8 @@ const MarkdownWithGfm: React.FC<{ content: string; plugin?: AgentPlugin; compone
   useEffect(() => {
     import('remark-gfm').then(module => {
       setRemarkGfm(() => module.default);
+    }).catch((error) => {
+      console.error('Failed to load remark-gfm:', error);
     });
   }, []);
 
