@@ -71,7 +71,7 @@ export interface EmbeddingRecord {
 	file_name: string;
 	last_modified: string;
 	error_trace?: string; // Error tracking field for failed embeddings
-	[key: string]: any; // Add index signature for compatibility
+	[key: string]: string | number[][] | undefined; // Add index signature for compatibility
 }
 
 export interface EmbeddingQueueItem {
@@ -80,16 +80,25 @@ export interface EmbeddingQueueItem {
 	source: 'file_modify' | 'manual' | 'batch_process';
 }
 
+export interface ToolCall {
+	id: string;
+	type: 'function';
+	function: {
+		name: string;
+		arguments: string;
+	};
+}
+
 export interface ChatMessage {
 	role: 'system' | 'user' | 'assistant' | 'tool';
 	content: string | Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }>;
-	tool_calls?: any[];
+	tool_calls?: ToolCall[];
 	tool_call_id?: string;
 	name?: string;
 	type?: 'standard' | 'edit-confirmation' | 'create-note-confirmation';
 	toolMessages?: {
 		callId: string;
-		content: any;
+		content: string;
 	}[];
 }
 
@@ -99,7 +108,7 @@ export interface HistoryMessage {
 	role: 'user' | 'assistant' | 'tool';
 	content: string;
 	timestamp: Date;
-	tool_calls?: any[];
+	tool_calls?: ToolCall[];
 	tool_call_id?: string;
 	name?: string;
 }
@@ -237,16 +246,16 @@ export class Auth0Service {
 			// Set polling flag
 			this.isPolling = true;
 
-			// Wrap resolve and reject to ensure state cleanup
-			const wrappedResolve = (value: TokenResponse) => {
-				this.isPolling = false;
-				resolve(value);
-			};
+		// Wrap resolve and reject to ensure state cleanup
+		const wrappedResolve = (value: TokenResponse) => {
+			this.isPolling = false;
+			resolve(value);
+		};
 
-			const wrappedReject = (reason: any) => {
-				this.isPolling = false;
-				reject(reason);
-			};
+		const wrappedReject = (reason: unknown) => {
+			this.isPolling = false;
+			reject(reason);
+		};
 
 			const poll = async () => {
 				// Check if polling has been stopped
@@ -323,7 +332,7 @@ export class Auth0Service {
 						}
 						wrappedReject(new Error(data.error_description || data.error || 'Authorization failed'));
 					}
-				} catch (error: any) {
+				} catch (error: unknown) {
 					console.error('Polling error:', error);
 					// Check if polling has been stopped (after error occurred)
 					if (!this.isPolling) {
@@ -425,7 +434,7 @@ export class Auth0Service {
 				if (this.plugin.settings.isLoggedIn && this.isTokenExpiringSoon()) {
 					try {
 						await this.autoRefreshToken();
-					} catch (error: any) {
+					} catch (error: unknown) {
 						console.error('Automatic token refresh failed:', error);
 						new Notice('Login session expired, please log in again');
 						await this.logout();
@@ -448,7 +457,7 @@ export class Auth0Service {
 			this.plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 
 			await this.plugin.saveSettings();
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error('Token refresh failed:', error);
 			throw error;
 		}
@@ -755,7 +764,7 @@ export default class AgentPlugin extends Plugin {
 
 	initializeOpenAI() {
 		const backendUrl = process.env.BACKEND_BASE_URL;
-		const config: any = {
+		const config = {
 			apiKey: '', // Don't set this here, decide when calling
 			dangerouslyAllowBrowser: true,
 			baseURL: backendUrl,
