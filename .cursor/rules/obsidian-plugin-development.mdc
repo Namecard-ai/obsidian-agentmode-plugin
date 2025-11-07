@@ -133,6 +133,130 @@ import('module').then(module => {
 });
 ```
 
+#### Handling Async Functions in Callbacks (Critical for ESLint `no-misused-promises`)
+
+**Problem**: The ESLint rule `@typescript-eslint/no-misused-promises` will reject code that passes async functions (which return Promises) to callbacks that expect void returns, such as:
+- `addEventListener()` callbacks
+- `setInterval()` / `setTimeout()` callbacks
+- React callback props that expect synchronous handlers
+- Any callback signature that expects `() => void` but receives `() => Promise<void>`
+
+**Solution Patterns**:
+
+**Pattern 1: Wrap async calls in synchronous wrapper with error handling**
+```typescript
+// ❌ BAD - async function passed directly to addEventListener
+button.addEventListener('click', async () => {
+  await saveData();
+  new Notice('Saved');
+});
+
+// ✅ GOOD - Wrap in synchronous function with .catch()
+button.addEventListener('click', () => {
+  saveData().then(() => {
+    new Notice('Saved');
+  }).catch((error) => {
+    console.error('Save failed:', error);
+    new Notice('Failed to save');
+  });
+});
+
+// ✅ ALSO GOOD - Define async function inside, call with .catch()
+button.addEventListener('click', () => {
+  const handleClick = async () => {
+    await saveData();
+    new Notice('Saved');
+  };
+  
+  handleClick().catch((error) => {
+    console.error('Save failed:', error);
+    new Notice('Failed to save');
+  });
+});
+```
+
+**Pattern 2: Use void operator for callback parameters**
+When passing callbacks that internally call async functions:
+```typescript
+// ❌ BAD - Callback implicitly returns Promise
+onToolCall: (toolCall) => {
+  handleToolCall().catch((error) => {
+    console.error('Failed:', error);
+  });
+}
+
+// ✅ GOOD - void operator ensures no return value
+onToolCall: (toolCall) => {
+  void handleToolCall().catch((error) => {
+    console.error('Failed:', error);
+  });
+}
+```
+
+**Pattern 3: setInterval/setTimeout with async functions**
+```typescript
+// ❌ BAD - async function passed to setInterval
+window.setInterval(async () => {
+  await checkStatus();
+}, 5000);
+
+// ✅ GOOD - Wrap in synchronous function
+window.setInterval(() => {
+  checkStatus().catch((error) => {
+    console.error('Status check failed:', error);
+  });
+}, 5000);
+```
+
+**Pattern 4: Native event listeners with async handlers**
+```typescript
+// ❌ BAD - async handler for drop event
+element.addEventListener('drop', async (e: DragEvent) => {
+  await handleFileDrop(e);
+});
+
+// ✅ GOOD - Wrap async handler
+const dropHandler = (e: DragEvent) => {
+  handleFileDrop(e).catch((error) => {
+    console.error('Failed to handle drop:', error);
+    new Notice('Failed to handle file drop');
+  });
+};
+element.addEventListener('drop', dropHandler);
+```
+
+**Pattern 5: React streaming callbacks**
+When passing callbacks to streaming APIs:
+```typescript
+// ❌ BAD - async callback without void
+plugin.streamChat(
+  messages,
+  (chunk) => { setContent(prev => prev + chunk); },
+  (toolCall) => {
+    handleToolCall(toolCall).catch(console.error);  // Returns Promise
+  }
+);
+
+// ✅ GOOD - Use void operator
+plugin.streamChat(
+  messages,
+  (chunk) => { setContent(prev => prev + chunk); },
+  (toolCall) => {
+    void handleToolCall(toolCall).catch((error) => {
+      console.error('Tool call failed:', error);
+    });
+  }
+);
+```
+
+**Key Rules**:
+1. Never pass async functions directly to callbacks expecting void return
+2. Always wrap async calls in synchronous functions
+3. Always handle Promise rejections with `.catch()` or `.then()`
+4. Use `void` operator when callback signature requires void but you need to call async code
+5. Provide user feedback (via `Notice`) for failed operations
+6. Log errors to console for debugging
+
 ### Documentation
 - Add JSDoc comments for complex functions
 - Document component props and their types

@@ -639,7 +639,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             setCurrentStreamingContent('');
           };
 
-          handleToolCall().catch((error) => {
+          void handleToolCall().catch((error) => {
             console.error('Failed to handle tool call:', error);
             new Notice('Failed to process tool call');
           });
@@ -660,7 +660,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             setIsLoading(false);
           };
 
-          handleComplete().catch((error) => {
+          void handleComplete().catch((error) => {
             console.error('Failed to handle completion:', error);
             setStreamingMessageId(null);
             setCurrentStreamingContent('');
@@ -681,7 +681,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             setIsLoading(false);
           };
 
-          handleError().catch((err) => {
+          void handleError().catch((err) => {
             console.error('Failed to handle error:', err);
             setStreamingMessageId(null);
             setCurrentStreamingContent('');
@@ -701,7 +701,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             await appendMessage(toolResultMessage);
           };
 
-          handleToolResult().catch((error) => {
+          void handleToolResult().catch((error) => {
             console.error('Failed to handle tool result:', error);
             new Notice('Failed to process tool result');
           });
@@ -1784,14 +1784,22 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     };
 
     // Add native event listeners for better compatibility
+    // Wrap async handler to properly handle promises
+    const dropHandler = (e: DragEvent) => {
+      handleNativeDrop(e).catch((error) => {
+        console.error('Failed to handle drop:', error);
+        new Notice('Failed to handle file drop');
+      });
+    };
+
     chatContainer.addEventListener('dragover', handleNativeDragOver);
     chatContainer.addEventListener('dragleave', handleNativeDragLeave);
-    chatContainer.addEventListener('drop', handleNativeDrop);
+    chatContainer.addEventListener('drop', dropHandler);
 
     return () => {
       chatContainer.removeEventListener('dragover', handleNativeDragOver);
       chatContainer.removeEventListener('dragleave', handleNativeDragLeave);
-      chatContainer.removeEventListener('drop', handleNativeDrop);
+      chatContainer.removeEventListener('drop', dropHandler);
     };
   }, [app]);
 
