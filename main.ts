@@ -2713,6 +2713,25 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 }
 
+	// Web search result interfaces
+	interface WebSearchResult {
+		title?: string;
+		description?: string;
+		url?: string;
+	}
+
+	interface ImageSearchResult {
+		title?: string;
+		imageUrl?: string;
+	}
+
+	interface NewsSearchResult {
+		title?: string;
+		snippet?: string;
+		url?: string;
+		date?: string;
+	}
+
 	private async toolWebSearch(args: { query: string }) {
 		try {
 			if (!this.isLoggedIn() || !this.settings.accessToken) {
@@ -2762,59 +2781,60 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return 'Error: Web search API returned unsuccessful response.';
 			}
 
-			// Format the search results for display
-			const results = [];
+		// Format the search results for display
+		const results: string[] = [];
 
-			if (data.data?.web && Array.isArray(data.data.web)) {
-				results.push('🌐 Web Results:');
-				data.data.web.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.description) {
-						results.push(`   ${result.description}`);
-					}
-					if (result.url) {
-						results.push(`   🔗 ${result.url}`);
-					}
-					results.push('');
-				});
-			}
-
-			if (data.data?.images && Array.isArray(data.data.images)) {
-				results.push('🖼️ Image Results:');
-				data.data.images.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.imageUrl) {
-						results.push(`   🔗 ${result.imageUrl}`);
-					}
-					results.push('');
-				});
-			}
-
-			if (data.data?.news && Array.isArray(data.data.news)) {
-				results.push('📰 News Results:');
-				data.data.news.forEach((result: any, index: number) => {
-					results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
-					if (result.snippet) {
-						results.push(`   ${result.snippet}`);
-					}
-					if (result.url) {
-						results.push(`   🔗 ${result.url}`);
-					}
-					if (result.date) {
-						results.push(`   📅 ${result.date}`);
-					}
-					results.push('');
-				});
-			}
-
-			const resultText = results.join('\n');
-			return resultText || 'No search results found.';
-
-		} catch (error: any) {
-			console.error('🔍 [TOOL] web_search error:', error);
-			return `Error performing web search: ${error.message}`;
+		if (data.data?.web && Array.isArray(data.data.web)) {
+			results.push('🌐 Web Results:');
+			(data.data.web as WebSearchResult[]).forEach((result, index) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.description) {
+					results.push(`   ${result.description}`);
+				}
+				if (result.url) {
+					results.push(`   🔗 ${result.url}`);
+				}
+				results.push('');
+			});
 		}
+
+		if (data.data?.images && Array.isArray(data.data.images)) {
+			results.push('🖼️ Image Results:');
+			(data.data.images as ImageSearchResult[]).forEach((result, index) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.imageUrl) {
+					results.push(`   🔗 ${result.imageUrl}`);
+				}
+				results.push('');
+			});
+		}
+
+		if (data.data?.news && Array.isArray(data.data.news)) {
+			results.push('📰 News Results:');
+			(data.data.news as NewsSearchResult[]).forEach((result, index) => {
+				results.push(`${index + 1}. **${result.title || 'Untitled'}**`);
+				if (result.snippet) {
+					results.push(`   ${result.snippet}`);
+				}
+				if (result.url) {
+					results.push(`   🔗 ${result.url}`);
+				}
+				if (result.date) {
+					results.push(`   📅 ${result.date}`);
+				}
+				results.push('');
+			});
+		}
+
+		const resultText = results.join('\n');
+		return resultText || 'No search results found.';
+
+	} catch (error: unknown) {
+		console.error('🔍 [TOOL] web_search error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error performing web search: ${errorMessage}`;
 	}
+}
 
 	private async toolWebScrape(args: { url: string }) {
 		try {
@@ -2901,14 +2921,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				results.push(`⚠️ **Warning:** ${data.warning}`);
 			}
 
-			const resultText = results.join('\n');
-			return resultText || 'No content could be scraped from the URL.';
+		const resultText = results.join('\n');
+		return resultText || 'No content could be scraped from the URL.';
 
-		} catch (error: any) {
-			console.error('🕷️ [TOOL] web_scrape error:', error);
-			return `Error performing web scrape: ${error.message}`;
-		}
+	} catch (error: unknown) {
+		console.error('🕷️ [TOOL] web_scrape error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error performing web scrape: ${errorMessage}`;
 	}
+}
 
 	// Helper method to split text into chunks based on token count
 	splitTextIntoChunks(text: string, maxTokens: number = 8000, overlapTokens: number = 200): string[] {
@@ -3108,16 +3129,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				return null;
 			}
 
-			// Build request options, consistent with other OpenAI calls
-			const reqOptions: RequestOptions = {
-				headers: {
-					'Authorization': `Bearer ${this.settings.accessToken}`
-				},
-			};
-
-			if (this.settings.openaiApiKey) {
-				(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
-			}
+		// Build request options, consistent with other OpenAI calls
+		const headers: Record<string, string> = {
+			'Authorization': `Bearer ${this.settings.accessToken}`
+		};
+		if (this.settings.openaiApiKey) {
+			headers['X-BYOK'] = this.settings.openaiApiKey;
+		}
+		const reqOptions: RequestOptions = {
+			headers,
+		};
 
 			const response = await this.openaiClient.embeddings.create({
 				model: 'text-embedding-3-small',
@@ -3317,7 +3338,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	private async processFileForEmbeddingWithRetry(file: TFile): Promise<void> {
-		let lastError: any = null;
+		let lastError: unknown = null;
 
 		for (let attempt = 1; attempt <= this.RETRY_ATTEMPTS; attempt++) {
 			try {
@@ -3338,12 +3359,13 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		await this.saveErrorRecord(file, lastError);
 	}
 
-	private async saveErrorRecord(file: TFile, error: any): Promise<void> {
+	private async saveErrorRecord(file: TFile, error: unknown): Promise<void> {
 		try {
 			const pathMd5 = CryptoJS.MD5(file.path).toString(CryptoJS.enc.Hex);
 			const content = await this.app.vault.cachedRead(file);
 			const contentMd5 = CryptoJS.MD5(content).toString(CryptoJS.enc.Hex);
 
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorRecord: EmbeddingRecord = {
 				id: pathMd5,
 				vectors: [], // Empty array for failed embeddings
@@ -3351,7 +3373,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				file_path: file.path,
 				file_name: file.name,
 				last_modified: new Date(file.stat.mtime).toISOString(),
-				error_trace: error?.message || String(error)
+				error_trace: errorMessage
 			};
 
 			await this.saveEmbedding(errorRecord);
@@ -3623,17 +3645,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			const loginModal = new LoginModal(this.app, this);
 			const success = await loginModal.showLogin();
 
-			if (success) {
-				this.updateStatusBar();
+		if (success) {
+			this.updateStatusBar();
 
-				// Start batch embedding queue after successful login
-				await this.initializeBatchEmbeddingQueue();
-			}
-		} catch (error: any) {
-			console.error('Login failed:', error);
-			new Notice(`Login failed: ${error.message}`);
+			// Start batch embedding queue after successful login
+			await this.initializeBatchEmbeddingQueue();
 		}
+	} catch (error: unknown) {
+		console.error('Login failed:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		new Notice(`Login failed: ${errorMessage}`);
 	}
+}
 
 	async logout(): Promise<void> {
 		if (!this.auth0Service) {
@@ -3643,29 +3666,30 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		try {
 			await this.auth0Service.logout();
 
-			// Clear embedding queue after logout
-			this.clearEmbeddingQueue();
+		// Clear embedding queue after logout
+		this.clearEmbeddingQueue();
 
-			// UI update logic will be added here later
-		} catch (error: any) {
-			console.error('Logout failed:', error);
-			new Notice(`Logout failed: ${error.message}`);
-		}
+		// UI update logic will be added here later
+	} catch (error: unknown) {
+		console.error('Logout failed:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		new Notice(`Logout failed: ${errorMessage}`);
 	}
+}
 
-	isLoggedIn(): boolean {
-		return this.settings.isLoggedIn && !!this.settings.accessToken;
+isLoggedIn(): boolean {
+	return this.settings.isLoggedIn && !!this.settings.accessToken;
+}
+
+getUserInfo(): { email?: string; name?: string; sub?: string } | null {
+	return this.settings.userInfo || null;
+}
+
+// Get user profile (including subscription information)
+async getUserProfile(): Promise<unknown> {
+	if (!this.isLoggedIn() || !this.settings.accessToken) {
+		throw new Error('Not logged in');
 	}
-
-	getUserInfo(): { email?: string; name?: string; sub?: string } | null {
-		return this.settings.userInfo || null;
-	}
-
-	// Get user profile (including subscription information)
-	async getUserProfile(): Promise<any> {
-		if (!this.isLoggedIn() || !this.settings.accessToken) {
-			throw new Error('Not logged in');
-		}
 
 		try {
 			const backendUrl = process.env.BACKEND_BASE_URL;
@@ -3679,19 +3703,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				throw: false
 			});
 
-			if (response.status < 200 || response.status >= 300) {
-				throw {
-					status: response.status,
-					message: response.text
-				};
-			}
-
-			return response.json;
-		} catch (error: any) {
-			console.error('Get user profile failed:', error);
-			throw error;
+		if (response.status < 200 || response.status >= 300) {
+			throw {
+				status: response.status,
+				message: response.text
+			};
 		}
+
+		return response.json;
+	} catch (error: unknown) {
+		console.error('Get user profile failed:', error);
+		throw error;
 	}
+}
 
 	// Get Stripe Billing Portal Session URL
 	async getBillingSession(): Promise<string> {
@@ -3715,44 +3739,51 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				throw new Error(`Get billing session failed: ${response.status} ${response.text}`);
 			}
 
-			const data = response.json;
-			if (data.success && data.data && data.data.url) {
-				return data.data.url;
-			} else {
-				throw new Error('Invalid response format');
-			}
-		} catch (error: any) {
-			console.error('Get billing session failed:', error);
-			throw error;
+		const data = response.json;
+		if (data.success && data.data && data.data.url) {
+			return data.data.url;
+		} else {
+			throw new Error('Invalid response format');
+		}
+	} catch (error: unknown) {
+		console.error('Get billing session failed:', error);
+		throw error;
+	}
+}
+
+// Open Billing Portal (extracted from AgentPluginSettingTab)
+async openBillingPortal(): Promise<void> {
+	try {
+		// Get billing session URL
+		const billingUrl = await this.getBillingSession();
+
+		// Open external browser
+		window.open(billingUrl, '_blank', 'noopener,noreferrer');
+
+	} catch (error: unknown) {
+		console.error('Failed to open billing portal:', error);
+
+		// Show error notification
+		const errorMessage = error instanceof Error ? error.message : '';
+		if (errorMessage.includes('Not logged in')) {
+			new Notice('Please log in first to manage billing');
+		} else {
+			new Notice('Failed to open billing portal. Please try again.');
 		}
 	}
+}
 
-	// Open Billing Portal (extracted from AgentPluginSettingTab)
-	async openBillingPortal(): Promise<void> {
-		try {
-			// Get billing session URL
-			const billingUrl = await this.getBillingSession();
-
-			// Open external browser
-			window.open(billingUrl, '_blank', 'noopener,noreferrer');
-
-		} catch (error: any) {
-			console.error('Failed to open billing portal:', error);
-
-			// Show error notification
-			if (error.message.includes('Not logged in')) {
-				new Notice('Please log in first to manage billing');
-			} else {
-				new Notice('Failed to open billing portal. Please try again.');
-			}
-		}
+// Open Plugin Settings (extracted from showStatusBarMenu)
+openPluginSettings(): void {
+	interface AppWithSettings {
+		setting: {
+			open(): void;
+			openTabById(id: string): void;
+		};
 	}
-
-	// Open Plugin Settings (extracted from showStatusBarMenu)
-	openPluginSettings(): void {
-		(this.app as any).setting.open();
-		(this.app as any).setting.openTabById(this.manifest.id);
-	}
+	(this.app as unknown as AppWithSettings).setting.open();
+	(this.app as unknown as AppWithSettings).setting.openTabById(this.manifest.id);
+}
 }
 
 // class SampleModal extends Modal {
@@ -4107,15 +4138,15 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			billingButton.textContent = '⏳ Opening...';
 			billingButton.disabled = true;
 
-			try {
-				// Use the extracted public method
-				await this.plugin.openBillingPortal();
+		try {
+			// Use the extracted public method
+			await this.plugin.openBillingPortal();
 
-			} catch (error: any) {
-				// Error handling is already done in openBillingPortal method
-				console.error('Failed to open billing portal:', error);
-			} finally {
-				// Restore button state
+		} catch (error: unknown) {
+			// Error handling is already done in openBillingPortal method
+			console.error('Failed to open billing portal:', error);
+		} finally {
+			// Restore button state
 				billingButton.textContent = originalText;
 				billingButton.disabled = false;
 			}
@@ -4205,25 +4236,26 @@ class AgentPluginSettingTab extends PluginSettingTab {
 						cls: 'agentmode-subscription-error'
 					});
 
-					// Show Billing Portal button even if loading fails
-					this.addBillingPortalButton(subscriptionDiv);
-				}
+			// Show Billing Portal button even if loading fails
+			this.addBillingPortalButton(subscriptionDiv);
+		}
 
-			} catch (error: any) {
-				console.error('Failed to refresh subscription:', error);
-				if (error.status === 401) {
-					this.plugin.logout();
-					this.display();
-				} else {
-					// Show error
-					subscriptionDiv.empty();
-					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					subscriptionDiv.createEl('div', {
-						text: 'Failed to refresh subscription info',
-						cls: 'agentmode-subscription-error'
-					});
-					this.addBillingPortalButton(subscriptionDiv);
-				}
+	} catch (error: unknown) {
+		console.error('Failed to refresh subscription:', error);
+		const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+		if (errorStatus === 401) {
+			this.plugin.logout();
+			this.display();
+		} else {
+			// Show error
+			subscriptionDiv.empty();
+			this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+			subscriptionDiv.createEl('div', {
+				text: 'Failed to refresh subscription info',
+				cls: 'agentmode-subscription-error'
+			});
+			this.addBillingPortalButton(subscriptionDiv);
+		}
 
 			} finally {
 				// Restore button state (if button still exists)
