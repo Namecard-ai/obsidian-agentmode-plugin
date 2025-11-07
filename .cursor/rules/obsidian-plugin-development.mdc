@@ -57,6 +57,165 @@ This is an Obsidian plugin written in TypeScript/React. This document outlines d
 - **Never use `innerHTML`** - always use `createEl()` and `appendText()` for DOM manipulation
 - Follow Obsidian's design system and use their CSS variables for consistent theming
 
+## TypeScript Type Safety Standards
+
+### Strict `any` Type Policy
+**CRITICAL**: The use of `any` type is strictly prohibited and will be rejected in code reviews. All code must use proper TypeScript types.
+
+### Strategies for Avoiding `any`
+
+#### Strategy 1: Define Custom Interfaces for Internal Data Structures
+For application-specific data models, always create proper interfaces:
+
+```typescript
+// ❌ BAD - Using any
+const message: any = { role: 'user', content: 'Hello' };
+
+// ✅ GOOD - Define proper interface
+interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  timestamp: Date;
+}
+
+const message: Message = {
+  id: generateId(),
+  role: 'user',
+  content: 'Hello',
+  timestamp: new Date()
+};
+```
+
+#### Strategy 2: Use Library Types from SDKs
+When working with external libraries, import and use their type definitions:
+
+```typescript
+// ❌ BAD - Using any for library types
+function handleToolCall(toolCall: any) { ... }
+
+// ✅ GOOD - Use existing interface
+interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+function handleToolCall(toolCall: ToolCall) { ... }
+```
+
+#### Strategy 3: Type Plugin Static Properties
+For accessing plugin constructor static properties, define proper interfaces:
+
+```typescript
+// ❌ BAD - Using any for plugin access
+const mimeType = (plugin as any).constructor.MIME_TYPES[ext];
+
+// ✅ GOOD - Define constructor interface
+interface AgentPluginConstructor {
+  IMAGE_EXTENSIONS: string[];
+  MIME_TYPES: Record<string, string>;
+}
+
+const mimeType = (plugin.constructor as unknown as AgentPluginConstructor).MIME_TYPES[ext];
+```
+
+#### Strategy 4: Use `unknown` for Error Handling
+For error catching, use `unknown` with type guards instead of `any`:
+
+```typescript
+// ❌ BAD - Using any in catch
+try {
+  await someOperation();
+} catch (error: any) {
+  console.error(error.message);
+}
+
+// ✅ GOOD - Use unknown with type guard
+try {
+  await someOperation();
+} catch (error: unknown) {
+  console.error('Operation failed:', error);
+  const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+  new Notice(`Failed: ${errorMessage}`);
+}
+```
+
+#### Strategy 5: Define Interfaces for Obsidian Internal APIs
+When accessing undocumented Obsidian APIs, create minimal interface definitions:
+
+```typescript
+// ❌ BAD - Using any for internal API
+const view = fileExplorer.view as any;
+view.tree.selectedDoms.map((dom: any) => dom.file);
+
+// ✅ GOOD - Define minimal interface
+interface FileExplorerView {
+  tree?: {
+    selectedDoms?: Array<{ file?: TFile }>;
+  };
+}
+
+const view = fileExplorer.view as unknown as FileExplorerView;
+view.tree?.selectedDoms?.map((dom) => dom.file);
+```
+
+#### Strategy 6: Use Union Types for Flexible Parameters
+For parameters that can be multiple types, use union types:
+
+```typescript
+// ❌ BAD - Using any for flexible input
+function renderSuggestion(value: any, el: HTMLElement) {
+  const file = value.item || value;
+}
+
+// ✅ GOOD - Use union type
+interface FuzzySuggestionItem {
+  item?: TFile;
+}
+
+function renderSuggestion(value: FuzzySuggestionItem | TFile, el: HTMLElement) {
+  const file = (value as FuzzySuggestionItem).item || (value as TFile);
+}
+```
+
+### When `any` is Exceptionally Acceptable
+
+In rare cases where `any` is unavoidable (e.g., highly dynamic property access on undocumented APIs), it must be:
+
+1. **Explicitly disabled with ESLint comment**:
+   ```typescript
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   let obj: any = dynamicObject;
+   ```
+
+2. **Documented with a comment explaining why**:
+   ```typescript
+   // Dynamic property access on Obsidian's undocumented internal API
+   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   let obj: any = workspace;
+   for (const part of path.split('.')) {
+     obj = obj?.[part];
+   }
+   ```
+
+3. **Protected with runtime checks**:
+   ```typescript
+   if (obj && typeof obj === 'object') {
+     // Safe to access properties
+   }
+   ```
+
+### Type Safety Benefits
+- **Compile-time error detection**: Catch bugs before runtime
+- **Better IDE support**: Improved autocomplete and refactoring
+- **Self-documenting code**: Types serve as inline documentation
+- **Easier maintenance**: Type errors highlight breaking changes
+- **Team communication**: Types clarify interfaces and expectations
+
 ## Obsidian Plugin Lifecycle Management
 
 ### Event and Interval Registration
