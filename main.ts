@@ -762,11 +762,13 @@ export default class AgentPlugin extends Plugin {
 		this.addSettingTab(new AgentPluginSettingTab(this.app, this));
 
 		// Start the embedding queue consumer
-		this.startQueueConsumer();
+	this.startQueueConsumer();
 
-		// Initialize batch processing for all markdown files in vault
-		this.initializeBatchEmbeddingQueue();
-	}
+	// Initialize batch processing for all markdown files in vault
+	this.initializeBatchEmbeddingQueue().catch((error) => {
+		console.error('Failed to initialize batch embedding queue:', error);
+	});
+}
 
 	initializeOpenAI() {
 		const backendUrl = process.env.BACKEND_BASE_URL;
@@ -1524,11 +1526,13 @@ export default class AgentPlugin extends Plugin {
 			return;
 		}
 
-		const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
-		if (errorStatus === 401) {
-			this.logout();
-		}
-		if (errorStatus === 402) {
+	const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+	if (errorStatus === 401) {
+		this.logout().catch((error) => {
+			console.error('Logout failed:', error);
+		});
+	}
+	if (errorStatus === 402) {
 			// Show payment required modal
 			const paymentModal = new PaymentRequiredModal(this.app, this);
 			paymentModal.show();
@@ -2096,12 +2100,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			if (response.status < 200 || response.status >= 300) {
 				const errorData = response.json || {};
-				console.error('📄 [TOOL] convert error:', response.status, errorData);
+			console.error('📄 [TOOL] convert error:', response.status, errorData);
 
-				if (response.status === 401) {
-					this.logout();
-					return 'Error: Authentication failed. Please log in again.';
-				} else if (response.status === 413) {
+			if (response.status === 401) {
+				this.logout().catch((error) => {
+					console.error('Logout failed:', error);
+				});
+				return 'Error: Authentication failed. Please log in again.';
+			} else if (response.status === 413) {
 					return 'Error: File too large for conversion.';
 				} else if (response.status === 504) {
 					return 'Error: Conversion timeout. The file may be too complex to process.';
@@ -3152,13 +3158,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			}, reqOptions);
 
 			return response.data[0].embedding;
-		} catch (error) {
-			console.error('Error getting OpenAI embedding:', error);
-			if (error.status === 401) {
-				this.logout();
-			}
-			return null;
+	} catch (error) {
+		console.error('Error getting OpenAI embedding:', error);
+		if (error.status === 401) {
+			this.logout().catch((error) => {
+				console.error('Logout failed:', error);
+			});
 		}
+		return null;
+	}
 	}
 
 	onunload() {
@@ -3251,12 +3259,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			});
 
 			// Notify UI update
-			this.notifySettingsUpdate();
+		this.notifySettingsUpdate();
 
-			// Trigger immediate processing if not already processing
-			this.processEmbeddingQueue();
-		}
+		// Trigger immediate processing if not already processing
+		this.processEmbeddingQueue().catch((error) => {
+			console.error('Failed to process embedding queue:', error);
+		});
 	}
+}
 
 	private async processEmbeddingQueue() {
 		if (this.isProcessingQueue || this.embeddingQueue.size === 0) {
@@ -3394,12 +3404,14 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			window.clearInterval(this.queueConsumerTimer);
 		}
 
-		this.queueConsumerTimer = this.registerInterval(
-			window.setInterval(() => {
-				this.processEmbeddingQueue();
-			}, this.QUEUE_CONSUMER_INTERVAL)
-		);
-	}
+	this.queueConsumerTimer = this.registerInterval(
+		window.setInterval(() => {
+			this.processEmbeddingQueue().catch((error) => {
+				console.error('Failed to process embedding queue:', error);
+			});
+		}, this.QUEUE_CONSUMER_INTERVAL)
+	);
+}
 
 	private stopQueueConsumer() {
 		if (this.queueConsumerTimer) {
@@ -3902,14 +3914,16 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 					// Show Billing Portal button even if loading fails
 					this.addBillingPortalButton(subscriptionDiv);
-				}
-			}).catch(error => {
-				if (error.status === 401) {
-					this.plugin.logout();
-					this.display();
-				} else {
-					// Show error information
-					subscriptionDiv.empty();
+			}
+		}).catch(error => {
+			if (error.status === 401) {
+				this.plugin.logout().catch((error) => {
+					console.error('Logout failed:', error);
+				});
+				this.display();
+			} else {
+				// Show error information
+				subscriptionDiv.empty();
 					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', {
 						text: 'Unable to load subscription info',
@@ -4247,14 +4261,16 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		}
 
 	} catch (error: unknown) {
-		console.error('Failed to refresh subscription:', error);
-		const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
-		if (errorStatus === 401) {
-			this.plugin.logout();
-			this.display();
-		} else {
-			// Show error
-			subscriptionDiv.empty();
+	console.error('Failed to refresh subscription:', error);
+	const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+	if (errorStatus === 401) {
+		this.plugin.logout().catch((error) => {
+			console.error('Logout failed:', error);
+		});
+		this.display();
+	} else {
+		// Show error
+		subscriptionDiv.empty();
 			this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 			subscriptionDiv.createEl('div', {
 				text: 'Failed to refresh subscription info',
