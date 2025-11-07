@@ -1,5 +1,5 @@
 import React, { StrictMode } from 'react';
-import { App, Modal, Menu, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile, requestUrl } from 'obsidian';
+import { App, Modal, Menu, MenuItem, Notice, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile, requestUrl } from 'obsidian';
 import { Root, createRoot } from 'react-dom/client';
 import { ObsidianAgentChatView, VIEW_TYPE_AGENT_CHAT } from './ObsidianAgentChatView';
 import { LoginComponent } from './LoginComponent';
@@ -851,14 +851,14 @@ export default class AgentPlugin extends Plugin {
 			const userName = userInfo?.name || userInfo?.email || 'User';
 			const userEmail = userInfo?.email || '';
 
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle(`User: ${userName}`)
 					.setIcon('user')
 					.setDisabled(true);
 			});
 
 			if (userEmail && userEmail !== userName) {
-				menu.addItem((item: any) => {
+				menu.addItem((item: MenuItem) => {
 					item.setTitle(`Email: ${userEmail}`)
 						.setIcon('mail')
 						.setDisabled(true);
@@ -867,7 +867,7 @@ export default class AgentPlugin extends Plugin {
 
 			menu.addSeparator();
 
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle('Log out')
 					.setIcon('log-out')
 					.onClick(async () => {
@@ -877,7 +877,7 @@ export default class AgentPlugin extends Plugin {
 			});
 		} else {
 			// Not logged in, show login option
-			menu.addItem((item: any) => {
+			menu.addItem((item: MenuItem) => {
 				item.setTitle('Log in')
 					.setIcon('log-in')
 					.onClick(async () => {
@@ -890,7 +890,7 @@ export default class AgentPlugin extends Plugin {
 		// Add settings option
 		menu.addSeparator();
 
-		menu.addItem((item: any) => {
+		menu.addItem((item: MenuItem) => {
 			item.setTitle('Settings')
 				.setIcon('settings')
 				.onClick(() => {
@@ -1017,7 +1017,7 @@ export default class AgentPlugin extends Plugin {
 					const entry: ChatHistory = {
 						...parsed,
 						timestamp: new Date(parsed.timestamp),
-						messages: parsed.messages.map((msg: any) => ({
+						messages: parsed.messages.map((msg: { timestamp: string }) => ({
 							...msg,
 							timestamp: new Date(msg.timestamp)
 						}))
@@ -1095,7 +1095,7 @@ export default class AgentPlugin extends Plugin {
 		model: string,
 		chatMode: 'Ask' | 'Agent',
 		onChunk: (chunk: string) => void,
-		onToolCall: (toolCall: any) => void,
+		onToolCall: (toolCall: ToolCall) => void,
 		onComplete: (finalContent: string) => void,
 		onError: (error: string) => void,
 		onToolResult: (result: { toolCallId: string; result: string }) => void,
@@ -1368,27 +1368,28 @@ export default class AgentPlugin extends Plugin {
 					return;
 				}
 
-				// Start streaming chat completion
-				let reqOptions: RequestOptions = {
-					headers: {
-						'Authorization': `Bearer ${this.settings.accessToken}`
-					},
-					signal: this.currentChatController.signal
-				}
-				if (this.settings.openaiApiKey) {
-					(reqOptions.headers as any)['X-BYOK'] = this.settings.openaiApiKey;
-				}
+			// Start streaming chat completion
+			const headers: Record<string, string> = {
+				'Authorization': `Bearer ${this.settings.accessToken}`
+			};
+			if (this.settings.openaiApiKey) {
+				headers['X-BYOK'] = this.settings.openaiApiKey;
+			}
+			const reqOptions: RequestOptions = {
+				headers,
+				signal: this.currentChatController.signal
+			};
 
-				const stream = await this.openaiClient.chat.completions.create({
-					model: model,
-					messages: chatMessages,
-					tools: tools,
-					stream: true,
-					// temperature: 0.7
-				}, reqOptions);
+			const stream = await this.openaiClient.chat.completions.create({
+				model: model,
+				messages: chatMessages,
+				tools: tools,
+				stream: true,
+				// temperature: 0.7
+			}, reqOptions);
 
-				// Build up the message from streaming chunks
-				let currentMessage: any = {};
+			// Build up the message from streaming chunks
+			let currentMessage: Partial<ChatCompletionMessageParam> = {};
 
 				for await (const chunk of stream) {
 					// Check for interruption
@@ -1475,53 +1476,58 @@ export default class AgentPlugin extends Plugin {
 							content: result
 						};
 
-						chatMessages.push(toolMessage);
-						onToolResult({ toolCallId: toolCall.id, result });
+					chatMessages.push(toolMessage);
+					onToolResult({ toolCallId: toolCall.id, result });
 
-					} catch (error: any) {
-						// Debug: Log tool call error
-						console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
-							tool_call_id: toolCall.id,
-							error_message: error.message,
-							error_stack: error.stack,
-							full_error: error
-						});
+				} catch (error: unknown) {
+					// Debug: Log tool call error
+					const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+					const errorStack = error instanceof Error ? error.stack : undefined;
+					console.error(`❌ [TOOL ERROR] ${toolCall.function.name}:`, {
+						tool_call_id: toolCall.id,
+						error_message: errorMessage,
+						error_stack: errorStack,
+						full_error: error
+					});
 
-						// Handle tool execution error
-						const errorMessage: ChatCompletionMessageParam = {
-							tool_call_id: toolCall.id,
-							role: 'tool',
-							content: `Error: ${error.message || 'Unknown error'}`
-						};
+					// Handle tool execution error
+					const toolErrorMessage: ChatCompletionMessageParam = {
+						tool_call_id: toolCall.id,
+						role: 'tool',
+						content: `Error: ${errorMessage}`
+					};
 
-						chatMessages.push(errorMessage);
-						onToolResult({ toolCallId: toolCall.id, result: `Error: ${error.message || 'Unknown error'}` });
+					chatMessages.push(toolErrorMessage);
+					onToolResult({ toolCallId: toolCall.id, result: `Error: ${errorMessage}` });
 					}
 				}
 
 				// Continue the loop for next round of chat completion
 			}
 
-			onComplete(finalAssistantContent);
+		onComplete(finalAssistantContent);
 
-		} catch (error: any) {
-			console.error('Error in agent chat:', error);
+	} catch (error: unknown) {
+		console.error('Error in agent chat:', error);
 
-			// Handle abort error
-			if (error.name === 'AbortError' || this.shouldStopChat) {
-				onInterrupted?.();
-				return;
-			}
+		// Handle abort error
+		const errorName = error instanceof Error ? error.name : '';
+		if (errorName === 'AbortError' || this.shouldStopChat) {
+			onInterrupted?.();
+			return;
+		}
 
-			if (error.status === 401) {
-				this.logout();
-			}
-			if (error.status === 402) {
-				// Show payment required modal
-				const paymentModal = new PaymentRequiredModal(this.app, this);
-				paymentModal.show();
-			}
-			onError(error.message || 'Unknown error occurred');
+		const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+		if (errorStatus === 401) {
+			this.logout();
+		}
+		if (errorStatus === 402) {
+			// Show payment required modal
+			const paymentModal = new PaymentRequiredModal(this.app, this);
+			paymentModal.show();
+		}
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		onError(errorMessage);
 		} finally {
 			// Clean up interruption control
 			this.currentChatController = null;
