@@ -1389,45 +1389,46 @@ export default class AgentPlugin extends Plugin {
 			}, reqOptions);
 
 			// Build up the message from streaming chunks
-			let currentMessage: Partial<ChatCompletionMessageParam> = {};
+			let currentMessage: Record<string, unknown> = {};
 
-				for await (const chunk of stream) {
-					// Check for interruption
-					if (this.shouldStopChat) {
-						onInterrupted?.();
-						return;
-					}
+			for await (const chunk of stream) {
+				// Check for interruption
+				if (this.shouldStopChat) {
+					onInterrupted?.();
+					return;
+				}
 
-					currentMessage = this.messageReducer(currentMessage, chunk);
+				currentMessage = this.messageReducer(currentMessage, chunk as unknown as Record<string, unknown>);
 
-					// Stream content to UI
-					const delta = chunk.choices[0]?.delta;
-					if (delta?.content) {
-						onChunk(delta.content);
-						// Accumulate final content
-						finalAssistantContent += delta.content;
-					}
+				// Stream content to UI
+				const delta = (chunk as { choices?: Array<{ delta?: { content?: string; tool_calls?: ToolCall[] } }> }).choices?.[0]?.delta;
+				if (delta?.content) {
+					onChunk(delta.content);
+					// Accumulate final content
+					finalAssistantContent += delta.content;
+				}
 
-					// Handle tool call deltas
-					if (delta?.tool_calls) {
-						for (const toolCall of delta.tool_calls) {
-							if (toolCall.function?.name) {
-								onToolCall(toolCall);
-							}
+				// Handle tool call deltas
+				if (delta?.tool_calls) {
+					for (const toolCall of delta.tool_calls) {
+						if (toolCall.function?.name) {
+							onToolCall(toolCall);
 						}
 					}
 				}
+			}
 
-				// Add the completed assistant message to conversation
-				chatMessages.push(currentMessage);
+			// Add the completed assistant message to conversation
+			chatMessages.push(currentMessage as ChatCompletionMessageParam);
 
-				// If there are no tool calls, we're done
-				if (!currentMessage.tool_calls) {
-					break;
-				}
+			// If there are no tool calls, we're done
+			const toolCalls = currentMessage.tool_calls as ToolCall[] | undefined;
+			if (!toolCalls) {
+				break;
+			}
 
-				// Execute tool calls and add results to conversation
-				for (const toolCall of currentMessage.tool_calls) {
+			// Execute tool calls and add results to conversation
+			for (const toolCall of toolCalls) {
 					// Check for interruption
 					if (this.shouldStopChat) {
 						onInterrupted?.();
@@ -1536,8 +1537,8 @@ export default class AgentPlugin extends Plugin {
 	}
 
 	// Message reducer to build up messages from streaming chunks
-	private messageReducer(previous: any, item: any): any {
-		const reduce = (acc: any, delta: any): any => {
+	private messageReducer(previous: Record<string, unknown>, item: Record<string, unknown>): Record<string, unknown> {
+		const reduce = (acc: Record<string, unknown>, delta: Record<string, unknown>): Record<string, unknown> => {
 			acc = { ...acc };
 			for (const [key, value] of Object.entries(delta)) {
 				if (acc[key] === undefined || acc[key] === null) {
@@ -1561,21 +1562,21 @@ export default class AgentPlugin extends Plugin {
 								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${accArray}; tool: ${value}`,
 							);
 						}
-						accArray[index] = reduce(accArray[index], chunkTool);
+						accArray[index] = reduce(accArray[index] as Record<string, unknown>, chunkTool);
 					}
 				} else if (typeof acc[key] === 'object' && typeof value === 'object') {
-					acc[key] = reduce(acc[key], value);
+					acc[key] = reduce(acc[key] as Record<string, unknown>, value as Record<string, unknown>);
 				}
 			}
 			return acc;
 		};
 
-		const choice = item.choices?.[0];
+		const choice = (item.choices as unknown[])?.[0];
 		if (!choice) {
 			// chunk contains information about usage and token counts
 			return previous;
 		}
-		return reduce(previous, choice.delta);
+		return reduce(previous, (choice as Record<string, unknown>).delta as Record<string, unknown>);
 	}
 
 	private getSystemPrompt(contextFiles?: TFile[]): string {
@@ -1943,14 +1944,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				relevance: 'High' // You could calculate actual similarity scores here
 			}));
 
-			const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
+		const resultText = `Found ${results.length} relevant files:\n${results.map(r => `- ${r.name} (${r.path})`).join('\n')}`;
 
-			return resultText;
-		} catch (error: any) {
-			console.error('🔍 [TOOL] vault_search error:', error);
-			return `Error searching vault: ${error.message}`;
-		}
+		return resultText;
+	} catch (error: unknown) {
+		console.error('🔍 [TOOL] vault_search error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error searching vault: ${errorMessage}`;
 	}
+}
 
 	// File type constants for easy extension
 	private static readonly GREPPABLE_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt', 'html']
@@ -1997,18 +1999,19 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			const fileType = this.getFileType(args.file_path);
 
-			if (fileType === 'plain_text') {
-				return await this.readPlainTextFile(file, args);
-			} else if (fileType === 'convertible') {
-				return await this.readConvertibleFile(file, args);
-			} else {
-				return `Unsupported file type: ${args.file_path}`;
-			}
-		} catch (error: any) {
-			console.error('📖 [TOOL] read_file error:', error);
-			return `Error reading file: ${error.message}`;
+		if (fileType === 'plain_text') {
+			return await this.readPlainTextFile(file, args);
+		} else if (fileType === 'convertible') {
+			return await this.readConvertibleFile(file, args);
+		} else {
+			return `Unsupported file type: ${args.file_path}`;
 		}
+	} catch (error: unknown) {
+		console.error('📖 [TOOL] read_file error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error reading file: ${errorMessage}`;
 	}
+}
 
 	private async readPlainTextFile(file: TFile, args: { start_line?: number; end_line?: number; read_entire_note?: boolean }): Promise<string> {
 		const content = await this.app.vault.cachedRead(file);
@@ -2106,17 +2109,18 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 			const data = response.json;
 
-			if (!data.success) {
-				console.error('📄 [TOOL] convert API error:', data);
-				return 'Error: File conversion failed.';
-			}
-			return data.data.markdown || 'No content could be extracted from the file.';
-
-		} catch (error: any) {
-			console.error('📄 [TOOL] convert error:', error);
-			return `Error converting file: ${error.message}`;
+		if (!data.success) {
+			console.error('📄 [TOOL] convert API error:', data);
+			return 'Error: File conversion failed.';
 		}
+		return data.data.markdown || 'No content could be extracted from the file.';
+
+	} catch (error: unknown) {
+		console.error('📄 [TOOL] convert error:', error);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error converting file: ${errorMessage}`;
 	}
+}
 
 	private async toolEditFile(args: { file_path: string; instructions: string; edits: EditOperation[] }, chatMode: 'Ask' | 'Agent' = 'Agent'): Promise<string> {
 		try {
@@ -2173,14 +2177,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				// Set up callbacks for user decision
 				this.editConfirmationCallbacks = {
 					onAccept: async () => {
-						try {
-							// Apply the changes
-							await this.app.vault.modify(file, modifiedContent);
-							const diffPreview = this.formatDiffForDisplay(diff);
-							resolve(`✅ Edit confirmed and applied to: ${args.file_path}\n\nChanges:\n${diffPreview}`);
-						} catch (error: any) {
-							reject(new Error(`Failed to apply changes: ${error.message}`));
-						}
+					try {
+						// Apply the changes
+						await this.app.vault.modify(file, modifiedContent);
+						const diffPreview = this.formatDiffForDisplay(diff);
+						resolve(`✅ Edit confirmed and applied to: ${args.file_path}\n\nChanges:\n${diffPreview}`);
+					} catch (error: unknown) {
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+						reject(new Error(`Failed to apply changes: ${errorMessage}`));
+					}
 					},
 					onReject: (reason?: string) => {
 						const message = reason
@@ -2190,15 +2195,16 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 					}
 				};
 
-				// Store the pending confirmation and notify listeners
-				this.pendingEditConfirmation = pendingConfirmation;
-				this.notifyEditConfirmationListeners();
-			});
+			// Store the pending confirmation and notify listeners
+			this.pendingEditConfirmation = pendingConfirmation;
+			this.notifyEditConfirmationListeners();
+		});
 
-		} catch (error: any) {
-			return `Error preparing edit: ${error.message}`;
-		}
+	} catch (error: unknown) {
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		return `Error preparing edit: ${errorMessage}`;
 	}
+}
 
 	// Validate edit operations for overlaps and constraints
 	private validateEditOperations(edits: EditOperation[], totalLines: number): { valid: boolean; error?: string } {
