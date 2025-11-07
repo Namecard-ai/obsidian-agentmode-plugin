@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Auth0Service, DeviceAuthState, TokenResponse, Auth0UserInfo } from './main';
-import type AgentPlugin from './main';
-
-interface Auth0ServiceWithPlugin extends Auth0Service {
-	plugin: AgentPlugin;
-}
 
 interface LoginComponentProps {
 	auth0Service: Auth0Service;
@@ -140,25 +135,25 @@ export const LoginComponent: React.FC<LoginComponentProps> = ({
 			// Stop polling operation
 			auth0Service.stopPolling();
 
-			setState({ step: 'success' });
+		setState({ step: 'success' });
 
-			// Save token to plugin settings (through auth0Service)
-			const plugin = (auth0Service as Auth0ServiceWithPlugin).plugin;
-			plugin.settings.isLoggedIn = true;
-			plugin.settings.accessToken = tokenResponse.access_token;
-			plugin.settings.refreshToken = tokenResponse.refresh_token;
-			plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
+		// Save token to plugin settings (through auth0Service)
+		const plugin = auth0Service.getPlugin();
+		plugin.settings.isLoggedIn = true;
+		plugin.settings.accessToken = tokenResponse.access_token;
+		plugin.settings.refreshToken = tokenResponse.refresh_token;
+		plugin.settings.tokenExpiry = Math.floor(Date.now() / 1000) + tokenResponse.expires_in;
 
-			// Get user information
-			const userInfo = await auth0Service.getUserInfo();
-			plugin.settings.userInfo = {
-				email: userInfo.email,
-				name: userInfo.name,
-				sub: userInfo.sub
-			};
+		// Get user information
+		const userInfo = await auth0Service.getUserInfo();
+		plugin.settings.userInfo = {
+			email: userInfo.email,
+			name: userInfo.name,
+			sub: userInfo.sub
+		};
 
-			// Save settings
-			await plugin.saveSettings();
+		// Save settings
+		await plugin.saveSettings();
 
 			// Setup token refresh timer
 			auth0Service.setupTokenRefreshTimer();

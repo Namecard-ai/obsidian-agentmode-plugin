@@ -1,14 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import TiptapEditor, { TiptapEditorRef } from './TiptapEditor';
 import { FuzzySuggestModal, TFile, App, Notice, setIcon } from 'obsidian';
 import MarkdownRenderer from './MarkdownRenderer';
 import AgentPlugin from './main';
 import {
   ChatMessage,
-  Model,
-  AgentMode,
-  EditConfirmationArgs,
-  CreateNoteConfirmationArgs,
 } from './main';
 
 interface ToolCall {
@@ -350,7 +346,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentStreamingContent, setCurrentStreamingContent] = useState<string>('');
   const currentStreamingContentRef = useRef<string>('');
-  const [expandedToolSessions, setExpandedToolSessions] = useState<Set<string>>(new Set());
+  const [, setExpandedToolSessions] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>('');
@@ -359,7 +355,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   // Add state for wiki link input functionality
-  const [pendingWikiLinkPosition, setPendingWikiLinkPosition] = useState<number | null>(null);
+  const [, setPendingWikiLinkPosition] = useState<number | null>(null);
   const [viewBackgroundColor, setViewBackgroundColor] = useState('var(--background-primary)');
   const [isLightTheme, setIsLightTheme] = useState(document.body.classList.contains('theme-light'));
 
@@ -371,7 +367,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileUploadInputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<Message[]>([]);
   const historySidebarRef = useRef<HTMLDivElement>(null);
   const historyButtonRef = useRef<HTMLDivElement>(null);
@@ -537,18 +532,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // Messages state updated
   }, [messages]);
 
-  const toggleToolSession = (messageId: string) => {
-    setExpandedToolSessions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(messageId)) {
-        newSet.delete(messageId);
-      } else {
-        newSet.add(messageId);
-      }
-      return newSet;
-    });
-  };
-
   const toggleToolResult = (messageId: string) => {
     setExpandedToolResults(prev => {
       const newSet = new Set(prev);
@@ -604,8 +587,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
     const toolSessionId = generateId();
     setStreamingMessageId(toolSessionId);
-    let lastToolCallContent = '';
-
     // Convert messages to plugin format
     const chatMessages = newMessages
       .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'tool')
@@ -629,7 +610,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
         (toolCall: ToolCall) => {
           const handleToolCall = async () => {
             const currentContent = currentStreamingContentRef.current;
-            lastToolCallContent = currentContent;
 
             const currentMessages = messagesRef.current;
             const newMessages = [...currentMessages];
@@ -788,7 +768,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     // The difference is handled internally by the chatMode parameter
     const toolSessionId = generateId();
     setStreamingMessageId(toolSessionId);
-    let lastToolCallContent = ''; // Track content before tool calls
 
     // Convert messages to plugin format - now include tool messages too
     const chatMessages: Array<{
@@ -850,7 +829,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           const handleToolCall = async () => {
             // Handle tool call - accumulate tool calls into a single assistant message
             const currentContent = currentStreamingContentRef.current;
-            lastToolCallContent = currentContent;
 
             // Use messagesRef to get current messages
             const currentMessages = messagesRef.current;
@@ -1270,7 +1248,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
             // Handle duplicate filenames in current batch
             let counter = 1;
-            let originalFilename = filename;
+            const originalFilename = filename;
             while (processedFilenames.has(filename)) {
               const nameWithoutExt = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
               const ext = originalFilename.substring(originalFilename.lastIndexOf('.'));

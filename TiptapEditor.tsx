@@ -142,7 +142,6 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       }
     },
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML()
       const text = editor.getText()
       // For simple text input, we prefer plain text
       onChange(text)

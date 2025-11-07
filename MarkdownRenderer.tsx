@@ -192,7 +192,7 @@ const preprocessTableContent = (content: string): string => {
   // Pattern to match code blocks with optional language specifier
   const codeBlockPattern = /```(?:markdown|md|)?\n([\s\S]*?)```/g;
 
-  let processedContent = content.replace(codeBlockPattern, (match, codeContent) => {
+  const processedContent = content.replace(codeBlockPattern, (match, codeContent) => {
     // Check if this code block contains a table
     const lines = codeContent.split('\n');
     let hasTable = false;
@@ -210,7 +210,7 @@ const preprocessTableContent = (content: string): string => {
     if (hasTable) {
       // Check if it's already a well-formed markdown table
       const hasHeaderSeparator = lines.some((line: string) =>
-        line.match(/^\s*\|?\s*[\-\s]+\|[\-\s\|]+\s*\|?\s*$/)
+        line.match(/^\s*\|?\s*[-\s]+\|[-\s|]+\s*\|?\s*$/)
       );
 
       if (hasHeaderSeparator) {
@@ -263,7 +263,7 @@ const preprocessTableContent = (content: string): string => {
         const currentPipes = (currentLine.match(/\|/g) || []).length;
 
         // Check if it's part of the table (has pipes or is a separator line)
-        if (currentPipes >= 2 || currentLine.match(/^\s*[\|\-\s]+$/)) {
+        if (currentPipes >= 2 || currentLine.match(/^\s*[|\s-]+$/)) {
           tableLines.push(currentLine);
           j++;
         } else {
@@ -293,7 +293,7 @@ const preprocessTableContent = (content: string): string => {
 const processTableLines = (lines: string[]): string => {
   const tableLines = lines.filter(line => {
     const pipesCount = (line.match(/\|/g) || []).length;
-    return pipesCount >= 2 || line.match(/^\s*[\|\-\s]+$/);
+    return pipesCount >= 2 || line.match(/^\s*[|\s-]+$/);
   });
 
   if (tableLines.length === 0) {
@@ -343,7 +343,7 @@ const formatAsMarkdownTable = (tableLines: string[]): string[] => {
 
   for (let i = 0; i < normalizedRows.length; i++) {
     const row = normalizedRows[i];
-    if (row.every(cell => cell.match(/^[\-\s]*$/))) {
+    if (row.every(cell => cell.match(/^[\s-]*$/))) {
       hasSeparator = true;
       separatorIndex = i;
       break;
@@ -435,7 +435,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // Then, process file paths if plugin is available
     if (plugin) {
       // Pattern to match file paths like Personal/daily_journals/2025-07-27.md
-      const filePathPattern = /(?:^|\s)((?:[A-Za-z0-9_\-]+\/)*[A-Za-z0-9_\-]+\.md)(?=\s|$)/g;
+      const filePathPattern = /(?:^|\s)((?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.md)(?=\s|$)/g;
 
       // Convert file paths to markdown links
       processed = processed.replace(filePathPattern, (match, path) => {

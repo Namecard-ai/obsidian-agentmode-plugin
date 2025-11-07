@@ -184,6 +184,40 @@ interface CreateNoteConfirmationCallbacks {
 	onReject: (reason?: string) => void;
 }
 
+// Interface for Obsidian internal folder structure
+interface FolderWithChildren {
+	children?: Array<{
+		name: string;
+		children?: unknown;
+	}>;
+}
+
+// Interface for vault grep results
+interface GrepResult {
+	path: string;
+	line: number;
+	content: string;
+}
+
+// Web search result interfaces
+interface WebSearchResult {
+	title?: string;
+	description?: string;
+	url?: string;
+}
+
+interface ImageSearchResult {
+	title?: string;
+	imageUrl?: string;
+}
+
+interface NewsSearchResult {
+	title?: string;
+	snippet?: string;
+	url?: string;
+	date?: string;
+}
+
 export enum Model {
 	Gemini1_5Pro = 'gemini-1.5-pro-latest',
 	GPT4o_mini = 'gpt-4o-mini',
@@ -196,16 +230,37 @@ export enum AgentMode {
 	Ask = 'Ask',
 }
 
+export interface Subscription {
+	product_name: string;
+	status: string;
+	plan_id: string;
+	current_period_end: string;
+	trial_end?: string;
+}
+
+export interface UserProfileResponse {
+	success: boolean;
+	data?: {
+		subscription?: Subscription;
+	};
+	message?: string;
+}
+
 // Auth0 service class
 export class Auth0Service {
 	private plugin: AgentPlugin;
 	private config: Auth0Config;
 	private pollingTimer: number | null = null;
-	private isPolling: boolean = false;
+	private isPolling = false;
 
 	constructor(plugin: AgentPlugin, config: Auth0Config) {
 		this.plugin = plugin;
 		this.config = config;
+	}
+
+	// Get plugin instance
+	getPlugin(): AgentPlugin {
+		return this.plugin;
 	}
 
 	// Start Device Authorization Flow
@@ -235,7 +290,7 @@ export class Auth0Service {
 	}
 
 	// Poll to check authorization status
-	async pollForToken(deviceCode: string, interval: number = 2): Promise<TokenResponse> {
+	async pollForToken(deviceCode: string, interval = 2): Promise<TokenResponse> {
 		return new Promise((resolve, reject) => {
 			// Ensure previous polling is stopped
 			this.stopPolling();
@@ -659,20 +714,20 @@ const HISTORY_LIMIT = 500;
 
 export default class AgentPlugin extends Plugin {
 	settings: AgentPluginSettings;
-	vectorDbPath: string = '';
-	historyDbPath: string = '';
+	vectorDbPath = '';
+	historyDbPath = '';
 	// Add debouncing for file processing
 	private fileProcessingTimeouts: Map<string, number> = new Map();
 	private readonly DEBOUNCE_DELAY = 3000; // 3 seconds delay
 
 	// Chat interruption control
 	private currentChatController: AbortController | null = null;
-	private shouldStopChat: boolean = false;
+	private shouldStopChat = false;
 
 	// Embedding Queue for processing files
 	private embeddingQueue: Set<string> = new Set(); // Use Set to avoid duplicates
 	private queueDetails: Map<string, EmbeddingQueueItem> = new Map(); // Store detailed info
-	private isProcessingQueue: boolean = false;
+	private isProcessingQueue = false;
 	private queueConsumerTimer: number | null = null;
 	private readonly QUEUE_CONSUMER_INTERVAL = 5000; // 5 seconds
 	private readonly RETRY_ATTEMPTS = 3;
@@ -945,7 +1000,7 @@ export default class AgentPlugin extends Plugin {
 		}
 	}
 
-	async saveHistoryEntry(entry: ChatHistory, isNewChat: boolean = false): Promise<void> {
+	async saveHistoryEntry(entry: ChatHistory, isNewChat = false): Promise<void> {
 		try {
 			// Serialize the entry with ISO string timestamps
 			const serializedEntry = {
@@ -1279,7 +1334,7 @@ export default class AgentPlugin extends Plugin {
 					type: 'function' as const,
 					function: {
 						name: 'list_vault',
-						description: 'List files and folders in a given vault path. Use relative paths from vault root, or empty string/\".\" for root directory.',
+						description: 'List files and folders in a given vault path. Use relative paths from vault root, or empty string/"." for root directory.',
 						parameters: {
 							type: 'object',
 							properties: {
@@ -1367,9 +1422,10 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
-			// Main conversation loop - continue until no more tool calls
-			let finalAssistantContent = '';
-			while (true) {
+		// Main conversation loop - continue until no more tool calls
+		let finalAssistantContent = '';
+		// eslint-disable-next-line no-constant-condition
+		while (true) {
 				// Check for interruption
 				if (this.shouldStopChat) {
 					onInterrupted?.();
@@ -1424,13 +1480,17 @@ export default class AgentPlugin extends Plugin {
 						}
 					}
 				}
-			}
+		}
 
-			// Add the completed assistant message to conversation
-			chatMessages.push(currentMessage as ChatCompletionMessageParam);
+		// Add the completed assistant message to conversation
+		// Ensure currentMessage has required properties for ChatCompletionMessageParam
+		if (!currentMessage.role) {
+			currentMessage.role = 'assistant';
+		}
+		chatMessages.push(currentMessage as unknown as ChatCompletionMessageParam);
 
-			// If there are no tool calls, we're done
-			const toolCalls = currentMessage.tool_calls as ToolCall[] | undefined;
+		// If there are no tool calls, we're done
+		const toolCalls = currentMessage.tool_calls as ToolCall[] | undefined;
 			if (!toolCalls) {
 				break;
 			}
@@ -1555,8 +1615,11 @@ export default class AgentPlugin extends Plugin {
 					acc[key] = value;
 					// Remove index from tool calls array items
 					if (Array.isArray(acc[key])) {
-						for (const arr of acc[key]) {
-							delete arr.index;
+						const accKeyArray = acc[key] as Array<Record<string, unknown>>;
+						for (const arr of accKeyArray) {
+							if (arr && typeof arr === 'object') {
+								delete arr.index;
+							}
 						}
 					}
 				} else if (typeof acc[key] === 'string' && typeof value === 'string') {
@@ -1564,15 +1627,15 @@ export default class AgentPlugin extends Plugin {
 				} else if (typeof acc[key] === 'number' && typeof value === 'number') {
 					acc[key] = value;
 				} else if (Array.isArray(acc[key]) && Array.isArray(value)) {
-					const accArray = acc[key];
+					const accArray = acc[key] as Array<Record<string, unknown>>;
 					for (let i = 0; i < value.length; i++) {
-						const { index, ...chunkTool } = value[i];
+						const { index, ...chunkTool } = value[i] as { index: number; [key: string]: unknown };
 						if (index - accArray.length > 1) {
 							throw new Error(
 								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${accArray}; tool: ${value}`,
 							);
 						}
-						accArray[index] = reduce(accArray[index] as Record<string, unknown>, chunkTool);
+						accArray[index] = reduce((accArray[index] as Record<string, unknown>) || {}, chunkTool);
 					}
 				} else if (typeof acc[key] === 'object' && typeof value === 'object') {
 					acc[key] = reduce(acc[key] as Record<string, unknown>, value as Record<string, unknown>);
@@ -2487,14 +2550,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 }
 	}
 
-	// Interface for Obsidian internal folder structure
-	interface FolderWithChildren {
-		children?: Array<{
-			name: string;
-			children?: unknown;
-		}>;
-	}
-
 	private async toolListVault(args: { vault_path: string; explanation: string }) {
 		try {
 			// Convert absolute path to relative path if needed
@@ -2613,12 +2668,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 }
 
-	// Simple cache for vault grep results
-	interface GrepResult {
-		path: string;
-		line: number;
-		content: string;
-	}
 	private vaultGrepCache: Map<string, { results: GrepResult[], timestamp: number }> = new Map();
 	private readonly CACHE_DURATION = 60000; // 1 minute in milliseconds
 
@@ -2724,25 +2773,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		return `Error performing grep search: ${errorMessage}`;
 	}
 }
-
-	// Web search result interfaces
-	interface WebSearchResult {
-		title?: string;
-		description?: string;
-		url?: string;
-	}
-
-	interface ImageSearchResult {
-		title?: string;
-		imageUrl?: string;
-	}
-
-	interface NewsSearchResult {
-		title?: string;
-		snippet?: string;
-		url?: string;
-		date?: string;
-	}
 
 	private async toolWebSearch(args: { query: string }) {
 		try {
@@ -2944,7 +2974,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 }
 
 	// Helper method to split text into chunks based on token count
-	splitTextIntoChunks(text: string, maxTokens: number = 8000, overlapTokens: number = 200): string[] {
+	splitTextIntoChunks(text: string, maxTokens = 8000, overlapTokens = 200): string[] {
 		const encoder = getEncoding('cl100k_base');
 
 		const splitRecursively = (content: string): string[] => {
@@ -3108,7 +3138,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		return dotProduct / (magnitudeA * magnitudeB);
 	}
 
-	async searchSimilarFiles(queryEmbedding: number[], topK: number = 5): Promise<EmbeddingRecord[]> {
+	async searchSimilarFiles(queryEmbedding: number[], topK = 5): Promise<EmbeddingRecord[]> {
 		const allEmbeddings = await this.loadAllEmbeddings();
 
 		// Calculate similarities and sort
@@ -3704,7 +3734,7 @@ getUserInfo(): { email?: string; name?: string; sub?: string } | null {
 }
 
 // Get user profile (including subscription information)
-async getUserProfile(): Promise<unknown> {
+async getUserProfile(): Promise<UserProfileResponse> {
 	if (!this.isLoggedIn() || !this.settings.accessToken) {
 		throw new Error('Not logged in');
 	}
@@ -3728,7 +3758,7 @@ async getUserProfile(): Promise<unknown> {
 			};
 		}
 
-		return response.json;
+		return response.json as UserProfileResponse;
 	} catch (error: unknown) {
 		console.error('Get user profile failed:', error);
 		throw error;
@@ -3864,12 +3894,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				subscriptionDiv.empty();
 
 				if (profileData.success && profileData.data) {
-					const { subscription } = profileData.data;
+				const { subscription } = profileData.data;
 
-					// Create header with refresh button
-					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				// Create header with refresh button
+				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 
-					if (subscription) {
+				if (subscription) {
 						// Show valid subscription information
 						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
 						subscriptionDetails.createEl('div', {
@@ -3904,10 +3934,10 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 					// Add Billing Portal button (shown to all logged in users)
 					this.addBillingPortalButton(subscriptionDiv);
-				} else {
-					// Show error information
-					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-					subscriptionDiv.createEl('div', {
+			} else {
+				// Show error information
+				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				subscriptionDiv.createEl('div', {
 						text: 'Unable to load subscription info',
 						cls: 'agentmode-subscription-error'
 					});
