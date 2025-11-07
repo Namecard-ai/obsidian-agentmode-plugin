@@ -293,7 +293,7 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
             padding: '12px 24px'
           }}
         >
-          Start Login
+          Start login
         </button>
 
         <div style={{
@@ -1228,7 +1228,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
           // Check file size (50MB limit)
           const maxSize = 50 * 1024 * 1024;
           if (file.size > maxSize) {
-            new Notice(`Pasted image exceeds 50MB size limit`);
+            new Notice(`Pasted image exceeds 50 megabytes size limit`);
             continue;
           }
 

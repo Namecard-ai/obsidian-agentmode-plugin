@@ -585,7 +585,7 @@ export class PaymentRequiredModal extends Modal {
 
 		// Option 1: Upgrade to Pro
 		const proOption = optionsContainer.createDiv('agentmode-payment-modal-option');
-		proOption.createEl('h4', { text: '1. Upgrade to Agentmode PRO' });
+		proOption.createEl('h4', { text: '1. Upgrade to agentmode pro' });
 		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
 
 		const proButton = proOption.createEl('button', {
@@ -897,19 +897,19 @@ export default class AgentPlugin extends Plugin {
 			icon.textContent = '✅';
 
 			// Add user name
-			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
-			text.textContent = 'Agent Mode';
+		const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
+		text.textContent = 'Agentmode';
 
-			this.statusBarElement.title = `Logged in: ${userName}\nClick to view options`;
+		this.statusBarElement.title = `Logged in: ${userName}\nclick to view options`;
 		} else {
 			// Not logged in status
 			const icon = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-icon logged-out' });
 			icon.textContent = '⚫';
 
-			const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
-			text.textContent = 'Agent Mode';
+		const text = this.statusBarElement.createSpan({ cls: 'agentmode-auth-status-text' });
+		text.textContent = 'Agentmode';
 
-			this.statusBarElement.title = 'Not logged in (Click to log in)';
+		this.statusBarElement.title = 'Not logged in (click to log in)';
 		}
 	}
 
@@ -3890,7 +3890,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			const userEmail = userInfo?.email || '';
 
 			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
-			statusDiv.createEl('div', { text: '✅ Logged in', cls: 'agentmode-auth-status-logged-in' });
+			statusDiv.createEl('div', { text: 'Logged in', cls: 'agentmode-auth-status-logged-in' });
 			statusDiv.createEl('div', { text: `User: ${userName}`, cls: 'agentmode-auth-user-info' });
 			if (userEmail && userEmail !== userName) {
 				statusDiv.createEl('div', { text: `Email: ${userEmail}`, cls: 'agentmode-auth-user-info' });
@@ -3993,7 +3993,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		} else {
 			// Show not logged in status
 			const statusDiv = authContainer.createDiv('agentmode-auth-status-info');
-			statusDiv.createEl('div', { text: '⚫ Not logged in', cls: 'agentmode-auth-status-logged-out' });
+			statusDiv.createEl('div', { text: 'Not logged in', cls: 'agentmode-auth-status-logged-out' });
 			statusDiv.createEl('div', { text: 'Login required to use AI features', cls: 'agentmode-auth-status-desc' });
 
 			// Login button
@@ -4001,7 +4001,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				.setName('Log in')
 				.setDesc('Log in to your Agentmode account')
 				.addButton(button => button
-					.setButtonText('Start Login')
+					.setButtonText('Start login')
 					.setCta()
 					.onClick(async () => {
 						await this.plugin.startLogin();
@@ -4126,7 +4126,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			});
 		} else {
 			statusContainer.createEl('div', {
-				text: '✅ Synced (All files indexed)',
+				text: 'Synced (All files indexed)',
 				cls: 'indexing-status-synced'
 			});
 		}
@@ -4154,7 +4154,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 			const content = modal.contentEl;
 			content.createEl('p', {
-				text: 'This will reindex all markdown files in your vault and may take some time. Are you sure you want to continue?'
+				text: 'This will reindex all markdown files in your vault and may take some time, are you sure you want to continue?'
 			});
 
 			const buttonContainer = content.createDiv('agentmode-modal-button-container');
@@ -4202,7 +4202,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		billingButton.addEventListener('click', () => {
 			// Show loading state
 			const originalText = billingButton.textContent;
-			billingButton.textContent = '⏳ Opening...';
+			billingButton.textContent = 'Opening...';
 			billingButton.disabled = true;
 
 			// Use the extracted public method
