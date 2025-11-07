@@ -373,16 +373,16 @@ export class Auth0Service {
 						if (this.pollingTimer) {
 							window.clearInterval(this.pollingTimer);
 						}
-					// Only set new timer if still polling
-					if (this.isPolling) {
-						this.pollingTimer = this.plugin.registerInterval(
-							window.setInterval(() => {
-								poll().catch((error) => {
-									console.error('Polling error:', error);
-								});
-							}, (interval + 5) * 1000)
-						);
-					}
+						// Only set new timer if still polling
+						if (this.isPolling) {
+							this.pollingTimer = this.plugin.registerInterval(
+								window.setInterval(() => {
+									poll().catch((error) => {
+										console.error('Polling error:', error);
+									});
+								}, (interval + 5) * 1000)
+							);
+						}
 						return;
 					} else {
 						if (this.pollingTimer) {
@@ -401,17 +401,17 @@ export class Auth0Service {
 				}
 			};
 
-		// Start polling
-		this.pollingTimer = this.plugin.registerInterval(
-			window.setInterval(() => {
-				poll().catch((error) => {
-					console.error('Polling error:', error);
-				});
-			}, interval * 1000)
-		);
-		poll().catch((error) => {
-			console.error('Initial polling failed:', error);
-		}); // Execute first time immediately
+			// Start polling
+			this.pollingTimer = this.plugin.registerInterval(
+				window.setInterval(() => {
+					poll().catch((error) => {
+						console.error('Polling error:', error);
+					});
+				}, interval * 1000)
+			);
+			poll().catch((error) => {
+				console.error('Initial polling failed:', error);
+			}); // Execute first time immediately
 		});
 	}
 
@@ -3323,15 +3323,15 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				this.embeddingQueue.delete(filePath);
 				this.queueDetails.delete(filePath);
 
-			// Continue processing if there are more items
-			if (this.embeddingQueue.size > 0) {
-				// Use setTimeout to avoid blocking the main thread
-				window.setTimeout(() => {
-					this.processEmbeddingQueue().catch((error) => {
-						console.error('Failed to process embedding queue:', error);
-					});
-				}, 100);
-			}
+				// Continue processing if there are more items
+				if (this.embeddingQueue.size > 0) {
+					// Use setTimeout to avoid blocking the main thread
+					window.setTimeout(() => {
+						this.processEmbeddingQueue().catch((error) => {
+							console.error('Failed to process embedding queue:', error);
+						});
+					}, 100);
+				}
 			}
 		} catch (error) {
 			console.error('Error in processEmbeddingQueue:', error);
@@ -4170,21 +4170,21 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				resolve(false); // User cancelled
 			});
 
-		// Reindex button
-		const reindexBtn = buttonContainer.createEl('button', {
-			text: 'Reindex',
-			cls: 'mod-cta'
-		});
-		reindexBtn.addEventListener('click', () => {
-			modal.close();
-			this.plugin.triggerReindexAllFiles().then(() => {
-				resolve(true); // User confirmed
-			}).catch((error) => {
-				console.error('Reindex failed:', error);
-				new Notice('Failed to reindex files');
-				resolve(false);
+			// Reindex button
+			const reindexBtn = buttonContainer.createEl('button', {
+				text: 'Reindex',
+				cls: 'mod-cta'
 			});
-		});
+			reindexBtn.addEventListener('click', () => {
+				modal.close();
+				this.plugin.triggerReindexAllFiles().then(() => {
+					resolve(true); // User confirmed
+				}).catch((error) => {
+					console.error('Reindex failed:', error);
+					new Notice('Failed to reindex files');
+					resolve(false);
+				});
+			});
 
 			modal.open();
 		});
@@ -4198,23 +4198,23 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			cls: 'agentmode-billing-portal-button'
 		});
 
-	// Click event
-	billingButton.addEventListener('click', () => {
-		// Show loading state
-		const originalText = billingButton.textContent;
-		billingButton.textContent = '⏳ Opening...';
-		billingButton.disabled = true;
+		// Click event
+		billingButton.addEventListener('click', () => {
+			// Show loading state
+			const originalText = billingButton.textContent;
+			billingButton.textContent = '⏳ Opening...';
+			billingButton.disabled = true;
 
-		// Use the extracted public method
-		this.plugin.openBillingPortal().catch((error: unknown) => {
-			// Error handling is already done in openBillingPortal method
-			console.error('Failed to open billing portal:', error);
-		}).finally(() => {
-			// Restore button state
-			billingButton.textContent = originalText;
-			billingButton.disabled = false;
+			// Use the extracted public method
+			this.plugin.openBillingPortal().catch((error: unknown) => {
+				// Error handling is already done in openBillingPortal method
+				console.error('Failed to open billing portal:', error);
+			}).finally(() => {
+				// Restore button state
+				billingButton.textContent = originalText;
+				billingButton.disabled = false;
+			});
 		});
-	});
 	}
 
 	// Create subscription header with refresh button
@@ -4234,103 +4234,103 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		});
 
 		// Click event - refresh subscription information
-	refreshButton.addEventListener('click', () => {
-		// Show loading state
-		const originalText = refreshButton.textContent;
-		refreshButton.textContent = '⏳';
-		refreshButton.disabled = true;
+		refreshButton.addEventListener('click', () => {
+			// Show loading state
+			const originalText = refreshButton.textContent;
+			refreshButton.textContent = '⏳';
+			refreshButton.disabled = true;
 
-		const handleRefresh = async () => {
-			// Show loading
-			subscriptionDiv.empty();
-			subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'agentmode-subscription-loading' });
+			const handleRefresh = async () => {
+				// Show loading
+				subscriptionDiv.empty();
+				subscriptionDiv.createEl('div', { text: 'Refreshing subscription...', cls: 'agentmode-subscription-loading' });
 
-			// Re-fetch user profile
-			const profileData = await this.plugin.getUserProfile();
+				// Re-fetch user profile
+				const profileData = await this.plugin.getUserProfile();
 
-			// Clear and re-display
-			subscriptionDiv.empty();
+				// Clear and re-display
+				subscriptionDiv.empty();
 
-			// Re-create header (recursive call)
-			const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				// Re-create header (recursive call)
+				const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 
-			if (profileData.success && profileData.data) {
-				const { subscription } = profileData.data;
+				if (profileData.success && profileData.data) {
+					const { subscription } = profileData.data;
 
-				if (subscription) {
-					// Show valid subscription information
-					const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
-					subscriptionDetails.createEl('div', {
-						text: `Plan: ${subscription.product_name}`,
-						cls: 'agentmode-subscription-plan'
-					});
-					subscriptionDetails.createEl('div', {
-						text: `Status: ${subscription.status.toUpperCase()}`,
-						cls: 'agentmode-subscription-status-active'
-					});
-
-					// Show subscription period
-					if (subscription.plan_id !== 'free') {
-						const periodEnd = new Date(subscription.current_period_end);
+					if (subscription) {
+						// Show valid subscription information
+						const subscriptionDetails = subscriptionDiv.createDiv('agentmode-subscription-details');
 						subscriptionDetails.createEl('div', {
-							text: `Valid until: ${periodEnd.toLocaleDateString()}`,
-							cls: 'agentmode-subscription-period'
+							text: `Plan: ${subscription.product_name}`,
+							cls: 'agentmode-subscription-plan'
 						});
-					}
+						subscriptionDetails.createEl('div', {
+							text: `Status: ${subscription.status.toUpperCase()}`,
+							cls: 'agentmode-subscription-status-active'
+						});
 
-
-					// If there is a trial period, show trial information
-					if (subscription.trial_end) {
-						const trialEnd = new Date(subscription.trial_end);
-						if (trialEnd > new Date()) {
+						// Show subscription period
+						if (subscription.plan_id !== 'free') {
+							const periodEnd = new Date(subscription.current_period_end);
 							subscriptionDetails.createEl('div', {
-								text: `Trial ends: ${trialEnd.toLocaleDateString()}`,
-								cls: 'agentmode-subscription-trial'
+								text: `Valid until: ${periodEnd.toLocaleDateString()}`,
+								cls: 'agentmode-subscription-period'
 							});
 						}
+
+
+						// If there is a trial period, show trial information
+						if (subscription.trial_end) {
+							const trialEnd = new Date(subscription.trial_end);
+							if (trialEnd > new Date()) {
+								subscriptionDetails.createEl('div', {
+									text: `Trial ends: ${trialEnd.toLocaleDateString()}`,
+									cls: 'agentmode-subscription-trial'
+								});
+							}
+						}
 					}
+
+					// Add Billing Portal button
+					this.addBillingPortalButton(subscriptionDiv);
+				} else {
+					// Show error information
+					subscriptionDiv.createEl('div', {
+						text: 'Unable to load subscription info',
+						cls: 'agentmode-subscription-error'
+					});
+
+					// Show Billing Portal button even if loading fails
+					this.addBillingPortalButton(subscriptionDiv);
 				}
+			};
 
-				// Add Billing Portal button
-				this.addBillingPortalButton(subscriptionDiv);
-			} else {
-				// Show error information
-				subscriptionDiv.createEl('div', {
-					text: 'Unable to load subscription info',
-					cls: 'agentmode-subscription-error'
-				});
-
-				// Show Billing Portal button even if loading fails
-				this.addBillingPortalButton(subscriptionDiv);
-			}
-		};
-
-		handleRefresh().catch((error: unknown) => {
-			console.error('Failed to refresh subscription:', error);
-			const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
-			if (errorStatus === 401) {
-				this.plugin.logout().catch((logoutError) => {
-					console.error('Logout failed:', logoutError);
-				});
-				this.display();
-			} else {
-				// Show error
-				subscriptionDiv.empty();
-				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
-				subscriptionDiv.createEl('div', {
-					text: 'Failed to refresh subscription info',
-					cls: 'agentmode-subscription-error'
-				});
-				this.addBillingPortalButton(subscriptionDiv);
-			}
-		}).finally(() => {
-			// Restore button state (if button still exists)
-			if (refreshButton.isConnected) {
-				refreshButton.textContent = originalText;
-				refreshButton.disabled = false;
-			}
+			handleRefresh().catch((error: unknown) => {
+				console.error('Failed to refresh subscription:', error);
+				const errorStatus = typeof error === 'object' && error !== null && 'status' in error ? (error as { status: number }).status : undefined;
+				if (errorStatus === 401) {
+					this.plugin.logout().catch((logoutError) => {
+						console.error('Logout failed:', logoutError);
+					});
+					this.display();
+				} else {
+					// Show error
+					subscriptionDiv.empty();
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					subscriptionDiv.createEl('div', {
+						text: 'Failed to refresh subscription info',
+						cls: 'agentmode-subscription-error'
+					});
+					this.addBillingPortalButton(subscriptionDiv);
+				}
+			}).finally(() => {
+				// Restore button state (if button still exists)
+				if (refreshButton.isConnected) {
+					refreshButton.textContent = originalText;
+					refreshButton.disabled = false;
+				}
+			});
 		});
-	});
 
 		return headerContainer;
 	}
