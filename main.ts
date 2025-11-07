@@ -778,7 +778,7 @@ export default class AgentPlugin extends Plugin {
 
 		// Listen for note changes and saves
 		this.registerEvent(
-			this.app.vault.on('modify', async (file) => {
+			this.app.vault.on('modify', (file) => {
 				// Check if the modified file is a TFile and is a markdown file (note)
 				if (file instanceof TFile && file.extension === 'md') {
 					// Use debouncing to avoid frequent API calls
