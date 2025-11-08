@@ -63,6 +63,19 @@ export interface Auth0UserInfo {
 	sub: string;
 }
 
+// Custom HTTP Error class for API requests
+export class HttpError extends Error {
+	status: number;
+	responseText: string;
+
+	constructor(status: number, responseText: string, message?: string) {
+		super(message || `HTTP ${status}: ${responseText}`);
+		this.name = 'HttpError';
+		this.status = status;
+		this.responseText = responseText;
+	}
+}
+
 export interface EmbeddingRecord {
 	id: string;
 	vectors: number[][];
@@ -828,9 +841,7 @@ export default class AgentPlugin extends Plugin {
 		this.startQueueConsumer();
 
 		// Initialize batch processing for all markdown files in vault
-		this.initializeBatchEmbeddingQueue().catch((error) => {
-			console.error('Failed to initialize batch embedding queue:', error);
-		});
+		this.initializeBatchEmbeddingQueue();
 	}
 
 	initializeOpenAI() {
@@ -1531,7 +1542,7 @@ export default class AgentPlugin extends Plugin {
 								result = await this.toolCreateFile(args, chatMode);
 								break;
 							case 'list_vault':
-								result = await this.toolListVault(args);
+								result = this.toolListVault(args);
 								break;
 							case 'vault_grep':
 								result = await this.toolVaultGrep(args);
@@ -2558,7 +2569,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		}
 	}
 
-	private async toolListVault(args: { vault_path: string; explanation: string }) {
+	private toolListVault(args: { vault_path: string; explanation: string }) {
 		try {
 			// Convert absolute path to relative path if needed
 			let relativePath = args.vault_path;
@@ -2715,8 +2726,8 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Get all files in vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
 
-			// Filter files by type (only TFile, not folders)
-			const files = allFiles.filter(file => file.hasOwnProperty('extension')) as TFile[];
+		// Filter files by type (only TFile, not folders)
+		const files = allFiles.filter((file): file is TFile => file instanceof TFile);
 
 			// Apply file extension filter
 			const allowedExtensions = args.file_extensions || AgentPlugin.GREPPABLE_EXTENSIONS;
@@ -3513,7 +3524,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 	async triggerReindexAllFiles(): Promise<void> {
 		// 1. Add all files to embedding queue
-		await this.initializeBatchEmbeddingQueue();
+		this.initializeBatchEmbeddingQueue();
 
 		// 2. Clean up orphaned index files
 		await this.cleanupOrphanedIndexFiles();
@@ -3583,7 +3594,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		return validEmbeddings;
 	}
 
-	private async initializeBatchEmbeddingQueue() {
+	private initializeBatchEmbeddingQueue() {
 		try {
 			// Check if user is logged in before initializing batch processing
 			if (!this.isLoggedIn()) {
@@ -3709,7 +3720,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				this.updateStatusBar();
 
 				// Start batch embedding queue after successful login
-				await this.initializeBatchEmbeddingQueue();
+				this.initializeBatchEmbeddingQueue();
 			}
 		} catch (error: unknown) {
 			console.error('Login failed:', error);
@@ -3763,12 +3774,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				throw: false
 			});
 
-			if (response.status < 200 || response.status >= 300) {
-				throw {
-					status: response.status,
-					message: response.text
-				};
-			}
+		if (response.status < 200 || response.status >= 300) {
+			throw new HttpError(response.status, response.text, 'Get user profile failed');
+		}
 
 			return response.json as UserProfileResponse;
 		} catch (error: unknown) {
