@@ -445,19 +445,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
     });
   }, [plugin]);
 
-  // TipTap editor handles auto-resizing internally, so we can remove this
-  // Auto-resize textarea utility function
-  // const autoResizeTextarea = (textarea: HTMLTextAreaElement) => {
-  //   textarea.style.height = 'auto'; // Reset height to recalculate
-  //   textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
-  // };
-
-  // useEffect(() => {
-  //   if (textareaRef.current) {
-  //     autoResizeTextarea(textareaRef.current);
-  //   }
-  // }, [inputText]);
-
   // Listen for edit confirmation changes
   useEffect(() => {
     const listener = (confirmation: PendingEditConfirmation | null) => {

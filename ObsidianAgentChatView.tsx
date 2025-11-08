@@ -27,7 +27,7 @@ export class ObsidianAgentChatView extends ItemView {
 		return 'bot-message-square';
 	}
 
-	onOpen() : Promise<void> {
+	onOpen(): Promise<void> {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
 			<StrictMode>
@@ -37,7 +37,7 @@ export class ObsidianAgentChatView extends ItemView {
 		return Promise.resolve();
 	}
 
-	onClose() : Promise<void> {
+	onClose(): Promise<void> {
 		this.root?.unmount();
 		return Promise.resolve();
 	}

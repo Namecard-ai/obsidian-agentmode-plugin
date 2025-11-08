@@ -2726,8 +2726,8 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 			// Get all files in vault
 			const allFiles = this.app.vault.getAllLoadedFiles();
 
-		// Filter files by type (only TFile, not folders)
-		const files = allFiles.filter((file): file is TFile => file instanceof TFile);
+			// Filter files by type (only TFile, not folders)
+			const files = allFiles.filter((file): file is TFile => file instanceof TFile);
 
 			// Apply file extension filter
 			const allowedExtensions = args.file_extensions || AgentPlugin.GREPPABLE_EXTENSIONS;
@@ -3774,9 +3774,9 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 				throw: false
 			});
 
-		if (response.status < 200 || response.status >= 300) {
-			throw new HttpError(response.status, response.text, 'Get user profile failed');
-		}
+			if (response.status < 200 || response.status >= 300) {
+				throw new HttpError(response.status, response.text, 'Get user profile failed');
+			}
 
 			return response.json as UserProfileResponse;
 		} catch (error: unknown) {
@@ -4166,10 +4166,6 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			});
 
 			const buttonContainer = content.createDiv('agentmode-modal-button-container');
-			buttonContainer.style.display = 'flex';
-			buttonContainer.style.justifyContent = 'flex-end';
-			buttonContainer.style.gap = '10px';
-			buttonContainer.style.marginTop = '20px';
 
 			// Cancel button
 			const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
