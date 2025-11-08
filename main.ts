@@ -164,7 +164,7 @@ interface PendingEditConfirmation {
 
 // Interface for edit confirmation callback
 interface EditConfirmationCallbacks {
-	onAccept: () => void;
+	onAccept: () => void | Promise<void>;
 	onReject: (reason?: string) => void;
 }
 
@@ -180,7 +180,7 @@ interface PendingCreateNoteConfirmation {
 
 // Interface for create file confirmation callback
 interface CreateNoteConfirmationCallbacks {
-	onAccept: () => void;
+	onAccept: () => void | Promise<void>;
 	onReject: (reason?: string) => void;
 }
 
