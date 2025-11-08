@@ -3887,7 +3887,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Auth0 login status section
-		containerEl.createEl('h3', { text: 'Login status' });
+		new Setting(containerEl).setName('Login status').setHeading();
 
 		const authContainer = containerEl.createDiv('agentmode-auth-settings-container');
 
@@ -4021,7 +4021,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
 
 		// OpenAI API key settings
-		containerEl.createEl('h3', { text: 'Bring your own key' });
+		new Setting(containerEl).setName('Bring your own key').setHeading();
 
 		// Add important notice
 		const keyInfoEl = containerEl.createEl('p', { cls: 'agentmode-byok-info' });
@@ -4084,7 +4084,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 
 	private createVaultIndexingSection(containerEl: HTMLElement) {
 		// Create Vault file indexing section
-		containerEl.createEl('h4', { text: 'Vault file indexing', cls: 'agentmode-vault-indexing-header' });
+		new Setting(containerEl).setName('Vault file indexing').setHeading();
 
 		this.vaultIndexingContainer = containerEl.createDiv('agentmode-vault-indexing-container');
 		this.updateVaultIndexingStatus();
