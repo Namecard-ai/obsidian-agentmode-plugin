@@ -2050,7 +2050,6 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private static readonly GREPPABLE_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt', 'html']
 	private static readonly CONVERTIBLE_EXTENSIONS = ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'html'];
 	private static readonly PLAIN_TEXT_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt'];
-	private static readonly IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 	private static readonly MIME_TYPES: Record<string, string> = {
 		'pdf': 'application/pdf',
 		'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -2151,7 +2150,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 		return await this.callConvertAPI(dataUri, args.file_path);
 	}
 
-	private async callConvertAPI(dataUri: string, filePath: string): Promise<string> {
+	private async callConvertAPI(dataUri: string, _filePath: string): Promise<string> {
 		try {
 			const backendUrl = process.env.BACKEND_BASE_URL;
 			if (!backendUrl) {
@@ -2395,7 +2394,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	}
 
 	// Generate diff using the diff library for accurate results
-	private generateDiff(originalLines: string[], modifiedLines: string[], edits: EditOperation[]): DiffLine[] {
+	private generateDiff(originalLines: string[], modifiedLines: string[], _edits: EditOperation[]): DiffLine[] {
 		// Use the diff library to compare the original and modified text
 		const originalText = originalLines.join('\n');
 		const modifiedText = modifiedLines.join('\n');
@@ -3974,7 +3973,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				} else {
 					// Show error information
 					subscriptionDiv.empty();
-					const headerContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+					this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 					subscriptionDiv.createEl('div', {
 						text: 'Unable to load subscription info',
 						cls: 'agentmode-subscription-error'
@@ -4226,7 +4225,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 		const headerContainer = containerDiv.createEl('div', { cls: 'agentmode-subscription-header-container' });
 
 		// Title text
-		const titleEl = headerContainer.createEl('div', {
+		headerContainer.createEl('div', {
 			text: 'Current subscription',
 			cls: 'agentmode-subscription-header'
 		});
@@ -4256,7 +4255,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 				subscriptionDiv.empty();
 
 				// Re-create header (recursive call)
-				const newHeaderContainer = this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
+				this.createSubscriptionHeaderWithRefresh(subscriptionDiv, subscriptionDiv);
 
 				if (profileData.success && profileData.data) {
 					const { subscription } = profileData.data;

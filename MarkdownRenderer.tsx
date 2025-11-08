@@ -390,7 +390,7 @@ const formatAsMarkdownTable = (tableLines: string[]): string[] => {
 };
 
 // Component that loads and uses remarkGfm
-const MarkdownWithGfm: React.FC<{ content: string; plugin?: AgentPlugin; components: Record<string, React.ComponentType<unknown>> }> = ({ content, plugin, components }) => {
+const MarkdownWithGfm: React.FC<{ content: string; plugin?: AgentPlugin; components: Record<string, React.ComponentType<unknown>> }> = ({ content, plugin: _plugin, components }) => {
   const [remarkGfm, setRemarkGfm] = useState<((options?: unknown) => void) | null>(null);
 
   useEffect(() => {

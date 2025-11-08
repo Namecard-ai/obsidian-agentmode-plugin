@@ -34,7 +34,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   placeholder,
   className,
   style,
-  chatMode
+  chatMode: _chatMode
 }, ref) => {
   const editor = useEditor({
     extensions: [
@@ -55,7 +55,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
         HTMLAttributes: {
           class: 'agentmode-wikilink-mention',
         },
-        renderText({ options, node }) {
+        renderText({ options: _options, node }) {
           return `[[${node.attrs.label || node.attrs.id}]]`
         },
         // We'll manually create mention nodes for wikilinks, so disable auto-suggestion

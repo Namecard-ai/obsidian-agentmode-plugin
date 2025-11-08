@@ -179,7 +179,7 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
     return file.path;
   }
 
-  onChooseItem(file: TFile, evt: MouseEvent | KeyboardEvent): void {
+  onChooseItem(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
     this.onChooseFile(file);
   }
 
@@ -243,7 +243,7 @@ interface LoginPromptProps {
   onLoginClick: () => void;
 }
 
-const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin, onLoginClick }) => {
+const LoginPrompt: React.FC<LoginPromptProps> = ({ plugin: _plugin, onLoginClick }) => {
   return (
     <div style={{
       display: 'flex',
@@ -346,7 +346,6 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentStreamingContent, setCurrentStreamingContent] = useState<string>('');
   const currentStreamingContentRef = useRef<string>('');
-  const [, setExpandedToolSessions] = useState<Set<string>>(new Set());
   const [expandedToolResults, setExpandedToolResults] = useState<Set<string>>(new Set());
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>('');
