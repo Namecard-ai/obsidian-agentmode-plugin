@@ -1635,49 +1635,58 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
 
         for (const path of possiblePaths) {
           const parts = path.split('.');
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic property access on Obsidian's undocumented internal API
-          let obj: any = workspace;
-            for (const part of parts) {
-              obj = obj?.[part];
+          let obj: unknown = workspace;
+          
+          // Navigate through nested properties with type safety
+          for (const part of parts) {
+            if (obj && typeof obj === 'object' && part in obj) {
+              obj = (obj as Record<string, unknown>)[part];
+            } else {
+              obj = undefined;
+              break;
             }
+          }
 
-            if (obj) {
-              if (Array.isArray(obj)) {
-                const objPromises = obj.map(async (file: TFile) => {
-                  if (file) {
-                    const fileExtension = file.extension?.toLowerCase();
+          if (obj) {
+            if (Array.isArray(obj)) {
+              const objPromises = obj.map(async (file: unknown) => {
+                // Type guard to ensure file is a TFile
+                if (file && typeof file === 'object' && 'extension' in file) {
+                  const tfile = file as TFile;
+                  const fileExtension = tfile.extension?.toLowerCase();
 
-                    // Check if it's an image file
-                    if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
-                      await handleImageFileDrop(file);
-                      return true;
-                    }
-                    // Check if file is supported by read_file tool
-                    else if (plugin.isFileSupportedByReadTool(file)) {
-                      addContextFile(file);
-                      return true;
-                    }
+                  // Check if it's an image file
+                  if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
+                    await handleImageFileDrop(tfile);
+                    return true;
                   }
-                  return false;
-                });
-                const results = await Promise.all(objPromises);
-                filesAdded += results.filter(Boolean).length;
-              } else if (obj) {
-                const fileExtension = obj.extension?.toLowerCase();
+                  // Check if file is supported by read_file tool
+                  else if (plugin.isFileSupportedByReadTool(tfile)) {
+                    addContextFile(tfile);
+                    return true;
+                  }
+                }
+                return false;
+              });
+              const results = await Promise.all(objPromises);
+              filesAdded += results.filter(Boolean).length;
+            } else if (typeof obj === 'object' && 'extension' in obj) {
+              const tfile = obj as TFile;
+              const fileExtension = tfile.extension?.toLowerCase();
 
-                // Check if it's an image file
-                if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
-                  await handleImageFileDrop(obj);
-                  filesAdded++;
-                }
-                // Check if file is supported by read_file tool
-                else if (plugin.isFileSupportedByReadTool(obj)) {
-                  addContextFile(obj);
-                  filesAdded++;
-                }
+              // Check if it's an image file
+              if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
+                await handleImageFileDrop(tfile);
+                filesAdded++;
+              }
+              // Check if file is supported by read_file tool
+              else if (plugin.isFileSupportedByReadTool(tfile)) {
+                addContextFile(tfile);
+                filesAdded++;
               }
             }
           }
+        }
 
           // Also try to get the currently selected files from file explorer
           const fileExplorer = app.workspace.getLeavesOfType('file-explorer')[0];
