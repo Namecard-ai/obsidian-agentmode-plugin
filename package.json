@@ -12,7 +12,8 @@
 		"build:prod": "tsc -noEmit -skipLibCheck && ENV_MODE=production node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint . --ext .ts,.tsx",
-		"lint:fix": "eslint . --ext .ts,.tsx --fix"
+		"lint:fix": "eslint . --ext .ts,.tsx --fix",
+		"lint:obsidian": "ESLINT_USE_FLAT_CONFIG=true npx --yes --package=eslint@9 -- eslint -c eslint.obsidian.config.mjs ."
 	},
 	"keywords": [],
 	"author": "",
@@ -28,6 +29,7 @@
 		"dotenv": "^17.1.0",
 		"esbuild": "0.17.3",
 		"esbuild-plugin-copy": "^2.1.1",
+		"eslint-plugin-obsidianmd": "^0.1.9",
 		"obsidian": "latest",
 		"tslib": "2.4.0",
 		"typescript": "^5.3.3"
