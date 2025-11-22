@@ -598,7 +598,7 @@ export class PaymentRequiredModal extends Modal {
 
 		// Option 1: Upgrade to Pro
 		const proOption = optionsContainer.createDiv('agentmode-payment-modal-option');
-		proOption.createEl('h4', { text: '1. Upgrade to agentmode pro' });
+		proOption.createEl('h4', { text: '1. Upgrade to Agentmode pro' });
 		proOption.createEl('p', { text: 'Get unlimited access to AI features with our managed API service.' });
 
 		const proButton = proOption.createEl('button', {
@@ -4035,7 +4035,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			.setName('OpenAI API key')
 			.setDesc('The agent leverage OpenAI API to provide AI features, you can get your API key from OpenAI Platform (https://platform.openai.com/api-keys)')
 			.addText(text => text
-				.setPlaceholder('sk-...')
+				.setPlaceholder('For example: \'sk-...\'')
 				.setValue(this.plugin.settings.openaiApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.openaiApiKey = value;
@@ -4046,7 +4046,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			.setName('Firecrawl API key')
 			.setDesc('For web search and scrape functionality, you can get your API key from Firecrawl (https://firecrawl.dev/)')
 			.addText(text => text
-				.setPlaceholder('fc-...')
+				.setPlaceholder('For example: \'fc-...\'')
 				.setValue(this.plugin.settings.firecrawlApiKey)
 				.onChange(async (value) => {
 					this.plugin.settings.firecrawlApiKey = value;
@@ -4136,7 +4136,7 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			});
 		} else {
 			statusContainer.createEl('div', {
-				text: 'Synced (All files indexed)',
+				text: 'Synced',
 				cls: 'indexing-status-synced'
 			});
 		}

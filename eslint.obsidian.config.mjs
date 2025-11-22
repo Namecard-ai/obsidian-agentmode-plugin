@@ -39,7 +39,17 @@ export default [
       '@typescript-eslint/no-empty-function': 'off',
       
       // Obsidian 插件推薦規則
-      ...obsidianmd.configs.recommended
+      ...obsidianmd.configs.recommended,
+      
+      // 自定義 sentence-case 規則配置
+      'obsidianmd/ui/sentence-case': [
+        'warn',  // 改為警告而非錯誤
+        {
+          brands: ['Agentmode', 'OpenAI', 'Auth0', 'Firecrawl'],
+          acronyms: ['API', 'JSON', 'BYOK', 'AI'],
+          enforceCamelCaseLower: false  // 允許 CamelCase 命名
+        }
+      ]
     }
   }
 ];
