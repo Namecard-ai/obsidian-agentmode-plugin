@@ -1633,10 +1633,10 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             'vault.draggedFiles'
           ];
 
-          for (const path of possiblePaths) {
-            const parts = path.split('.');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let obj: any = workspace;
+        for (const path of possiblePaths) {
+          const parts = path.split('.');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic property access on Obsidian's undocumented internal API
+          let obj: any = workspace;
             for (const part of parts) {
               obj = obj?.[part];
             }

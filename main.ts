@@ -1441,10 +1441,10 @@ export default class AgentPlugin extends Plugin {
 				}
 			];
 
-			// Main conversation loop - continue until no more tool calls
-			let finalAssistantContent = '';
-			// eslint-disable-next-line no-constant-condition
-			while (true) {
+		// Main conversation loop - continue until no more tool calls
+		let finalAssistantContent = '';
+		// eslint-disable-next-line no-constant-condition -- Intentional infinite loop with internal break conditions
+		while (true) {
 				// Check for interruption
 				if (this.shouldStopChat) {
 					onInterrupted?.();
@@ -2050,8 +2050,7 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	private static readonly GREPPABLE_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt', 'html']
 	private static readonly CONVERTIBLE_EXTENSIONS = ['pdf', 'pptx', 'ppt', 'docx', 'doc', 'xlsx', 'xls', 'html'];
 	private static readonly PLAIN_TEXT_EXTENSIONS = ['md', 'canvas', 'csv', 'tsv', 'txt'];
-	// Used in AgentChatView.tsx via constructor property access (TypeScript cannot detect this usage)
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Used in AgentChatView.tsx via constructor property access (TypeScript cannot detect this usage)
 	private static readonly IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 	private static readonly MIME_TYPES: Record<string, string> = {
 		'pdf': 'application/pdf',
