@@ -1654,7 +1654,7 @@ export default class AgentPlugin extends Plugin {
 								`Error: An array has an empty value when tool_calls are constructed. tool_calls: ${JSON.stringify(accArray)}; tool: ${JSON.stringify(value)}`,
 							);
 						}
-						accArray[index] = reduce((accArray[index] as Record<string, unknown>) || {}, chunkTool);
+						accArray[index] = reduce(accArray[index] || {}, chunkTool);
 					}
 				} else if (typeof acc[key] === 'object' && typeof value === 'object') {
 					acc[key] = reduce(acc[key] as Record<string, unknown>, value as Record<string, unknown>);
