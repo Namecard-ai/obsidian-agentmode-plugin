@@ -556,7 +556,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           e.preventDefault();
           const path = isWikiLink ? href.slice(2, -2) : href;
           // Use Obsidian's API to open the file
-          plugin.app.workspace.openLinkText(path, '', false);
+          plugin.app.workspace.openLinkText(path, '', false).catch((error: unknown) => {
+            console.error('Failed to open link:', error);
+          });
         }
       };
 

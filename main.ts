@@ -3274,7 +3274,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 
 		// "Reveal" the leaf in case it is in a collapsed sidebar
 		if (leaf) {
-			workspace.revealLeaf(leaf);
+			const revealResult = workspace.revealLeaf(leaf);
+			if (revealResult instanceof Promise) {
+				revealResult.catch((error: unknown) => {
+					console.error('Failed to reveal leaf:', error);
+				});
+			}
 		}
 	}
 
@@ -3637,7 +3642,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	// Accept the pending edit confirmation
 	acceptEditConfirmation() {
 		if (this.editConfirmationCallbacks) {
-			this.editConfirmationCallbacks.onAccept();
+			const result = this.editConfirmationCallbacks.onAccept();
+			if (result instanceof Promise) {
+				result.catch((error: unknown) => {
+					console.error('Failed to accept edit confirmation:', error);
+				});
+			}
 			this.pendingEditConfirmation = null;
 			this.editConfirmationCallbacks = null;
 			this.notifyEditConfirmationListeners();
@@ -3680,7 +3690,12 @@ Use hex format ("#FF0000") or preset numbers: "1"=red, "2"=orange, "3"=yellow, "
 	// Accept the pending create note confirmation
 	acceptCreateNoteConfirmation() {
 		if (this.createNoteConfirmationCallbacks) {
-			this.createNoteConfirmationCallbacks.onAccept();
+			const result = this.createNoteConfirmationCallbacks.onAccept();
+			if (result instanceof Promise) {
+				result.catch((error: unknown) => {
+					console.error('Failed to accept create note confirmation:', error);
+				});
+			}
 			this.pendingCreateNoteConfirmation = null;
 			this.createNoteConfirmationCallbacks = null;
 			this.notifyCreateNoteConfirmationListeners();
