@@ -184,7 +184,8 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
   }
 
   renderSuggestion(value: FuzzySuggestionItem | TFile, el: HTMLElement): void {
-    const file = (value as FuzzySuggestionItem).item || (value as TFile);
+    const file = value instanceof TFile ? value : (value as FuzzySuggestionItem).item;
+    if (!file) return;
     el.createEl('div', { text: file.basename, cls: 'suggestion-title' });
     el.createEl('small', { text: file.path, cls: 'suggestion-note' });
   }
