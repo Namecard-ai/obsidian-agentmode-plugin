@@ -1651,18 +1651,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
             if (Array.isArray(obj)) {
               const objPromises = obj.map(async (file: unknown) => {
                 // Type guard to ensure file is a TFile
-                if (file && typeof file === 'object' && 'extension' in file) {
-                  const tfile = file as TFile;
-                  const fileExtension = tfile.extension?.toLowerCase();
+                if (file instanceof TFile) {
+                  const fileExtension = file.extension?.toLowerCase();
 
                   // Check if it's an image file
                   if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
-                    await handleImageFileDrop(tfile);
+                    await handleImageFileDrop(file);
                     return true;
                   }
                   // Check if file is supported by read_file tool
-                  else if (plugin.isFileSupportedByReadTool(tfile)) {
-                    addContextFile(tfile);
+                  else if (plugin.isFileSupportedByReadTool(file)) {
+                    addContextFile(file);
                     return true;
                   }
                 }
@@ -1670,18 +1669,17 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
               });
               const results = await Promise.all(objPromises);
               filesAdded += results.filter(Boolean).length;
-            } else if (typeof obj === 'object' && 'extension' in obj) {
-              const tfile = obj as TFile;
-              const fileExtension = tfile.extension?.toLowerCase();
+            } else if (obj instanceof TFile) {
+              const fileExtension = obj.extension?.toLowerCase();
 
               // Check if it's an image file
               if (fileExtension && (plugin.constructor as unknown as AgentPluginConstructor).IMAGE_EXTENSIONS.includes(fileExtension)) {
-                await handleImageFileDrop(tfile);
+                await handleImageFileDrop(obj);
                 filesAdded++;
               }
               // Check if file is supported by read_file tool
-              else if (plugin.isFileSupportedByReadTool(tfile)) {
-                addContextFile(tfile);
+              else if (plugin.isFileSupportedByReadTool(obj)) {
+                addContextFile(obj);
                 filesAdded++;
               }
             }

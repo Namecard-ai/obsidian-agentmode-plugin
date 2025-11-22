@@ -31,12 +31,6 @@ export default [
       obsidianmd: obsidianmd
     },
     rules: {
-      // 基本規則
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { args: 'none' }],
-      '@typescript-eslint/ban-ts-comment': 'off',
-      'no-prototype-builtins': 'off',
-      '@typescript-eslint/no-empty-function': 'off',
       
       // Obsidian 插件推薦規則
       ...obsidianmd.configs.recommended,
