@@ -451,6 +451,21 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     return processed;
   }, [content, plugin]);
 
+  // Helper function to safely extract text content from children
+  const extractTextContent = (children: React.ReactNode): string => {
+    if (children === null || children === undefined) {
+      return '';
+    }
+    if (typeof children === 'string' || typeof children === 'number') {
+      return String(children);
+    }
+    if (Array.isArray(children)) {
+      return children.map(extractTextContent).join('');
+    }
+    // For React elements or other objects, return empty string to avoid [object Object]
+    return '';
+  };
+
   const markdownComponents = React.useMemo(() => ({
     code: ({ node, inline, className, children, ...props }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown; inline?: boolean }) => (
       <CodeBlock
@@ -458,7 +473,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         className={className}
         {...props}
       >
-        {String(children).replace(/\n$/, '')}
+        {extractTextContent(children).replace(/\n$/, '')}
       </CodeBlock>
     ),
     h1: ({ children, ...props }: React.ComponentPropsWithoutRef<'h1'>) => (
