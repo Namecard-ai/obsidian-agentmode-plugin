@@ -2,7 +2,7 @@
 
 An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides intelligent chat functionality with context-aware file integration.
 
-> **Important Notice**: This plugin connects to a proprietary backend API service to process requests and deliver AI-powered features. All chat messages and file contexts are transmitted to our backend servers for processing.
+> **Important Notice**: This plugin connects to a proprietary backend API service to process requests and deliver AI-powered features. All chat messages and file contexts are transmitted to our backend servers for processing. For more information about data transmission, privacy practices, and how we protect your information, please refer to our [Security Policy](SECURITY.md).
 
 ## Key Features
 - **Context-Aware Conversations**: Seamlessly integrate vault files into your chat context
