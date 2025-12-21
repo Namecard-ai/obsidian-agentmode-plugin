@@ -12,6 +12,12 @@ import { getEncoding } from 'js-tiktoken';
 
 // Remember to rename these classes and interfaces!
 
+interface CustomCommand {
+	name: string;      // Command name (lowercase letters, numbers, dashes only)
+	prompt: string;    // Full prompt content for this command
+	createdAt: number; // Timestamp for sorting
+}
+
 interface AgentPluginSettings {
 	openaiApiKey: string;
 	firecrawlApiKey: string;
@@ -26,12 +32,16 @@ interface AgentPluginSettings {
 		name?: string;
 		sub?: string;
 	};
+
+	// Custom commands
+	customCommands: CustomCommand[];
 }
 
 const DEFAULT_SETTINGS: AgentPluginSettings = {
 	openaiApiKey: '',
 	firecrawlApiKey: '',
-	isLoggedIn: false
+	isLoggedIn: false,
+	customCommands: []
 }
 
 // Auth0 related type definitions
@@ -570,6 +580,175 @@ export class Auth0Service {
 }
 
 // Payment Required Modal
+// Custom Command Modal
+export class CustomCommandModal extends Modal {
+	private plugin: AgentPlugin;
+	private command?: CustomCommand; // If provided, we're editing; otherwise, creating new
+	private onSave: (command: CustomCommand) => void;
+	private commandNameInput: HTMLInputElement;
+	private promptTextarea: HTMLTextAreaElement;
+	private errorEl: HTMLElement;
+
+	constructor(
+		app: App,
+		plugin: AgentPlugin,
+		onSave: (command: CustomCommand) => void,
+		command?: CustomCommand
+	) {
+		super(app);
+		this.plugin = plugin;
+		this.command = command;
+		this.onSave = onSave;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		// Set modal title
+		this.titleEl.setText(this.command ? 'Edit command' : 'Create command');
+
+		// Error message container (hidden by default)
+		this.errorEl = contentEl.createDiv('agentmode-command-modal-error');
+		this.errorEl.style.display = 'none';
+
+		// Command name input
+		const nameContainer = contentEl.createDiv('agentmode-command-modal-field');
+		nameContainer.createEl('label', { text: 'Command name *', cls: 'agentmode-command-modal-label' });
+		this.commandNameInput = nameContainer.createEl('input', {
+			type: 'text',
+			placeholder: 'e.g., daily-summary',
+			cls: 'agentmode-command-modal-input'
+		});
+		if (this.command) {
+			this.commandNameInput.value = this.command.name;
+			// Disable editing command name when editing
+			this.commandNameInput.disabled = true;
+		}
+		const nameHint = nameContainer.createEl('div', { cls: 'agentmode-command-modal-hint' });
+		nameHint.setText('Only lowercase letters, numbers, and dashes allowed (2-50 characters)');
+
+		// Prompt textarea
+		const promptContainer = contentEl.createDiv('agentmode-command-modal-field');
+		promptContainer.createEl('label', { text: 'Prompt content *', cls: 'agentmode-command-modal-label' });
+		this.promptTextarea = promptContainer.createEl('textarea', {
+			placeholder: 'Enter the full prompt for this command...',
+			cls: 'agentmode-command-modal-textarea'
+		});
+		if (this.command) {
+			this.promptTextarea.value = this.command.prompt;
+		}
+		const promptHint = promptContainer.createEl('div', { cls: 'agentmode-command-modal-hint' });
+		promptHint.setText('Minimum 10 characters, maximum 5000 characters');
+
+		// Buttons
+		const buttonContainer = contentEl.createDiv('agentmode-modal-button-container');
+		
+		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+		cancelButton.onclick = () => {
+			this.close();
+		};
+
+		const saveButton = buttonContainer.createEl('button', { text: 'Save', cls: 'mod-cta' });
+		saveButton.onclick = () => {
+			this.handleSave();
+		};
+	}
+
+	onClose() {
+		const { contentEl } = this;
+		contentEl.empty();
+	}
+
+	private showError(message: string) {
+		this.errorEl.setText(message);
+		this.errorEl.style.display = 'block';
+	}
+
+	private hideError() {
+		this.errorEl.style.display = 'none';
+	}
+
+	private validateCommandName(name: string): string | null {
+		if (!name || name.trim().length === 0) {
+			return 'Command name is required';
+		}
+
+		const trimmedName = name.trim();
+
+		if (trimmedName.length < 2 || trimmedName.length > 50) {
+			return 'Command name must be between 2 and 50 characters';
+		}
+
+		// Only lowercase letters, numbers, and dashes
+		const validNamePattern = /^[a-z0-9-]+$/;
+		if (!validNamePattern.test(trimmedName)) {
+			return 'Command name can only contain lowercase letters, numbers, and dashes';
+		}
+
+		// Check for duplicates (only when creating new command)
+		if (!this.command) {
+			const existingCommand = this.plugin.settings.customCommands.find(
+				cmd => cmd.name === trimmedName
+			);
+			if (existingCommand) {
+				return 'A command with this name already exists';
+			}
+		}
+
+		return null;
+	}
+
+	private validatePrompt(prompt: string): string | null {
+		if (!prompt || prompt.trim().length === 0) {
+			return 'Prompt content is required';
+		}
+
+		const trimmedPrompt = prompt.trim();
+
+		if (trimmedPrompt.length < 10) {
+			return 'Prompt must be at least 10 characters';
+		}
+
+		if (trimmedPrompt.length > 5000) {
+			return 'Prompt must not exceed 5000 characters';
+		}
+
+		return null;
+	}
+
+	private handleSave() {
+		this.hideError();
+
+		const name = this.commandNameInput.value.trim();
+		const prompt = this.promptTextarea.value.trim();
+
+		// Validate command name
+		const nameError = this.validateCommandName(name);
+		if (nameError) {
+			this.showError(nameError);
+			return;
+		}
+
+		// Validate prompt
+		const promptError = this.validatePrompt(prompt);
+		if (promptError) {
+			this.showError(promptError);
+			return;
+		}
+
+		// Create or update command
+		const command: CustomCommand = {
+			name: name,
+			prompt: prompt,
+			createdAt: this.command?.createdAt || Date.now()
+		};
+
+		this.onSave(command);
+		this.close();
+	}
+}
+
 export class PaymentRequiredModal extends Modal {
 	private plugin: AgentPlugin;
 
@@ -4066,6 +4245,12 @@ class AgentPluginSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		// Add separator
+		containerEl.createEl('hr', { cls: 'agentmode-auth-settings-separator' });
+
+		// Commands Section
+		this.createCommandsSection(containerEl);
+
 		// Add Vault File Indexing section (only for logged-in users)
 		if (this.plugin.isLoggedIn()) {
 			// Add separator
@@ -4095,6 +4280,193 @@ class AgentPluginSettingTab extends PluginSettingTab {
 			this.plugin.removeSettingsUpdateListener(this.updateCallback);
 			this.updateCallback = null;
 		}
+	}
+
+	private createCommandsSection(containerEl: HTMLElement) {
+		// Commands heading
+		new Setting(containerEl).setName('Commands').setHeading();
+
+		// Description
+		const descEl = containerEl.createEl('p', { cls: 'agentmode-commands-description' });
+		descEl.setText('Create custom commands to quickly access frequently used prompts. Use /<command-name> in chat.');
+
+		// Add command button
+		const addButtonContainer = containerEl.createDiv('agentmode-commands-add-container');
+		const addButton = addButtonContainer.createEl('button', {
+			text: '➕ Add command',
+			cls: 'agentmode-commands-add-button'
+		});
+		addButton.onclick = () => {
+			this.openCommandModal();
+		};
+
+		// Commands table container
+		const tableContainer = containerEl.createDiv('agentmode-commands-table-container');
+		this.renderCommandsTable(tableContainer);
+	}
+
+	private renderCommandsTable(container: HTMLElement) {
+		container.empty();
+
+		const commands = this.plugin.settings.customCommands;
+
+		if (commands.length === 0) {
+			// Empty state
+			const emptyState = container.createDiv('agentmode-commands-empty');
+			emptyState.setText('No commands yet. Click "Add command" to create your first one.');
+			return;
+		}
+
+		// Check if limit reached
+		if (commands.length >= 50) {
+			const limitWarning = container.createDiv('agentmode-commands-limit-warning');
+			limitWarning.setText('⚠️ You have reached the maximum limit of 50 commands.');
+		}
+
+		// Sort commands alphabetically
+		const sortedCommands = [...commands].sort((a, b) => a.name.localeCompare(b.name));
+
+		// Create table
+		const table = container.createEl('table', { cls: 'agentmode-commands-table' });
+		
+		// Table header
+		const thead = table.createEl('thead');
+		const headerRow = thead.createEl('tr');
+		headerRow.createEl('th', { text: 'Command', cls: 'agentmode-commands-th-command' });
+		headerRow.createEl('th', { text: 'Actions', cls: 'agentmode-commands-th-actions' });
+
+		// Table body
+		const tbody = table.createEl('tbody');
+		sortedCommands.forEach(command => {
+			const row = tbody.createEl('tr', { cls: 'agentmode-commands-row' });
+			
+			// Command name cell
+			const nameCell = row.createEl('td', { cls: 'agentmode-commands-cell-name' });
+			nameCell.createEl('code', { text: `/${command.name}` });
+
+			// Actions cell
+			const actionsCell = row.createEl('td', { cls: 'agentmode-commands-cell-actions' });
+			
+			// View button
+			const viewButton = actionsCell.createEl('button', {
+				text: 'View',
+				cls: 'agentmode-commands-action-button'
+			});
+			viewButton.onclick = () => {
+				this.viewCommand(command);
+			};
+
+			// Edit button
+			const editButton = actionsCell.createEl('button', {
+				text: 'Edit',
+				cls: 'agentmode-commands-action-button'
+			});
+			editButton.onclick = () => {
+				this.openCommandModal(command);
+			};
+
+			// Delete button
+			const deleteButton = actionsCell.createEl('button', {
+				text: 'Delete',
+				cls: 'agentmode-commands-action-button agentmode-commands-action-delete'
+			});
+			deleteButton.onclick = () => {
+				this.deleteCommand(command);
+			};
+		});
+	}
+
+	private openCommandModal(command?: CustomCommand) {
+		// Check command limit when creating new
+		if (!command && this.plugin.settings.customCommands.length >= 50) {
+			new Notice('Command limit reached. You can have a maximum of 50 commands.');
+			return;
+		}
+
+		const modal = new CustomCommandModal(
+			this.app,
+			this.plugin,
+			async (savedCommand: CustomCommand) => {
+				if (command) {
+					// Edit existing command
+					const index = this.plugin.settings.customCommands.findIndex(
+						cmd => cmd.name === command.name
+					);
+					if (index !== -1) {
+						this.plugin.settings.customCommands[index] = savedCommand;
+					}
+				} else {
+					// Add new command
+					this.plugin.settings.customCommands.push(savedCommand);
+				}
+
+				await this.plugin.saveSettings();
+				new Notice(command ? 'Command updated' : 'Command created');
+				
+				// Refresh the display
+				this.display();
+			},
+			command
+		);
+		modal.open();
+	}
+
+	private viewCommand(command: CustomCommand) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(`Command: /${command.name}`);
+
+		const content = modal.contentEl;
+		
+		// Prompt label
+		content.createEl('h4', { text: 'Prompt content:', cls: 'agentmode-command-view-label' });
+		
+		// Prompt content in a scrollable container
+		const promptContainer = content.createDiv('agentmode-command-view-prompt');
+		promptContainer.setText(command.prompt);
+
+		// Close button
+		const buttonContainer = content.createDiv('agentmode-modal-button-container');
+		const closeButton = buttonContainer.createEl('button', { text: 'Close', cls: 'mod-cta' });
+		closeButton.onclick = () => {
+			modal.close();
+		};
+
+		modal.open();
+	}
+
+	private deleteCommand(command: CustomCommand) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText('Delete command');
+
+		const content = modal.contentEl;
+		content.createEl('p', {
+			text: `Are you sure you want to delete the command "/${command.name}"? This action cannot be undone.`
+		});
+
+		const buttonContainer = content.createDiv('agentmode-modal-button-container');
+
+		// Cancel button
+		const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
+		cancelButton.onclick = () => {
+			modal.close();
+		};
+
+		// Delete button
+		const deleteButton = buttonContainer.createEl('button', { text: 'Delete', cls: 'mod-warning' });
+		deleteButton.onclick = async () => {
+			const index = this.plugin.settings.customCommands.findIndex(
+				cmd => cmd.name === command.name
+			);
+			if (index !== -1) {
+				this.plugin.settings.customCommands.splice(index, 1);
+				await this.plugin.saveSettings();
+				new Notice('Command deleted');
+				this.display();
+			}
+			modal.close();
+		};
+
+		modal.open();
 	}
 
 	private createVaultIndexingSection(containerEl: HTMLElement) {

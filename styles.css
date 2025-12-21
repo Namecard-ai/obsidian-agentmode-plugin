@@ -1445,3 +1445,244 @@ If your plugin does not need CSS, delete this file.
 .agentmode-edit-message-cancel-button:hover {
   background-color: var(--background-modifier-hover) !important;
 }
+
+/* Commands Section Styles */
+.agentmode-commands-description {
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+}
+
+.agentmode-commands-add-container {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.agentmode-commands-add-button {
+  padding: 8px 16px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.agentmode-commands-add-button:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+.agentmode-commands-table-container {
+  margin-bottom: 20px;
+}
+
+.agentmode-commands-empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  background-color: var(--background-secondary);
+  border-radius: 6px;
+  border: 1px dashed var(--background-modifier-border);
+}
+
+.agentmode-commands-limit-warning {
+  padding: 12px;
+  margin-bottom: 12px;
+  background-color: var(--background-modifier-warning);
+  color: var(--text-warning);
+  border-radius: 6px;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+}
+
+.agentmode-commands-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.agentmode-commands-table thead {
+  background-color: var(--background-secondary);
+}
+
+.agentmode-commands-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.agentmode-commands-th-command {
+  width: 40%;
+}
+
+.agentmode-commands-th-actions {
+  width: 60%;
+}
+
+.agentmode-commands-row {
+  border-bottom: 1px solid var(--background-modifier-border);
+  transition: background-color 0.2s ease;
+}
+
+.agentmode-commands-row:last-child {
+  border-bottom: none;
+}
+
+.agentmode-commands-row:hover {
+  background-color: var(--background-secondary-alt);
+}
+
+.agentmode-commands-cell-name {
+  padding: 12px 16px;
+  color: var(--text-normal);
+}
+
+.agentmode-commands-cell-name code {
+  background-color: var(--background-modifier-border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.agentmode-commands-cell-actions {
+  padding: 12px 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.agentmode-commands-action-button {
+  padding: 6px 12px;
+  background-color: var(--interactive-normal);
+  color: var(--text-normal);
+  border: none;
+  border-radius: 4px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.agentmode-commands-action-button:hover {
+  background-color: var(--interactive-hover);
+}
+
+.agentmode-commands-action-delete {
+  background-color: transparent;
+  color: var(--text-error);
+  border: 1px solid var(--background-modifier-border);
+}
+
+.agentmode-commands-action-delete:hover {
+  background-color: var(--background-modifier-error);
+  color: var(--text-on-accent);
+  border-color: var(--background-modifier-error);
+}
+
+/* Command Modal Styles */
+.agentmode-command-modal-error {
+  padding: 12px;
+  margin-bottom: 16px;
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+  border-radius: 6px;
+  font-size: var(--font-ui-small);
+  font-weight: 500;
+}
+
+.agentmode-command-modal-field {
+  margin-bottom: 20px;
+}
+
+.agentmode-command-modal-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.agentmode-command-modal-input {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  outline: none;
+}
+
+.agentmode-command-modal-input:focus {
+  border-color: var(--interactive-accent);
+}
+
+.agentmode-command-modal-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--background-secondary);
+}
+
+.agentmode-command-modal-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 8px 12px;
+  background-color: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-family: var(--font-text);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+}
+
+.agentmode-command-modal-textarea:focus {
+  border-color: var(--interactive-accent);
+}
+
+.agentmode-command-modal-hint {
+  margin-top: 6px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Command View Modal Styles */
+.agentmode-command-view-label {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+  color: var(--text-normal);
+}
+
+.agentmode-command-view-prompt {
+  padding: 12px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
