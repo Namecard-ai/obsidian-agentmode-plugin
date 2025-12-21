@@ -46,6 +46,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   chatMode: _chatMode,
   customCommands = []
 }, ref) => {
+  // Track if slash command suggestion popup is active
+  // This is used to prevent Enter key from triggering message send while selecting a command
+  const isSuggestionActiveRef = React.useRef(false)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -104,6 +108,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
 
             return {
               onStart: (props: any) => {
+                // Mark suggestion as active to prevent Enter from sending message
+                isSuggestionActiveRef.current = true
+
                 component = new ReactRenderer(CommandList, {
                   props: {
                     items: props.items || [],
@@ -158,6 +165,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
               },
 
               onExit() {
+                // Mark suggestion as inactive
+                isSuggestionActiveRef.current = false
+
                 popup?.[0].destroy()
                 component?.destroy()
               },
@@ -190,6 +200,13 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       // Disable drag and drop handling
       handleDrop: () => true, // Return true to prevent TipTap from handling drop events
       handleKeyDown: (view, event) => {
+        // If slash command suggestion is active and Enter is pressed,
+        // don't call onKeyPress to prevent message from being sent
+        if (isSuggestionActiveRef.current && event.key === 'Enter' && !event.shiftKey) {
+          // Let the suggestion handle the Enter key, don't propagate to parent
+          return false
+        }
+
         if (onKeyPress) {
           // Create a simplified event object that matches the expected interface
           const reactEvent = {
