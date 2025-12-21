@@ -3,6 +3,14 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Mention from '@tiptap/extension-mention'
+import { ReactRenderer } from '@tiptap/react'
+import tippy, { Instance as TippyInstance } from 'tippy.js'
+import CommandList, { CommandListRef } from './CommandList'
+
+interface CustomCommand {
+  name: string
+  prompt: string
+}
 
 interface TiptapEditorProps {
   value: string
@@ -13,6 +21,7 @@ interface TiptapEditorProps {
   className?: string
   style?: React.CSSProperties
   chatMode?: 'Ask' | 'Agent'
+  customCommands?: CustomCommand[]
 }
 
 export interface TiptapEditorRef {
@@ -34,8 +43,13 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   placeholder,
   className,
   style,
-  chatMode: _chatMode
+  chatMode: _chatMode,
+  customCommands = []
 }, ref) => {
+  // Track if slash command suggestion popup is active
+  // This is used to prevent Enter key from triggering message send while selecting a command
+  const isSuggestionActiveRef = React.useRef(false)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -51,6 +65,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       Placeholder.configure({
         placeholder: placeholder || 'Type something...',
       }),
+      // Wikilink mention extension
       Mention.configure({
         HTMLAttributes: {
           class: 'agentmode-wikilink-mention',
@@ -68,6 +83,96 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
             onKeyDown: () => false,
             onExit: () => { },
           }),
+        },
+      }),
+      // Slash command mention extension
+      Mention.extend({
+        name: 'slashCommand',
+      }).configure({
+        HTMLAttributes: {
+          class: 'agentmode-slash-command-mention',
+        },
+        renderText({ node }) {
+          return `/${node.attrs.id}`
+        },
+        suggestion: {
+          char: '/',
+          items: ({ query }: { query: string }) => {
+            return customCommands
+              .filter(cmd => cmd.name.toLowerCase().includes(query.toLowerCase()))
+              .slice(0, 10) // Limit to 10 results
+          },
+          render: () => {
+            let component: ReactRenderer<CommandListRef> | undefined
+            let popup: TippyInstance[] | undefined
+
+            return {
+              onStart: (props: any) => {
+                // Mark suggestion as active to prevent Enter from sending message
+                isSuggestionActiveRef.current = true
+
+                component = new ReactRenderer(CommandList, {
+                  props: {
+                    items: props.items || [],
+                    command: ({ name }: CustomCommand) => {
+                      props.command({ id: name, label: name })
+                    },
+                  },
+                  editor: props.editor,
+                })
+
+                if (!props.clientRect) {
+                  return
+                }
+
+                popup = tippy('body', {
+                  getReferenceClientRect: () => props.clientRect?.() || null,
+                  appendTo: () => document.body,
+                  content: component.element,
+                  showOnCreate: true,
+                  interactive: true,
+                  trigger: 'manual',
+                  placement: 'bottom-start',
+                })
+              },
+
+              onUpdate(props: any) {
+                if (component) {
+                  component.updateProps({
+                    items: props.items || [],
+                    command: ({ name }: CustomCommand) => {
+                      props.command({ id: name, label: name })
+                    },
+                  })
+                }
+
+                if (!props.clientRect || !popup) {
+                  return
+                }
+
+                popup[0].setProps({
+                  getReferenceClientRect: () => props.clientRect?.() || null,
+                })
+              },
+
+              onKeyDown(props: any) {
+                if (props.event.key === 'Escape') {
+                  popup?.[0].hide()
+                  return true
+                }
+
+                return component?.ref?.onKeyDown(props) || false
+              },
+
+              onExit() {
+                // Mark suggestion as inactive
+                isSuggestionActiveRef.current = false
+
+                popup?.[0].destroy()
+                component?.destroy()
+              },
+            }
+          },
         },
       })
     ],
@@ -95,6 +200,13 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       // Disable drag and drop handling
       handleDrop: () => true, // Return true to prevent TipTap from handling drop events
       handleKeyDown: (view, event) => {
+        // If slash command suggestion is active and Enter is pressed,
+        // don't call onKeyPress to prevent message from being sent
+        if (isSuggestionActiveRef.current && event.key === 'Enter' && !event.shiftKey) {
+          // Let the suggestion handle the Enter key, don't propagate to parent
+          return false
+        }
+
         if (onKeyPress) {
           // Create a simplified event object that matches the expected interface
           const reactEvent = {

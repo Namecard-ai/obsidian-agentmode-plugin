@@ -2608,6 +2608,7 @@ export const AgentChatView = ({ app, plugin }: AgentChatViewProps) => {
                 : "Give instructions to the agent... Use [[]] to link notes"
               }
               className="agentmode-chat-textarea"
+              customCommands={plugin.settings.customCommands}
               style={{
                 boxSizing: 'border-box',
                 minHeight: '44px',
