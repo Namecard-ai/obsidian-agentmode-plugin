@@ -1596,11 +1596,13 @@ If your plugin does not need CSS, delete this file.
 .agentmode-command-modal-error {
   padding: 12px;
   margin-bottom: 16px;
-  background-color: var(--background-modifier-error);
+  background-color: var(--background-secondary);
   color: var(--text-error);
+  border: 2px solid var(--text-error);
   border-radius: 6px;
   font-size: var(--font-ui-small);
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .agentmode-command-modal-field {
