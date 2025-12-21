@@ -1720,16 +1720,28 @@ If your plugin does not need CSS, delete this file.
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, border-left 0.15s ease;
   text-align: left;
+  border-left: 3px solid transparent;
 }
 
 .agentmode-slash-command-item:hover {
   background-color: var(--background-modifier-hover);
+  border-left-color: var(--text-muted);
 }
 
 .agentmode-slash-command-item.is-selected {
-  background-color: var(--background-modifier-hover);
+  background-color: var(--interactive-accent);
+  border-left-color: var(--interactive-accent);
+}
+
+.agentmode-slash-command-item.is-selected .agentmode-slash-command-name {
+  color: var(--text-on-accent);
+}
+
+.agentmode-slash-command-item.is-selected .agentmode-slash-command-prompt {
+  color: var(--text-on-accent);
+  opacity: 0.85;
 }
 
 .agentmode-slash-command-name {
