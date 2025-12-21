@@ -1869,6 +1869,35 @@ These files represent the user's current focus and are most relevant to their im
 </context_files>`;
 		}
 
+		// Build custom commands section if any are configured
+		let customCommandsSection = '';
+		if (this.settings.customCommands.length > 0) {
+			const commandsList = this.settings.customCommands.map(cmd => {
+				return `<command name="${cmd.name}">
+<prompt>
+${cmd.prompt}
+</prompt>
+</command>`;
+			}).join('\n\n');
+
+			customCommandsSection = `
+
+<custom_commands>
+The user has configured custom slash commands to streamline common prompts. When you see a command like "/<command-name>" in their message, interpret it as if they had written the full prompt content.
+
+Available commands:
+${commandsList}
+
+Usage guidelines:
+1. When you see a slash command in the user's message, respond as if the user wrote the full prompt content
+2. Integrate any additional context the user provides with the command (e.g., "/daily-summary for yesterday" means apply the daily-summary prompt to yesterday's context)
+3. Handle multiple commands in one message naturally by processing each command's intent
+4. If a slash command pattern appears but doesn't match any configured command, treat it as regular text
+5. Never explicitly mention that you're "using a slash command" or "interpreting a command" - just respond naturally to the underlying prompt intent
+6. The command prompt may contain markdown formatting, instructions, or structured requests - follow them as if the user had typed them directly
+</custom_commands>`;
+		}
+
 		return `You are a powerful agentic AI note-taking assistant, powered by LLM model. You operate exclusively within Obsidian, the world's best knowledge management and PKM tool.
 
 You are collaborating with a USER to help them organize, write, and enhance their vault files.
@@ -2035,7 +2064,7 @@ The USER is working in Obsidian with various file types under a single vault dir
 Current date and time: \`${new Date().toLocaleString()}\`
 Current timezone: \`${Intl.DateTimeFormat().resolvedOptions().timeZone}\`
 Current UTC offset: \`${new Date().getTimezoneOffset() / -60} hours\`
-</user_info>${contextFilesSection}
+</user_info>${contextFilesSection}${customCommandsSection}
 
 Answer the USER's request using available context and tools. If a required parameter is missing, ask for it. Otherwise, proceed with the tool call or provide the response directly.
 If citing vault files or inserting content, ensure appropriate formatting and coherence with existing structure.
