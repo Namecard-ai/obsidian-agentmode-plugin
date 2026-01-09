@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/hejianzhi/Namecard/namecard-company/scripts/git-sync.sh:*)"
+    ]
+  }
+}

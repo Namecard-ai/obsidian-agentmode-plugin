@@ -192,13 +192,11 @@ class FilePickerModal extends FuzzySuggestModal<TFile> {
 }
 
 const AI_MODELS: AIModel[] = [
-  { id: 'o4-mini', name: 'o4-mini', supportVision: true, supportFiles: true },
   { id: 'gpt-4o', name: 'gpt-4o', supportVision: true, supportFiles: true },
   { id: 'gpt-4o-mini', name: 'gpt-4o-mini', supportVision: true, supportFiles: true },
   { id: 'gpt-4.1', name: 'gpt-4.1', supportVision: true, supportFiles: true },
   { id: 'gpt-4.1-mini', name: 'gpt-4.1-mini', supportVision: true, supportFiles: true },
-  { id: 'gpt-5', name: 'gpt-5', supportVision: true, supportFiles: true },
-  { id: 'gpt-5-mini', name: 'gpt-5-mini', supportVision: true, supportFiles: true },
+  { id: 'o4-mini', name: 'o4-mini', supportVision: true, supportFiles: true },
   { id: 'o3', name: 'o3', supportVision: true, supportFiles: true },
   { id: 'o3-mini', name: 'o3-mini', supportVision: false, supportFiles: true },
 ];
