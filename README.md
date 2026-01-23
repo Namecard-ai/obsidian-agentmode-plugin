@@ -4,6 +4,34 @@ An AI-powered assistant plugin for Obsidian (https://obsidian.md) that provides 
 
 > **Important Notice**: This plugin connects to a proprietary backend API service to process requests and deliver AI-powered features. All chat messages and file contexts are transmitted to our backend servers for processing. For more information about data transmission, privacy practices, and how we protect your information, please refer to our [Security Policy](SECURITY.md).
 
+## Installation
+
+### Manual installation from GitHub release
+
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/namecard-ai/obsidian-agentmode-plugin/releases/latest)
+2. Navigate to your vault's plugins folder:
+   ```
+   /path/to/your-vault/.obsidian/plugins/
+   ```
+3. Create a new folder named `agentmode`
+4. Place the downloaded files into the `agentmode` folder
+5. Restart Obsidian or reload plugins
+6. Go to Settings → Community plugins and enable "Agentmode"
+
+### Using BRAT for beta testing
+
+Install and test the latest development version using [BRAT](https://github.com/TfTHacker/obsidian42-brat):
+
+1. Install BRAT from the Obsidian community plugins
+2. Enable BRAT in Settings → Community plugins
+3. Open BRAT settings and select "Add Beta plugin"
+4. Paste the repository URL: `https://github.com/namecard-ai/obsidian-agentmode-plugin`
+5. Click "Add Plugin" and BRAT will handle the installation
+6. Enable Agentmode in Settings → Community plugins
+
+> **Note**: BRAT automatically checks for updates and will notify you when new versions are released.
+
+
 ## Key Features
 - **Context-Aware Conversations**: Seamlessly integrate vault files into your chat context
 - **Agent Mode**: Execute tasks and automation through AI assistance
